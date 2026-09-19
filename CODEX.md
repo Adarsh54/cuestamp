@@ -2341,3 +2341,29 @@ remnants, merging and bounded rendering. `scripts/browser-experimental-comp-lane
 uploads real WAV fixtures and verifies waveforms, keyboard selection, drag
 replacement, cancellation, creation and undo. The existing audio-comp browser
 check covers numeric entry and rendered PCM take switching, silence and fades.
+
+### Experimental DAW: audition a comp draft
+
+**Audition in mix** in the comp editor plays a disposable copy of the session with
+its proposed comp added using the same `createAudioComp` path as the final command.
+It starts at the first selected section and stops after the last section and its
+routed effect tails. The existing mix, source-mute checkbox, solos, routing,
+automation and master processing apply. Cycle is disabled only for this audition.
+No document, revision, account save or undo entry changes. Stop audition or the
+normal transport stops playback; changing comp choices/settings also stops it,
+including pending startup. Press Audition again to hear the updated draft.
+
+Audition uses the existing playback engine and its seek behavior: effect history
+before the start position is not pre-rendered. The UI checks the endpoint every
+40 ms. This is draft playback, not live switching between takes during playback.
+Draft meter readings are not stored as observations of the saved session for the
+agent. Agents can already create a comp with `track.comp` and request playback;
+the temporary manual draft is not exposed as an agent-editable session object.
+
+Reference: [Apple's take-preview workflow](https://support.apple.com/en-ca/guide/logicpro/lgcp317d76de/mac).
+Verification: the audio-comp unit test checks snapshot isolation, routing, bounds
+and source-mute choices. The two comp browser checks verify real uploaded media,
+start/stop, automatic end, stopping on draft edits, unchanged session storage and
+PCM equivalence between audition and committed comp (including reverse playback,
+EQ, bus routing and both source-mute options). The agent transport browser check
+covers ordinary transport, cancellation, stale requests and cycle regression.
