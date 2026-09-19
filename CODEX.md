@@ -1902,3 +1902,37 @@ seeks differ within one source-frame phase bound: the observed difference matche
 rounding the requested source offset in Chromium, so no sub-sample seek precision
 is claimed. Sampler-filter browser regression passes. The form was visually
 inspected. Live model inference and physical MIDI hardware remain unverified.
+
+### Multi-region arrangement selection and movement
+
+Ctrl/Cmd-click toggles region selection across audio, MIDI and video tracks.
+Selected regions have shared visual/aria-pressed state. Clicking without modifiers
+selects one, keyboard activation selects a region, and track selection or session
+replacement clears the group. Selection is transient, filtered after edits and
+limited to 1,000 regions; it is not saved with the document.
+
+Dragging the body of a selected group moves all its regions horizontally on their
+existing tracks, with spacing preserved. Delta snapping uses the existing quarter-
+beat subdivision; Shift bypasses snapping. Timeline boundaries clamp the common
+delta, never individual members. Canceling a pointer gesture restores preview
+positions without editing. Single-region drag across compatible tracks, trim and
+fade handles remain available. Trim/fade gestures select and edit only that
+region. The inspector labels its individual controls Primary region when a group
+is selected, and provides a separate group move-by-seconds form and clear button.
+Other individual actions still operate on the primary region; group delete/copy
+and marquee selection are not implemented yet.
+
+regions.move is the shared atomic command: values regionIds (CSV, 1..1000 distinct
+existing IDs) and seconds (-86400..86400). All resulting start times must remain
+0..86400 or the complete batch rejects. It keeps tracks, source offsets, region
+content/settings and spacing intact. Track automation and markers stay fixed;
+there is no ripple and overlaps are allowed. The agent receives validated
+selectedRegionIds separately from piano-roll selectedNoteIds and may use the same
+command. Old clients without arrangement selection continue to work.
+
+325 tests and build pass. Unit checks cover mixed-kind moves, metadata preservation,
+atomic rejection, clamping, undo and agent selection validation. Browser checks
+cover modifier toggles, group form/drag, boundary clamping, unsnapped Shift moves,
+gesture cancellation, undo, agent request context, keyboard selection and reload.
+Existing single-region cross-track move and trim/fade/playback regressions pass.
+The group inspector was visually checked. Model responses remain mocked.

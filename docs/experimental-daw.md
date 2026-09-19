@@ -2020,3 +2020,16 @@ Tuning changes playback speed: higher pitches consume the source sooner unless
 it loops. MIDI notes, source audio, envelope times and filter key tracking stay
 unchanged. This is not time stretching. Fractional tuning may restart a seek at
 a whole source sample frame rather than the exact fractional phase.
+
+### Move several regions together
+
+Ctrl/Cmd-click regions to select a group, including regions on different tracks.
+Drag a selected region to move the group horizontally without changing its spacing
+or tracks. Hold Shift for an unsnapped move. The inspector also accepts an exact
+relative move in seconds. The whole move is one undoable edit.
+
+The group stops together at the timeline boundary. Overlaps are allowed; other
+regions, markers and track automation do not move. Trim and fade handles still
+edit one region. Other individual inspector actions use the primary region; group
+delete/copy and box selection are not available yet. Clear selection or click a
+single region to return to individual editing. Selection resets on reload.

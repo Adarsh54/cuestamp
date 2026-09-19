@@ -1,0 +1,9 @@
+import {z} from 'zod';
+const options=z.object({regionIds:z.string().min(1).max(101000),seconds:z.number().finite().min(-86400).max(86400)}).strict();
+export function selectedRegions(session,ids){
+ if(!Array.isArray(ids)||!ids.length||ids.length>1000||new Set(ids).size!==ids.length)throw Error('Choose 1–1,000 distinct regions.');
+ const all=new Map(session.tracks.flatMap(t=>t.regions.map(r=>[r.id,r])));if(ids.some(id=>!all.has(id)))throw Error('A selected region no longer exists.');return ids.map(id=>all.get(id));
+}
+export function movedRegions(session,values){const v=options.parse(values),regions=selectedRegions(session,v.regionIds.split(','));const edits=regions.map(r=>({id:r.id,start:r.start+v.seconds}));if(edits.some(r=>r.start<0||r.start>86400))throw Error('Move must keep all region starts between 0 and 86,400 seconds.');return edits;}
+export function clampRegionMove(regions,delta){return Math.max(-Math.min(...regions.map(r=>r.start)),Math.min(86400-Math.max(...regions.map(r=>r.start)),delta));}
+export function regionSelectionView(ids){return ids.length>1?`<form data-region-group-move class="daw-region-group"><strong>${ids.length} regions selected</strong><label>Move together · seconds<input name="seconds" type="number" min="-86400" max="86400" step="any" value="0" required></label><button>Move selected regions</button><button type="button" data-clear-region-selection>Clear selection</button><small>Drag a selected region to move the group. Tracks and spacing stay unchanged; Shift bypasses snapping. Trim and fade handles edit only their region.</small></form>`:'';}
