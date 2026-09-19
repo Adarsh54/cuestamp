@@ -1,3 +1,4 @@
+import {resolveNoteFilter} from './note-filter.js';
 import {joinNotesPlan} from './note-join.js';
 import {splitNotesPlan} from './note-split.js';
 import {sustainLengthPlan} from './sustain-lengths.js';
@@ -51,11 +52,13 @@ export const batchSchema=z.array(commandSchema).min(1).max(100);
 const pick=(values,allowed)=>{for(const key of Object.keys(values))if(!allowed.includes(key))throw Error(`Unsupported field: ${key}`);return values;};
 export function applyCommands(input,commands,expectedRevision=input.revision){
  const session=sessionSchema.parse(structuredClone(input));if(session.revision!==expectedRevision)throw Error('The session changed. Run the instruction again.');
- for(const {op,target,values:v} of batchSchema.parse(commands)){
+ for(const {op,target,values:rawValues} of batchSchema.parse(commands)){
+  let v=rawValues;
   const t=session.tracks.find(t=>t.id===target),owner=session.tracks.find(t=>t.regions.some(r=>r.id===target)),r=owner?.regions.find(r=>r.id===target);
   const noteRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.notes.some(n=>n.id===target)),n=noteRegion?.notes.find(n=>n.id===target);
   const effectChains=[session.masterEffects,...session.tracks.map(t=>t.effects)],automationChains=[session.masterAutomation,...session.tracks.flatMap(t=>[t.automation,...t.sends.map(s=>s.automation)])];
   const need=(entity,label)=>{if(!entity)throw Error(`${label} not found: ${target}`);return entity;};
+  if(v.filter!==undefined){need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');v=resolveNoteFilter(r,op,v);}
   switch(op){
    case 'midi.import':{
     pick(v,['data','start','trackId','minimumDuration']);const destination=v.trackId===undefined?null:need(session.tracks.find(t=>t.id===v.trackId),'Destination track');if(destination&&destination.kind!=='midi')throw Error('MIDI takes require an instrument track.');const start=time.parse(v.start??0),midi=readMidi(decodeMidiImport(v.data));
