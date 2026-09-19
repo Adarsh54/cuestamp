@@ -1,3 +1,4 @@
+import {snapArrangementDelta,defaultArrangementSnap} from './arrangement-snap.js';
 import {selectedRegions,clampRegionMove} from './region-selection.js';
 import {regionEnvelopePoints} from './region-fades.js';
 import {chasedEvents,sustainedEnd} from './midi-events.js';
@@ -43,12 +44,12 @@ export function splitMidiRegion(region,time){
  return {left,right};
 }
 export function regionHandles(region,kind){return `<span class="daw-trim start" data-region-handle="trim-start" title="Trim start"></span><span class="daw-trim end" data-region-handle="trim-end" title="Trim end"></span>${kind!=='video'?`<svg class="daw-fade-envelope" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${regionEnvelopePoints(region).map((p,i)=>`${i?'L':'M'} ${p.time/region.duration*100} ${(1-p.value)*100}`).join(' ')}"/></svg><span class="daw-fade-handle" data-region-handle="fadeIn" style="left:${region.fadeIn/region.duration*100}%" title="Fade in"></span><span class="daw-fade-handle end" data-region-handle="fadeOut" style="right:${region.fadeOut/region.duration*100}%" title="Fade out"></span>`:''}`;}
-export function bindRegions(root,{session,zoom,select,seek,execute,guard,sourceDuration,selectionIds=[]}){
+export function bindRegions(root,{session,zoom,select,seek,execute,guard,sourceDuration,selectionIds=[],snapSettings=defaultArrangementSnap}){
  root.querySelectorAll('[data-region]').forEach(el=>{
   const owner=session.tracks.find(t=>t.regions.some(r=>r.id===el.dataset.region)),region=owner.regions.find(r=>r.id===el.dataset.region);
   el.onclick=e=>{if(e.detail===0)select(region.id,true,e);};el.ondblclick=()=>seek(region.id,region.start);
-  el.onpointerdown=e=>{if(e.button!==0)return;const handle=e.target.closest('[data-region-handle]')?.dataset.regionHandle||'move',x=e.clientX,y=e.clientY,step=60/session.tempo/4,revision=session.revision;const group=selectionIds.includes(region.id)&&selectionIds.length>1?selectedRegions(session,selectionIds):[region];let moved=false,command=null;el.setPointerCapture(e.pointerId);
-   el.onpointermove=event=>{const dx=event.clientX-x;if(!moved&&Math.abs(dx)<4&&(handle!=='move'||Math.abs(event.clientY-y)<4))return;moved=true;const delta=event.shiftKey?dx/zoom:Math.round(dx/zoom/step)*step,end=region.start+region.duration,minLength=.01;let values;
+  el.onpointerdown=e=>{if(e.button!==0)return;const handle=e.target.closest('[data-region-handle]')?.dataset.regionHandle||'move',x=e.clientX,y=e.clientY,revision=session.revision;const group=selectionIds.includes(region.id)&&selectionIds.length>1?selectedRegions(session,selectionIds):[region];let moved=false,command=null;el.setPointerCapture(e.pointerId);
+   el.onpointermove=event=>{const dx=event.clientX-x;if(!moved&&Math.abs(dx)<4&&(handle!=='move'||Math.abs(event.clientY-y)<4))return;moved=true;const end=region.start+region.duration,minLength=.01,anchor=handle==='trim-end'?end:handle==='fadeIn'?region.start+region.fadeIn:handle==='fadeOut'?end-region.fadeOut:region.start,delta=snapArrangementDelta(session,dx/zoom,anchor,snapSettings,event.shiftKey);let values;
     if(handle==='move'&&group.length>1){
      const seconds=clampRegionMove(group,delta);for(const item of group){const node=[...root.querySelectorAll('[data-region]')].find(n=>n.dataset.region===item.id);if(node)node.style.left=(item.start+seconds)*zoom+'px';}command={op:'regions.move',values:{regionIds:group.map(r=>r.id).join(','),seconds}};return;
     }
