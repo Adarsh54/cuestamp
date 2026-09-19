@@ -1813,3 +1813,33 @@ Live model inference remains unverified without configured provider credentials.
 
 Reference: Apple Logic Pro MIDI Transform presets (Crescendo):
 https://support.apple.com/nl-nl/guide/logicpro/lgcp215831be/mac
+
+### Separate MIDI by pitch or channel
+
+region.separateMidi targets one MIDI region with by=pitch (default) or channel.
+It creates independent tracks immediately after the source, ordered by numeric
+pitch/channel. The source region remains intact and is muted; other regions on
+its track are untouched. Undo restores the entire operation in one step.
+
+Pitch copies contain notes of that pitch, controller/bend/program/channel-pressure
+events on those notes' channels, and poly-pressure events matching that pitch.
+Channel copies contain all notes/events on that channel, including event-only
+channels. Note times, channels, velocities, region start/length/gain/fades and
+mute are retained. Empty pitch regions reject. The total 128-track limit is checked
+before mutation. Copies use fresh IDs for all editable children, preserve asset
+references, instrument/sampler settings, track mute/solo, routing, sends, effects
+and automation. Source track effects become independent copied chains, so nonlinear
+processing may change the combined sound. This is MIDI organization, not audio
+source separation or shared-channel-strip identity with Logic Pro.
+
+The inspector provides pitch/channel choices, a preview of resulting track names,
+and a single Separate MIDI button. The agent uses the same command. 318 tests
+and build pass. Unit checks cover source preservation, ordering, controller and
+pressure filtering, event-only channels, fresh IDs, routing/sample/effect settings,
+undo/redo, invalid arguments and track limits. Browser checks cover both modes,
+real linear playback equivalence, undo/redo and reload. Visual inspection caught
+and fixed inherited inspector grid layout; the final panel was inspected again.
+Live provider inference remains unverified.
+
+Reference: Apple Logic Pro demix MIDI regions:
+https://support.apple.com/guide/logicpro/demix-midi-regions-lgcpf7c0f28c/mac

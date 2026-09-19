@@ -1983,3 +1983,16 @@ at the same start receive the same velocity; a single chosen onset uses the star
 value. Apply is one undoable edit. For a swell during a held note, use expression
 or volume automation instead. The agent can perform the same operation through
 notes.velocityRamp with normalized endpoint values (0–1).
+
+### Separate a MIDI pattern into tracks
+
+Select a MIDI region, then open **Separate MIDI into tracks** in the inspector.
+Choose note pitch for individual drum sounds or MIDI channel for separate parts.
+The preview lists the new tracks. Each gets independent instrument/mix settings
+copied from the source; notes keep their original timing. The source region stays
+muted so it does not double playback. Undo restores the original arrangement.
+
+Controllers needed by each part are copied too. Channel separation includes
+channels containing only MIDI events. Routing and effects are copied, so nonlinear
+track effects can change how the separated parts sound together. This separates
+MIDI events; it cannot isolate instruments from a mixed audio recording.
