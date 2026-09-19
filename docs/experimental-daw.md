@@ -1961,3 +1961,14 @@ edited project. Deleting the selected region and asking to export that region
 rejects the entire plan before changes apply. Explicitly targeting another
 existing or newly created region is supported. Exporting a mix after deleting a
 region is valid. Follow-up exports do not add a second undo entry.
+
+### Ask the agent to undo or redo
+
+“Undo the last edit,” “Undo the last two edits,” and “Redo once” use the same
+history as the toolbar. A command batch counts as one edit, and manual edits count
+too. The entire request is rejected if there are not enough available steps.
+Playback stops when history changes; recording must finish first.
+
+This is chronological undo/redo, not selective removal of an older edit. History
+resets on reload, and making a new edit clears redo. An agent request that becomes
+stale after a manual edit is discarded rather than undoing that newer work.

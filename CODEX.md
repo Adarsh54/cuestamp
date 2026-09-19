@@ -1754,3 +1754,34 @@ Web Audio/WAV downloads to verify a -6 dB edit in exported PCM, verification bef
 export, one-step undo, invalid target rejection before edits, verification failure
 and canceled delayed render with no late download. Existing ordered transport and
 standalone export regressions are also checked. Live inference remains unverified.
+
+### Agent undo and redo
+
+The opt-in navigate_history tool executes undo/redo against the same in-memory
+SessionHistory used by the toolbar. Strict arguments are operation (undo/redo)
+and steps (integer 1..100). The request supplies session/revision and available
+undo/redo counts, without historical documents or source media. The server checks
+capability, context and availability; the browser rechecks identity/revision and
+both stack depths before execution. Invalid counts reject the whole action.
+
+Each original command batch is one step, including manual edits. Multiple steps
+execute synchronously after validation, using the existing revision increments;
+no inverse command batch or extra undo entry is created. Playback stops, and
+recording/busy guards apply. Redo is available after agent undo; a new manual or
+agent edit clears it normally. History is still memory-only and resets on reload.
+
+The prompt allows this tool only for explicit undo/redo requests and warns that
+counts do not identify historical operations. It must not infer step counts from
+conversation or claim selective undo of an older agent action. History runs alone
+without edit/export/transport follow-ups. Actual changes and completion are added
+to conversation as applied outcomes. A canceled/stale model reply does not touch
+history. Cancellation cannot interrupt the short synchronous history application.
+If local persistence fails after application, the applied snapshot remains recorded
+as applied, with the persistence failure reported rather than a false rollback.
+
+310 tests and build pass. Unit coverage checks atomic count rejection, revisions,
+redo branching, strict schemas and capability/context checks. Browser coverage
+uses mocked model replies and real workspace history/playback to check multi-step
+undo, redo, toolbar interoperability, actual conversation deltas, insufficient
+counts, manual edits during planning, cancellation and stopping playback. The
+ordered edit/export browser regression also passes. Live inference is unverified.

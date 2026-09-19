@@ -1,3 +1,4 @@
+import {historyContext,applyHistoryAction,validateHistoryAction} from './agent-history.js';
 import {prepareAgentExport,prepareEditedExport} from './agent-export.js';
 import {transportActionSchema,transportSummary,transportWait} from './agent-transport.js';
 import {shortcutsView,bindWorkspaceShortcuts} from './shortcuts.js';
@@ -217,16 +218,18 @@ export function createExperimentalWorkspace({account,esc}){
    let outcome='failed',summary='',applied=false,appliedSession,verifying=false,transportTouched=false,followingTransport=false,followingExport=false;const timer=setTimeout(()=>request.abort(new Error('The agent request timed out.')),300000);
    try{
     const selection=region()?.notes.some(n=>n.id===selectedNote)?selectedNote:selected,selectedNoteIds=noteTools.selectionRegion===region()?.id?[...(noteTools.selectedIds||[])]:[];
+    const historySnapshot=historyContext(history);
     const exportContext={sessionId:before.id,revision,regionId:region()?.id||null,settings:{...bounceSettings}};
     let result,transportSnapshot;
     for(let attempt=0;attempt<2;attempt++){
      request.signal.throwIfAborted();
      transportSnapshot=currentTransport();
-     const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,session:before,conversation:recent,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selection}),signal:request.signal});
+     const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,session:before,conversation:recent,allowHistory:true,historyContext:historySnapshot,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selection}),signal:request.signal});
      result=await response.json();if(!response.ok)throw Error(result.error||'The agent request failed.');request.signal.throwIfAborted();
      if(!root?.isConnected||history!==original||session().id!==before.id||session().revision!==revision||result.revision!==revision){outcome='discarded';throw Error('The session changed. This response was not applied. Run the instruction again.');}
      if(result.action!==undefined&&result.afterEditExport!==undefined)throw Error('Follow-up export belongs only in an edit plan.');
      if(result.action===undefined)break;
+     if(result.action==='history'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('History must be separate from edits and follow-up actions.');break;}
      if(result.action==='export_audio'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Export must be separate from edits and transport.');break;}
      if(result.action==='transport'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Use an edit plan with afterEditTransport for an ordered edit and transport action.');break;}
      if(result.action!=='analyze_mix'||attempt!==0||result.commands?.length||result.afterEditTransport!==undefined)throw Error('Unexpected agent analysis request. No edits applied.');
@@ -241,7 +244,11 @@ export function createExperimentalWorkspace({account,esc}){
      if(result.transportEpoch!==transportSnapshot.epoch||transportEpoch!==transportSnapshot.epoch){outcome='discarded';throw Error('Transport changed while planning. No edits applied. Run the instruction again.');}
     }
     summary=String(result.summary||'No edits requested.').slice(0,2000);
-    if(result.action==='export_audio'){
+    if(result.action==='history'){
+     if(busy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');request.signal.throwIfAborted();validateHistoryAction(result.history,historySnapshot);stop();
+     const previous=history.session;try{summary=applyHistoryAction(history,result.history,historySnapshot);}finally{applied=history.session!==previous;if(applied)appliedSession=structuredClone(session());}
+     outcome='applied';persist();trace.push({role:'action',text:summary});status=summary;paint();
+    }else if(result.action==='export_audio'){
      const prepared=prepareAgentExport(before,result.export,exportContext);summary=await bounce(result.export.mode,prepared,request);outcome='replied';trace.push({role:'action',text:summary});
     }else if(result.action==='transport'){
      const action=transportActionSchema.parse(result.transport);
