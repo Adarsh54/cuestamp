@@ -2469,3 +2469,38 @@ placement, tails, bounds, undo and capability-gated agent requests.
 compares routed stereo PCM before/after, checks muted-region exclusion, local
 reload/playback, undo/redo, storage failure cleanup, agent cancellation and stale
 renders. Model responses are mocked. The existing region-bounce regression passes.
+
+### Experimental DAW: bounce multiple tracks in one operation
+
+**Track actions → Bounce all tracks in place** renders every unmuted audio or
+instrument track with at least one unmuted region. Bus/video/empty/muted tracks
+are skipped, and solo does not restrict which tracks are rendered. Every output
+uses the existing whole-track processing rules: instrument/region/inserts printed,
+channel mix and routing copied, original source retained and muted. New tracks are
+inserted after their sources. All outputs commit as one undo/redo operation.
+
+The agent can use `bounce_tracks_in_place` with `trackIds` set to a unique array of
+source track IDs or null for all eligible tracks, and `sampleRate` set to 44100,
+48000, 96000 or null for the captured export rate. Explicit invalid, empty or muted
+sources reject the batch. Track capacity is checked for the full batch before any
+rendering. Per-track ten-minute and 250 MB limits still apply; additionally, a batch
+is limited to 250 MB total rendered float audio to bound browser memory. Choose a
+smaller subset through the agent or use individual bounces if that limit is reached.
+
+Rendering is sequential, with a track counter and **Cancel bounce** button. The
+same cancel control is also available for single-track and region bounces. Outputs
+are stored provisionally, and the document changes only once all renders and
+stores have succeeded and the original session revision is still current. On
+failure/cancellation, provisional assets are deleted; a document-save failure also
+restores the original history stacks. Asset cleanup is best effort if IndexedDB
+itself becomes unavailable. Cancel does not undo a batch already committed. The
+browser may finish an already-started offline render internally after cancellation,
+but its result is discarded and no subsequent tracks start.
+
+Reference: [Logic bounce all tracks](https://support.apple.com/en-ae/guide/logicpro/lgcpd51ba7d3/10.7/mac/11.0).
+`test/experimental-bounce-batch.test.js` checks eligibility, explicit subsets,
+limits, atomic undo and the mocked model tool path.
+`scripts/browser-experimental-bounce-batch-check.cjs` checks stereo PCM equivalence,
+one-step undo/redo, failure/cancellation on the second render after the first file
+was stored, cleanup after a failed document commit, agent execution and reload
+playback. Both existing single-track and region-bounce browser regressions pass.

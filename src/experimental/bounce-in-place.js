@@ -50,3 +50,17 @@ export function validateRegionBounceSize(plan,sampleRate){if(Math.ceil(plan.dura
 export function trackBounceInPlaceView(track,busy){return track&&['audio','midi'].includes(track.kind)?`<section class="daw-track-bounce-in-place"><h4>Render entire track</h4><button data-track-bounce-in-place ${busy||track.mute||!track.regions.some(r=>!r.mute)?'disabled':''}>Bounce track in place</button><p class="muted">Combines all unmuted regions into one stereo audio file, including gaps, instruments and insert effects. Creates a new audio track and mutes this source track. Volume, pan, automation, sends and output routing stay editable. Originals remain available; one undo restores them. Uses the export sample rate and 32-bit float, without normalization.</p></section>`:'';}
 export const bounceTrackActionSchema=z.object({trackId:z.string().min(1).max(100),sampleRate:z.union([z.literal(44100),z.literal(48000),z.literal(96000)]).nullable()}).strict();
 export function prepareTrackBounce(session,value,context){const action=bounceTrackActionSchema.parse(value);if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Bounce context does not match the session.');const sampleRate=action.sampleRate??context.settings.sampleRate;if(![44100,48000,96000].includes(sampleRate))throw Error('Choose a supported sample rate.');const plan=trackBouncePlan(session,action.trackId);validateRegionBounceSize(plan,sampleRate);return {plan,sampleRate};}
+
+export const eligibleBounceTracks=session=>session.tracks.filter(t=>['audio','midi'].includes(t.kind)&&!t.mute&&t.regions.some(r=>!r.mute));
+export const bounceTracksActionSchema=z.object({trackIds:z.array(z.string().min(1).max(100)).min(1).max(64).nullable(),sampleRate:z.union([z.literal(44100),z.literal(48000),z.literal(96000)]).nullable()}).strict();
+export function prepareTracksBounce(session,value,context){
+ const action=bounceTracksActionSchema.parse(value);if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Bounce context does not match the session.');
+ const sampleRate=action.sampleRate??context.settings.sampleRate;if(![44100,48000,96000].includes(sampleRate))throw Error('Choose a supported sample rate.');
+ const ids=action.trackIds??eligibleBounceTracks(session).map(t=>t.id);
+ if(!ids.length)throw Error('Add an unmuted audio or instrument track with regions first.');
+ if(new Set(ids).size!==ids.length)throw Error('Choose each track only once.');
+ if(session.tracks.length+ids.length>128)throw Error('This bounce needs space for all new tracks within the 128-track limit.');
+ const plans=ids.map(id=>trackBouncePlan(session,id));let bytes=0;for(const plan of plans){validateRegionBounceSize(plan,sampleRate);bytes+=Math.ceil(plan.duration*sampleRate)*8+56;}
+ if(bytes>250*1024*1024)throw Error('This bounce batch exceeds 250 MB of rendered audio. Choose fewer tracks or a lower sample rate.');
+ return {plans,sampleRate};
+}
