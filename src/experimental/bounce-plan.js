@@ -25,7 +25,7 @@ export function createBouncePlan(input,{mode='mix',stemMode='tracks',masterMode=
  }else if(mode==='region'){
   const track=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=track?.regions.find(r=>r.id===regionId);
   if(!region||!['audio','midi'].includes(track.kind))throw Error('Select an audio or MIDI region to bounce. Extract movie audio first for video regions.');
-  position=region.start;duration=region.duration+routedTail(session,track)+effectTail(session.masterEffects);
+  position=region.start;duration=region.duration+routedTail(session,track)+effectTail(session.masterEffects,session.masterAutomationMode==='off');
   entries=[{name:session.title+'-'+filename(region.name)+'.wav',document:stemSession(session,{...track,regions:[region]})}];
  }else throw Error('Unknown bounce mode.');
  if(duration>600)throw Error('Experimental offline bounce currently supports up to 10 minutes.');

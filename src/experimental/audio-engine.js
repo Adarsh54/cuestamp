@@ -1,3 +1,4 @@
+import {effectiveAutomationSession} from './automation-mode.js';
 import {scheduleRegionEnvelope} from './region-fades.js';
 import {samplerRelease} from './sampler-envelope.js';
 import {scheduleSampler,samplerLoop} from './sampler.js';
@@ -6,10 +7,10 @@ import {scheduleDrum} from './drums.js';
 import {scheduleMidiChannel,schedulePitchBend,sustainedEnd} from './midi-events.js';
 import {audibleSources,routedTail,validateRouting} from './routing.js';
 import {connectEffects,scheduleAutomation,effectTail} from './effects.js';
-export const sessionDuration=session=>Math.max(1,...session.tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration+routedTail(session,t))))+effectTail(session.masterEffects);
+export const sessionDuration=session=>Math.max(1,...session.tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration+routedTail(session,t))))+effectTail(session.masterEffects,session.masterAutomationMode==='off');
 const linear=db=>10**(db/20);
 export function scheduleSession(context,session,buffers,position=0,options={}){
- validateRouting(session);const active=audibleSources(session);for(const t of active.filter(t=>t.kind==='audio'))for(const r of t.regions){const buffer=buffers.get(r.assetId);if(!buffer)throw Error(`Missing audio: ${r.name}. Re-import the file.`);if(r.offset+r.duration>buffer.duration+.01)throw Error(`Region exceeds its source: ${r.name}`);}
+ session=effectiveAutomationSession(session);validateRouting(session);const active=audibleSources(session);for(const t of active.filter(t=>t.kind==='audio'))for(const r of t.regions){const buffer=buffers.get(r.assetId);if(!buffer)throw Error(`Missing audio: ${r.name}. Re-import the file.`);if(r.offset+r.duration>buffer.duration+.01)throw Error(`Region exceeds its source: ${r.name}`);}
  for(const t of active.filter(t=>t.kind==='midi'&&t.instrument==='sampler'&&t.regions.some(r=>r.notes.some(n=>!n.mute&&n.velocity>0)))){if(!buffers.has(t.sampleAssetId))throw Error(`Missing sampler source for ${t.name}. Assign an audio sample.`);samplerLoop(buffers.get(t.sampleAssetId),t);}
  const nodes=[],base=options.baseTime??context.currentTime+.025,master=context.createGain(),masterGain=context.createGain(),masterPan=context.createStereoPanner();scheduleAutomation(masterGain.gain,session.masterAutomation||[],'gainDb',position,base,session.masterDb);scheduleAutomation(masterPan.pan,session.masterAutomation||[],'pan',position,base,session.masterPan||0);connectEffects(context,master,session.masterEffects,nodes,{position,base,tempo:session.tempo}).connect(masterGain);masterGain.connect(masterPan).connect(context.destination);nodes.push(master,masterGain,masterPan);
  const meters=options.meters?createLevelMeters(context):null;meters?.add(session.id,masterPan);

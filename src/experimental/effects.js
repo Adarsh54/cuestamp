@@ -1,9 +1,10 @@
+import {automationModeSchema,activeAutomation} from './automation-mode.js';
 import {automationShape,curveAutomationValue,scheduleCurveAutomation} from './automation-curves.js';
 import {connectChorus} from './chorus.js';
 import {connectTremolo} from './tremolo.js';
 import {effectPointSchema,validateEffectPoints,scheduleEffectParameter} from './effect-automation.js';
 import {z} from 'zod';
-const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automation:z.array(effectPointSchema).max(2000).default([])};
+const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automation:z.array(effectPointSchema).max(2000).default([])};
 export const effectSchema=z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('chorus'),rate:z.number().finite().min(.05).max(10).default(.8),depthMs:z.number().finite().min(0).max(20).default(3),mix:z.number().finite().min(0).max(1).default(.35),stereoPhase:z.number().finite().min(-180).max(180).default(90)}).strict(),
  z.object({...base,kind:z.literal('tremolo'),rate:z.number().finite().min(.05).max(20).default(4),depth:z.number().finite().min(0).max(1).default(.5),phase:z.number().finite().min(-180).max(180).default(90),stereoPhase:z.number().finite().min(-180).max(180).default(0),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
@@ -16,7 +17,7 @@ export const effectSchema=z.discriminatedUnion('kind',[
 export const automationSchema=z.object({id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),parameter:z.enum(['gainDb','pan']),shape:automationShape.optional(),time:z.number().finite().min(0).max(86400),value:z.number().finite()}).superRefine((p,ctx)=>{const [min,max]=p.parameter==='gainDb'?[-96,12]:[-1,1];if(p.value<min||p.value>max)ctx.addIssue({code:'custom',message:'Automation value outside parameter range.'});});
 export const automationValue=curveAutomationValue;
 export function scheduleAutomation(param,points,parameter,position,base,fallback){scheduleCurveAutomation(param,points,parameter,position,base,fallback,parameter==='gainDb'?v=>10**(v/20):v=>v,parameter==='gainDb');}
-export function effectTail(effects=[]){const peak=(e,key)=>Math.max(e[key],...(e.automation||[]).filter(p=>p.parameter===key).map(p=>p.value));return Math.min(30,effects.filter(e=>e.enabled).reduce((sum,e)=>{if(e.kind==='reverb')return sum+e.decay;if(e.kind==='chorus')return sum+(peak(e,'mix')>0?.025+peak(e,'depthMs')/1000:0);if(e.kind!=='delay'||peak(e,'mix')===0)return sum;const time=peak(e,'time'),feedback=peak(e,'feedback');return sum+time*(feedback>0?Math.ceil(Math.log(.001)/Math.log(feedback))+1:1);},0));}
+export function effectTail(effects=[],inheritedOff=false){const peak=(e,key)=>Math.max(e[key],...activeAutomation(e,inheritedOff).filter(p=>p.parameter===key).map(p=>p.value));return Math.min(30,effects.filter(e=>e.enabled).reduce((sum,e)=>{if(e.kind==='reverb')return sum+e.decay;if(e.kind==='chorus')return sum+(peak(e,'mix')>0?.025+peak(e,'depthMs')/1000:0);if(e.kind!=='delay'||peak(e,'mix')===0)return sum;const time=peak(e,'time'),feedback=peak(e,'feedback');return sum+time*(feedback>0?Math.ceil(Math.log(.001)/Math.log(feedback))+1:1);},0));}
 export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120}={}){let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
  if(effect.kind==='chorus'){output=connectChorus(context,output,effect,nodes,{position,base});}
  else if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo});}
@@ -29,7 +30,7 @@ export function connectEffects(context,input,effects,nodes,{position=0,base=cont
    scheduleEffectParameter(coefficient.gain,effect,'width',position,base,w=>sign*(source===destination?1+w:1-w)/2);
    split.connect(coefficient,source);coefficient.connect(merge,0,effect.swap?1-destination:destination);nodes.push(coefficient);
   }
-  scheduleAutomation(gain.gain,effect.automation,'gainDb',position,base,effect.gainDb);merge.connect(gain);nodes.push(stereo,split,merge,gain);output=gain;
+  scheduleAutomation(gain.gain,activeAutomation(effect),'gainDb',position,base,effect.gainDb);merge.connect(gain);nodes.push(stereo,split,merge,gain);output=gain;
  }
  else if(effect.kind==='eq'){const filter=context.createBiquadFilter();filter.type=effect.type;scheduleEffectParameter(filter.frequency,effect,'frequency',position,base,v=>Math.min(v,context.sampleRate/2-1));scheduleEffectParameter(filter.Q,effect,'q',position,base);scheduleEffectParameter(filter.gain,effect,'gainDb',position,base);output.connect(filter);nodes.push(filter);output=filter;}
  else if(effect.kind==='compressor'){const compressor=context.createDynamicsCompressor();for(const key of ['threshold','ratio','attack','release','knee'])scheduleEffectParameter(compressor[key],effect,key,position,base);output.connect(compressor);nodes.push(compressor);output=compressor;}

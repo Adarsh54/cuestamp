@@ -1,3 +1,4 @@
+import {activeAutomation} from './automation-mode.js';
 import {automationShape,scheduleCurveAutomation} from './automation-curves.js';
 import {z} from 'zod';
 const field=(label,min,max,step)=>({label,min,max,step});
@@ -20,7 +21,7 @@ export function validateEffectPoints(effect,ctx){
 }
 // Values are linear in their displayed units. EQ gain is already a dB AudioParam.
 export function scheduleEffectParameter(param,effect,key,position,base,transform=v=>v){
- scheduleCurveAutomation(param,effect.automation||[],key,position,base,effect[key],transform);
+ scheduleCurveAutomation(param,activeAutomation(effect),key,position,base,effect[key],transform);
 }
 export function effectAutomationCommand(effects,op,target,values){
  const effect=effects.find(e=>op==='effect.automation.point'||op==='effect.automation.clear'?e.id===target:e.automation.some(p=>p.id===target));if(!effect)throw Error('Effect or automation point not found.');

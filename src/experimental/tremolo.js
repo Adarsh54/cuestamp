@@ -1,8 +1,9 @@
+import {activeAutomation} from './automation-mode.js';
 import {integrateAutomation} from './automation-curves.js';
 import {scheduleEffectParameter} from './effect-automation.js';
 export function tremoloRateEffect(effect,tempo=120){return effect.sync?{...effect,rate:tempo/60/effect.beats,automation:(effect.automation||[]).filter(p=>p.parameter!=='rate')}:effect;}
 // Integrate the exact piecewise curve used for oscillator scheduling.
-export function tremoloCycles(effect,position){return integrateAutomation(effect.automation||[],'rate',position,effect.rate);}
+export function tremoloCycles(effect,position){return integrateAutomation(activeAutomation(effect),'rate',position,effect.rate);}
 export function connectTremolo(context,input,effect,nodes,{position=0,base=context.currentTime,tempo=120}={}){
  const stereo=context.createGain(),split=context.createChannelSplitter(2),merge=context.createChannelMerger(2),rateEffect=tremoloRateEffect(effect,tempo),cycles=tremoloCycles(rateEffect,position);
  stereo.channelCount=2;stereo.channelCountMode='explicit';stereo.channelInterpretation='speakers';input.connect(stereo).connect(split);nodes.push(stereo,split,merge);
