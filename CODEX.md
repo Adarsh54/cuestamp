@@ -2016,7 +2016,7 @@ Manual paste captures the current transport position, stops playback via execute
 and selects the new regions. Cut and paste each use one undo step; the clipboard
 survives ordinary edits/undo and subsequent pastes. The agent command description
 allows regions.paste only with explicitly supplied original clipboard data; a
-browser clipboard tool/context is not exposed to the model yet.
+browser clipboard tool/context is now available as described below.
 
 333 tests and build pass. Unit checks cover immutable snapshots, independent IDs,
 media/timing preservation, cut/paste undo, malformed/cross-session/missing-track
@@ -2024,3 +2024,28 @@ payload rejection and shortcut mappings. Browser checks cover buttons and keyboa
 copy/cut/paste, playhead alignment, new selection, undo, field/piano isolation,
 retained saved content and transient clipboard reload. Marquee and group-action
 regressions pass. The toolbar was visually inspected. Live inference is unverified.
+
+
+### Agent session clipboard
+
+The capability-gated region_clipboard tool accepts one copy/cut/paste action.
+Strict schemas validate operation, nullable regionIds and nullable position.
+Copy/cut resolve captured selection when IDs are null; paste uses the captured
+playhead when position is null. Requests include matching session/revision,
+clipboard epoch/count, and transport position/epoch, never the clipboard payload.
+The browser checks clipboard freshness for every action and transport freshness
+for paste, including explicit-position paste. Document freshness and cancellation
+checks still apply. Mixed edit/follow-up responses are rejected.
+
+Manual and agent operations share performRegionClipboard: copy changes no document,
+cut and paste each create one undo step; actual operation results and document
+changes populate conversation history. Missing original tracks reject paste atomically.
+Clipboard replacement increments its epoch even when document revision is unchanged.
+The clipboard clears on session replacement, remains transient, and never uses the OS
+clipboard. These actions currently require separate agent requests.
+
+335 unit tests and production build pass. Browser checks cover agent copy/cut/paste,
+captured and explicit positions, shared undo/redo, actual conversation outcomes,
+clipboard/playhead race rejection, cancellation, mixed response rejection and missing
+track rejection. Manual clipboard browser regression also passes. Responses are mocked;
+live model inference remains unverified. The existing build chunk-size warning remains.

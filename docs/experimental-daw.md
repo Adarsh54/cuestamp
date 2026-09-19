@@ -2074,5 +2074,21 @@ originals do not change it. Cut and paste are separate undoable edits. Destinati
 tracks must still exist; Undo can restore a deleted track before pasting.
 This clipboard is local to the current session, clears on reload or session
 replacement, and does not access the system clipboard. Text fields and the piano
-roll retain their own keyboard behavior. Direct agent control of the browser
-clipboard is not implemented yet.
+roll retain their own keyboard behavior. The editing agent also uses this
+session clipboard through validated copy/cut/paste requests.
+
+
+### Agent region clipboard
+
+Ask the agent to “copy the selected regions,” “cut these regions,” or “paste at
+20 seconds.” These use the same session clipboard as the arrangement buttons.
+Without an explicit paste position, the request captures the playhead position.
+Copy leaves the project unchanged; cut and paste each create one undo step.
+Pastes preserve relative timing and use the original tracks with fresh region IDs.
+
+The agent receives clipboard count and freshness metadata, not the copied payload.
+Replacing the clipboard while a request is pending rejects that response. Moving
+transport while a paste is pending also rejects it, even for an explicit position.
+Changing the project or cancelling the request prevents late edits. Missing original
+tracks reject the whole paste. Copy/cut use the selection captured when submitting.
+Clipboard actions currently require separate requests from other edits or playback.
