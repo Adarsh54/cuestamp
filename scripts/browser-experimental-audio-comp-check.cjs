@@ -27,6 +27,12 @@ const assert=require('node:assert/strict');
    }
    return {results,unchanged:before===JSON.stringify(source)};
   });assert.equal(auditionPcm.unchanged,true);for(const result of auditionPcm.results){assert.ok(result.error<1e-7,JSON.stringify(result));assert.ok(result.energy>1);}
+  const crossfadePcm=await page.evaluate(async()=>{
+   const {newSession,applyCommands}=await import('/src/experimental/session.js'),{scheduleSession}=await import('/src/experimental/audio-engine.js');
+   const source=applyCommands(newSession(),[{op:'track.add',values:{id:'t'}},{op:'region.add',target:'t',values:{id:'a',assetId:'one',duration:2}},{op:'region.add',target:'t',values:{id:'b',assetId:'two',duration:2}}]),result={};
+   for(const shape of ['linear','equalPower']){const s=applyCommands(source,[{op:'track.comp',target:'t',values:{segments:JSON.stringify([{regionId:'a',start:0,end:1},{regionId:'b',start:1,end:2}]),crossfade:.2,crossfadeShape:shape}}]),context=new OfflineAudioContext(2,96000,48000),buffers=new Map();for(const [id,value]of [['one',.2],['two',.6]]){const b=context.createBuffer(2,96000,48000);for(let ch=0;ch<2;ch++)b.getChannelData(ch).fill(value);buffers.set(id,b);}scheduleSession(context,s,buffers,0,{baseTime:0});const b=await context.startRendering(),d=b.getChannelData(0);result[shape]={before:d[40000],middle:d[48000],after:d[56000],quarter:d[45600]};}
+   return result;
+  });assert.ok(Math.abs(crossfadePcm.linear.middle-.4)<1e-6,JSON.stringify(crossfadePcm));assert.ok(Math.abs(crossfadePcm.linear.quarter-.3)<1e-6);assert.ok(Math.abs(crossfadePcm.equalPower.middle-.8/Math.sqrt(2))<1e-5);for(const result of Object.values(crossfadePcm)){assert.ok(Math.abs(result.before-.2)<1e-6);assert.ok(Math.abs(result.after-.6)<1e-6);}
   await page.reload();await page.getByText('Session restored on this device.',{exact:true}).waitFor();assert.deepEqual((await read()).tracks,after.tracks);assert.deepEqual(errors,[]);console.log('PASS audio comp UI sections/name, source preservation, one-step undo/redo, reload and real PCM take switching, silent gap and edge fade.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

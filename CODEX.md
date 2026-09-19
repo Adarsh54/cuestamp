@@ -2318,7 +2318,7 @@ This does not implement quick punch-in, loop takes, replacement/comping, or phys
 
 Select an audio track/region and expand **Build a comp from takes** below the arrangement. Choose timeline sections from audio regions on that track, name the comp, choose an edge fade (0–100 ms, default 5 ms), and create the comp. The section list is an in-memory draft until saved as an alternative or used to create a comp track; unsaved choices are not restored after reload. The result is a normal editable audio track inserted after the source with copied gain/pan/effects/automation/output/sends and independent editable IDs. Source media references, offsets, gain and reverse playback are preserved. Selected sections play unmuted. **Mute original track** defaults on and silences that entire track, including areas outside the comp; original regions remain intact. Turn it off to retain simultaneous source playback. One undo removes the comp and restores source mute state.
 
-Shared agent command: `track.comp` targets the source audio track, with `segments` as a JSON string containing 1–64 `{regionId,start,end}` objects in absolute timeline seconds. Optional values: `name`, `muteSource` boolean (default true), `edgeFade` seconds 0–0.1 (default .005). Sections must fit their source regions and not overlap; timeline gaps remain gaps. Each section gets linear edge fades capped at half its duration, replacing original region fades. These are short fades, not automatic overlapping crossfades. Missing source regions/media references, invalid boundaries and the 128-track capacity reject atomically.
+Shared agent command: `track.comp` targets the source audio track, with `segments` as a JSON string containing 1–64 `{regionId,start,end}` objects in absolute timeline seconds. Optional values: `name`, `muteSource` boolean (default true), `edgeFade` seconds 0–0.1 (default .005). Sections must fit their source regions and not overlap; timeline gaps remain gaps. Each section gets linear edge fades capped at half its duration, replacing original region fades. Optional automatic crossfades are described below; without them, these are short edge fades. Missing source regions/media references, invalid boundaries and the 128-track capacity reject atomically.
 
 Reference: [Logic comp assembly](https://support.apple.com/guide/logicpro/create-and-save-comps-lgcpb193382e/10.7/mac/11.0). Current implementation is section-based assembly on one source audio track, not take folders, automatic recording take lanes, cross-track comping or automatic recording take folders. Resulting regions can use the existing trim/fade/move tools. Tests: `test/experimental-audio-comp.test.js` covers reverse offsets, copied settings, source preservation, mute choice, undo, bounds/overlap/capacity rejection and short-section fades. `scripts/browser-experimental-audio-comp-check.cjs` verifies section entry, naming, undo/redo, reload, and real PCM take switching with silence in gaps and faded edges.
 
@@ -2401,3 +2401,32 @@ limits, stale references, duplication, portable media remapping and the mocked
 model command path. `scripts/browser-experimental-comp-lanes-check.cjs` covers
 save/load/update/delete, reload and audition with real uploaded WAVs. Existing comp
 PCM/browser checks also pass. Live model inference is not verified by these mocks.
+
+### Experimental DAW: automatic comp crossfades
+
+Comp settings now include **Crossfade · ms** (0–1000, default 0/off) and
+**Crossfade curve** (Linear or Equal power). Adjacent selected sections extend
+symmetrically around their shared boundary, using available audio in both source
+regions. The overlap cannot exceed available source-region bounds or the length
+of either selected section. This also prevents neighboring fades from overlapping
+inside a very short middle section. Boundaries with no room retain edge fades;
+gaps remain silent. Outer edges retain the Edge fade setting. Reverse source
+offsets are recalculated from the original take. The input selections and original
+takes remain unchanged; output regions contain ordinary editable overlapping fades.
+
+Linear suits correlated material. Equal power uses the existing sine fade curves
+and can raise the peak when the two takes are correlated. The requested duration
+may be shortened; it is not a guarantee that every transition has that width.
+The lane highlights show selected sections, not their extended crossfade areas.
+
+`track.comp` and `comp.save` accept optional `crossfade` in seconds (0–1) and
+`crossfadeShape` (`linear` or `equalPower`). Alternatives retain these fields;
+older alternatives default to 0/linear. Audition and `comp.createTrack` use the
+same plan as manual creation. There is no rendering or new source file required.
+
+Reference: [Logic automatic crossfades](https://support.apple.com/en-gb/guide/logicpro/lgcp9260fa9c/10.7/mac/11.0).
+`test/experimental-comp-crossfades.test.js` verifies timing, reverse offsets,
+short sections, gaps, source bounds, disabled mode, alternatives and undo.
+The audio-comp browser check measures real rendered PCM before, within and after
+both linear and equal-power transitions. The comp-lanes browser check verifies
+settings, save/load/reload, audition and creation of overlapping output regions.
