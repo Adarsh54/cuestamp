@@ -2116,3 +2116,27 @@ chord automatically, and sustain pedal events can extend the audible note length
 Live latch, inversions, remote control and programmable arpeggiator steps remain
 future work. [Apple's note-order reference](https://support.apple.com/en-qa/guide/logicpro/lgce129c3fbe/mac)
 describes the Logic controls used as a reference for this feature.
+
+### Bounce a region into an audio track
+
+Select an audio or instrument region, then use **Render to audio → Bounce in place**
+in its inspector. A new audio track appears below the source at the same timeline
+position. The source region remains available but muted. Undo restores the prior
+state; redo reuses the saved audio.
+
+You can also ask the agent: “Bounce the selected region in place.” This renders
+and saves media before committing the project change, and supports Cancel request.
+
+The file includes instrument sound, region edits and insert effects with their
+tails. Track volume/pan, automation, sends and routing are copied as editable
+settings on the new track; bus and master effects remain live. The result is a
+stereo 32-bit float WAV without normalization, using the export sample rate.
+Save to account to include the result in your cloud project.
+
+Rendering starts with fresh effect state at the region onset. Other regions are
+excluded, so overlapping regions through compression/distortion can sound different
+when bounced independently. Unmute a muted region before bouncing. Current limits
+are ten minutes and 250 MB per generated file; lower the sample rate for long
+96 kHz bounces. This action currently renders one region to a new track and retains
+its muted source. [Apple's region bounce reference](https://support.apple.com/en-kw/guide/logicpro/lgcp8ae5826e/mac)
+describes the wider set of options used as the reference for future expansion.

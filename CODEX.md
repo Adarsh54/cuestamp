@@ -2083,3 +2083,50 @@ undo/redo, MIDI export timing and mocked agent planning. Browser checks cover UI
 preview, validation, selected chords, order/range/gate, persistent output, undo/redo
 and real offline PCM with eight gated notes. The form was visually inspected.
 Live model inference and physical MIDI hardware remain unverified.
+
+### Region bounce in place
+
+Reference: https://support.apple.com/en-kw/guide/logicpro/lgcp8ae5826e/mac
+The audio/MIDI region inspector now has Render to audio → Bounce in place.
+It renders the selected region into a new audio track directly below its source,
+keeps and mutes the original region, and commits both changes in one undo step.
+It uses stereo 32-bit float WAV at the chosen export sample rate, without dither
+or normalization. Rendering and saving media happen locally; Save to account and
+project archives include the generated file through existing asset references.
+
+regionBouncePlan isolates the region and source instrument/insert effects,
+including region gain/fades/reverse, effect automation and estimated effect tails.
+It renders at the original region start with fresh DSP, omitting all other regions.
+Track gain, pan, their automation, sends and output routing are excluded from the
+render and copied to the destination with renewed editable IDs. Destination
+inserts are cleared and region gain/fades/offset/reverse reset to avoid applying
+processing twice. Bus and master processing stay live. Overlapping regions through
+nonlinear source inserts can sound different when rendered independently; prior
+DSP history is not reconstructed. A muted source region is rejected; track mute
+and solo are retained on the new track. The current action always keeps/mutes the
+source and uses a new track rather than offering destructive source deletion.
+
+region.commitBounce is the internal shared atomic command after media exists.
+It validates region eligibility, 128-track capacity and expected rendered duration
+(with one-frame tolerance) before insertion. Agent edit_session rejects this
+command: the model must use the capability-gated bounce_region_in_place tool.
+Its strict nullable regionId/sampleRate arguments default to the captured selected
+region and export rate. The browser and server validate the same plan. This tool
+is a standalone action, not a download or an edit-plus-export follow-up.
+
+Document/history identity and revision are rechecked after async work. Agent
+cancellation prevents late commits. IDB media is written before document changes;
+a local document-save failure restores the history stacks and document and removes
+the new asset. Stale/cancelled operations clean up their own new asset (best effort
+if IndexedDB itself fails). Undo keeps the asset for redo. Generated files are
+limited to 250 MB so they can decode after reload, in addition to the 10-minute
+render limit; 96 kHz long regions may need a lower rate.
+
+345 unit tests and build pass, retaining the existing chunk-size warning. Checks
+cover plan isolation, routing/settings/ID preservation, atomic undo, eligibility,
+size/duration validation and mocked agent tool validation. Browser verification
+covers stereo PCM equivalence for linear inserts/routing, local media/reload,
+undo/redo, failed document-save rollback and asset cleanup, cancellation during
+render, and manual edits during a pending render without falsely attributing them
+to the agent. Inspector control was visually inspected. Live model inference and
+physical hardware remain unverified.
