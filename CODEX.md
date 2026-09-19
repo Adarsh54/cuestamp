@@ -2130,3 +2130,38 @@ undo/redo, failed document-save rollback and asset cleanup, cancellation during
 render, and manual edits during a pending render without falsely attributing them
 to the agent. Inspector control was visually inspected. Live model inference and
 physical hardware remain unverified.
+
+### Stereo tremolo insert
+
+Reference: https://support.apple.com/en-ie/guide/logicpro/lgcef266d9be/mac
+Tremolo is now available on track, bus and master insert chains through the mixer
+and shared effect.add/effect.set commands. Schema defaults: kind=tremolo,
+rate=4 Hz (.05..20), depth=.5 (0..1), phase=90 degrees (-180..180),
+stereoPhase=0 (-180..180), sync=false, beats=1 (.125..16 quarter-note beats/cycle).
+Depth 0 preserves amplitude; depth 1 modulates to silence. Opposite stereo phase
+alternates channel levels. It changes amplitude, not pitch, and adds no tail.
+
+Rate and depth share the existing effect-automation lane and command schemas.
+Free-rate automation is linear in Hz; its integral from project zero initializes
+the LFO phase when seeking. Oscillator frequency scheduling then continues that
+curve, while depth drives both the gain offset and modulation amount. Explicit
+stereo upmix preserves mono input in both channels. Both LFOs are registered with
+the audio engine's stop/disconnect cleanup. The waveform is sine-only for now;
+Logic-style smoothing/symmetry controls and surround distribution remain absent.
+
+Tempo sync uses tempo/60/beats Hz and keeps the same project-time phase anchor.
+Free-rate values and rate automation remain saved but are ignored while synced;
+depth automation remains active. Sync/beat division and both phase settings are
+static. The engine passes project tempo through track/bus/master effects, so live
+arrangement playback, cycle rendering, exports and bounce in place share this path.
+Cycle boundaries still use the existing rendered-loop behavior, including possible
+discontinuities for cycle lengths that do not contain whole modulation periods.
+Direct live MIDI monitoring still uses its existing monitor path without inserts.
+
+350 tests and build pass, with the existing chunk-size warning. Unit checks cover
+schema and automation bounds, phase integration, synced-rate conversion, preserved
+free-rate settings, track/bus/master edits, atomic undo/redo and mocked agent use.
+Browser checks compare real stereo PCM with the expected modulation, verify unity
+for zero depth and bypass, tempo conversion on every insert placement, rate/depth
+seek continuity (maximum observed error about 2.3e-5), UI, undo/redo and reload.
+The mixer form was visually inspected. Live model inference remains unverified.

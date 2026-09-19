@@ -2140,3 +2140,26 @@ are ten minutes and 250 MB per generated file; lower the sample rate for long
 96 kHz bounces. This action currently renders one region to a new track and retains
 its muted source. [Apple's region bounce reference](https://support.apple.com/en-kw/guide/logicpro/lgcp8ae5826e/mac)
 describes the wider set of options used as the reference for future expansion.
+
+### Stereo tremolo
+
+Choose **Stereo tremolo** from a mixer channel's effect menu. It creates rhythmic
+volume changes on a track, bus, or the master output.
+
+- **Depth:** 0 leaves volume unchanged; 1 lets each pulse reach silence.
+- **Free rate:** modulation cycles per second when tempo sync is off.
+- **Sync to project tempo:** uses the number of quarter-note beats per cycle.
+  At 120 BPM, one beat per cycle produces two pulses per second.
+- **Start phase:** shifts the pattern relative to project time.
+- **Stereo phase:** 0 pulses both channels together; 180 alternates their levels.
+
+Automate depth or free rate in the effect's automation lane. When sync is enabled,
+free rate and its automation are retained but ignored. Depth automation continues
+to work. Playback seeks recover the modulation phase from project time, including
+free-rate automation. The current waveform is sinusoidal; waveform shaping and
+surround modulation controls remain future work.
+
+Example agent request: “Add stereo tremolo to this track, synced to one beat per
+cycle, with 50% depth and opposite left/right phase.” Playback and exports use the
+same effect implementation. [Apple's tremolo reference](https://support.apple.com/en-ie/guide/logicpro/lgcef266d9be/mac)
+describes the reference controls.

@@ -1,7 +1,9 @@
+import {connectTremolo} from './tremolo.js';
 import {effectPointSchema,validateEffectPoints,scheduleEffectParameter} from './effect-automation.js';
 import {z} from 'zod';
 const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automation:z.array(effectPointSchema).max(2000).default([])};
 export const effectSchema=z.discriminatedUnion('kind',[
+ z.object({...base,kind:z.literal('tremolo'),rate:z.number().finite().min(.05).max(20).default(4),depth:z.number().finite().min(0).max(1).default(.5),phase:z.number().finite().min(-180).max(180).default(90),stereoPhase:z.number().finite().min(-180).max(180).default(0),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
  z.object({...base,kind:z.literal('gain'),gainDb:z.number().finite().min(-96).max(24).default(0),width:z.number().finite().min(0).max(2).default(1),invertLeft:z.boolean().default(false),invertRight:z.boolean().default(false),swap:z.boolean().default(false)}).strict(),
  z.object({...base,kind:z.literal('eq'),type:z.enum(['lowpass','highpass','peaking','lowshelf','highshelf']).default('peaking'),frequency:z.number().finite().min(20).max(20000).default(1000),q:z.number().finite().min(.1).max(20).default(1),gainDb:z.number().finite().min(-24).max(24).default(0)}).strict(),
  z.object({...base,kind:z.literal('compressor'),threshold:z.number().finite().min(-80).max(0).default(-24),ratio:z.number().finite().min(1).max(20).default(4),attack:z.number().finite().min(0).max(1).default(.003),release:z.number().finite().min(.001).max(1).default(.25),knee:z.number().finite().min(0).max(40).default(15)}).strict(),
@@ -12,8 +14,9 @@ export const automationSchema=z.object({id:z.string().min(1).max(100).regex(/^[a
 export function automationValue(points,parameter,time,fallback){const ordered=points.filter(p=>p.parameter===parameter).sort((a,b)=>a.time-b.time);if(!ordered.length)return fallback;if(time<=ordered[0].time)return ordered[0].value;for(let i=1;i<ordered.length;i++){const left=ordered[i-1],right=ordered[i];if(time<=right.time)return left.value+(right.value-left.value)*(time-left.time)/(right.time-left.time);}return ordered.at(-1).value;}
 export function scheduleAutomation(param,points,parameter,position,base,fallback){const transform=v=>parameter==='gainDb'?10**(v/20):v;param.setValueAtTime(transform(automationValue(points,parameter,position,fallback)),base);for(const point of points.filter(p=>p.parameter===parameter&&p.time>position).sort((a,b)=>a.time-b.time)){const t=base+point.time-position;if(parameter==='gainDb')param.exponentialRampToValueAtTime(transform(point.value),t);else param.linearRampToValueAtTime(point.value,t);}}
 export function effectTail(effects=[]){const peak=(e,key)=>Math.max(e[key],...(e.automation||[]).filter(p=>p.parameter===key).map(p=>p.value));return Math.min(30,effects.filter(e=>e.enabled).reduce((sum,e)=>{if(e.kind==='reverb')return sum+e.decay;if(e.kind!=='delay'||peak(e,'mix')===0)return sum;const time=peak(e,'time'),feedback=peak(e,'feedback');return sum+time*(feedback>0?Math.ceil(Math.log(.001)/Math.log(feedback))+1:1);},0));}
-export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime}={}){let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
- if(effect.kind==='gain'){
+export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120}={}){let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
+ if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo});}
+ else if(effect.kind==='gain'){
   // Force speaker upmix before splitting so mono is present on both channels.
   const stereo=context.createGain(),split=context.createChannelSplitter(2),merge=context.createChannelMerger(2),gain=context.createGain();
   stereo.channelCount=2;stereo.channelCountMode='explicit';stereo.channelInterpretation='speakers';output.connect(stereo).connect(split);
