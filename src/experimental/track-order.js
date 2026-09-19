@@ -1,7 +1,9 @@
+export function siblingMoveIndex(tracks,id,direction){const source=tracks.find(t=>t.id===id);if(!source)return null;const siblings=tracks.filter(t=>(t.output??null)===(source.output??null)),neighbor=siblings[siblings.indexOf(source)+direction];return neighbor?tracks.indexOf(neighbor):null;}
 export function trackDropIndex(tracks,sourceId,targetId,after){
  const from=tracks.findIndex(t=>t.id===sourceId),to=tracks.findIndex(t=>t.id===targetId);
  if(from<0||to<0)throw Error('Track not found.');
  if(from===to)return from;
+ if((tracks[from].output??null)!==(tracks[to].output??null))throw Error('Reorder tracks within the same group. Change Output in Routing to move between groups.');
  return to+(after?1:0)-(from<to?1:0);
 }
 export function bindTrackOrder(root,{session,execute,guard}){
