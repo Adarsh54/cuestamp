@@ -1785,3 +1785,31 @@ uses mocked model replies and real workspace history/playback to check multi-ste
 undo, redo, toolbar interoperability, actual conversation deltas, insufficient
 counts, manual edits during planning, cancellation and stopping playback. The
 ordered edit/export browser regression also passes. Live inference is unverified.
+
+### MIDI velocity ramps
+
+notes.velocityRamp targets a MIDI region with from/to normalized velocities 0..1,
+optional curve linear/easeIn/easeOut, bounds phrase/region, and noteId or CSV
+noteIds. Phrase bounds run from first to last chosen onset; region bounds run
+from zero through region duration. Values are based on elapsed time rather than
+note index, so unequal spacing and simultaneous notes are handled consistently.
+A phrase with only one onset uses from. Zero silences notes. This changes attack
+velocity, not expression during a sustained note. Other note fields, MIDI events,
+region settings and unselected notes remain unchanged; invalid batches roll back.
+
+The piano roll has a Velocity ramp panel with all/selected scope, 0..127 endpoint
+inputs, curve and bounds selectors, Reverse ramp, and a live SVG bar preview.
+Controls show affected counts and disable invalid/no-op submissions. Apply runs
+the shared command as one undo step. Settings survive workspace repaint; project
+velocities persist normally. The model tool prompt documents units, selection,
+held-note limitations and the requirement not to invent endpoint levels.
+
+314 tests and build pass. Unit checks cover curves, descending ramps, chords,
+region/phrase bounds, selected/single onsets, atomic validation, unchanged fields,
+undo/redo and MIDI export velocities/channels/timing. Browser checks cover the
+panel, preview, selection, validation, velocity lane synchronization, undo/redo,
+reload and actual offline audio peaks. The panel screenshot was visually checked.
+Live model inference remains unverified without configured provider credentials.
+
+Reference: Apple Logic Pro MIDI Transform presets (Crescendo):
+https://support.apple.com/nl-nl/guide/logicpro/lgcp215831be/mac

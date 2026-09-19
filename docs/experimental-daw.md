@@ -1972,3 +1972,14 @@ Playback stops when history changes; recording must finish first.
 This is chronological undo/redo, not selective removal of an older edit. History
 resets on reload, and making a new edit clears redo. An agent request that becomes
 stale after a manual edit is discarded rather than undoing that newer work.
+
+### Crescendo and decrescendo
+
+Open **Velocity ramp** in the piano roll. Choose all or selected notes, set start
+and end velocity (0–127), and preview the result before applying. Reverse ramp
+swaps the endpoints. Linear, ease-in and ease-out curves are available. The ramp
+can span the first and last chosen note onset or the entire region. Chord notes
+at the same start receive the same velocity; a single chosen onset uses the start
+value. Apply is one undoable edit. For a swell during a held note, use expression
+or volume automation instead. The agent can perform the same operation through
+notes.velocityRamp with normalized endpoint values (0–1).
