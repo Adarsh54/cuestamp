@@ -2316,8 +2316,28 @@ This does not implement quick punch-in, loop takes, replacement/comping, or phys
 
 ### Experimental DAW: assemble an audio comp
 
-Select an audio track/region and expand **Build a comp from takes** in the inspector. Add non-overlapping timeline sections from audio regions on that track, name the comp, choose an edge fade (0–100 ms, default 5 ms), and create the comp. The section list is an in-memory draft until Create comp track; it is not restored after reload. The result is a normal editable audio track inserted after the source with copied gain/pan/effects/automation/output/sends and independent editable IDs. Source media references, offsets, gain and reverse playback are preserved. Selected sections play unmuted. **Mute original track** defaults on and silences that entire track, including areas outside the comp; original regions remain intact. Turn it off to retain simultaneous source playback. One undo removes the comp and restores source mute state.
+Select an audio track/region and expand **Build a comp from takes** below the arrangement. Choose timeline sections from audio regions on that track, name the comp, choose an edge fade (0–100 ms, default 5 ms), and create the comp. The section list is an in-memory draft until Create comp track; it is not restored after reload. The result is a normal editable audio track inserted after the source with copied gain/pan/effects/automation/output/sends and independent editable IDs. Source media references, offsets, gain and reverse playback are preserved. Selected sections play unmuted. **Mute original track** defaults on and silences that entire track, including areas outside the comp; original regions remain intact. Turn it off to retain simultaneous source playback. One undo removes the comp and restores source mute state.
 
 Shared agent command: `track.comp` targets the source audio track, with `segments` as a JSON string containing 1–64 `{regionId,start,end}` objects in absolute timeline seconds. Optional values: `name`, `muteSource` boolean (default true), `edgeFade` seconds 0–0.1 (default .005). Sections must fit their source regions and not overlap; timeline gaps remain gaps. Each section gets linear edge fades capped at half its duration, replacing original region fades. These are short fades, not automatic overlapping crossfades. Missing source regions/media references, invalid boundaries and the 128-track capacity reject atomically.
 
-Reference: [Logic comp assembly](https://support.apple.com/guide/logicpro/create-and-save-comps-lgcpb193382e/10.7/mac/11.0). Current implementation is section-based assembly on one source audio track, not take folders, quick-swipe selection, automatic take lanes, cross-track comping or non-destructive named comp alternatives. Resulting regions can use the existing trim/fade/move tools. Tests: `test/experimental-audio-comp.test.js` covers reverse offsets, copied settings, source preservation, mute choice, undo, bounds/overlap/capacity rejection and short-section fades. `scripts/browser-experimental-audio-comp-check.cjs` verifies section entry, naming, undo/redo, reload, and real PCM take switching with silence in gaps and faded edges.
+Reference: [Logic comp assembly](https://support.apple.com/guide/logicpro/create-and-save-comps-lgcpb193382e/10.7/mac/11.0). Current implementation is section-based assembly on one source audio track, not take folders, automatic recording take lanes, cross-track comping or non-destructive named comp alternatives. Resulting regions can use the existing trim/fade/move tools. Tests: `test/experimental-audio-comp.test.js` covers reverse offsets, copied settings, source preservation, mute choice, undo, bounds/overlap/capacity rejection and short-section fades. `scripts/browser-experimental-audio-comp-check.cjs` verifies section entry, naming, undo/redo, reload, and real PCM take switching with silence in gaps and faded edges.
+
+### Experimental DAW: graphical comp selection
+
+The comp editor displays source-region waveforms in separate lanes. Drag over a
+lane to select that interval; new selections replace previous choices only in the
+same interval, keeping portions on either side. Adjacent selections from the same
+take merge. The top Comp strip shows covered time. Enter/Space chooses a focused
+take in full; numeric start/end controls remain available for precise selection.
+Escape, pointer cancellation, window blur or removal of the editor cancels a drag.
+The first 32 takes appear graphically to bound rendering work; the dropdown includes
+all source regions. Choices remain an in-memory draft until Create comp track.
+Numeric additions use the same replacement behavior. The shared `track.comp`
+command still requires a final non-overlapping list, so manual and agent output
+use the same validated comp assembly, copied mixer settings and undo operation.
+
+Verification: `test/experimental-comp-lanes.test.js` covers replacement, preserved
+remnants, merging and bounded rendering. `scripts/browser-experimental-comp-lanes-check.cjs`
+uploads real WAV fixtures and verifies waveforms, keyboard selection, drag
+replacement, cancellation, creation and undo. The existing audio-comp browser
+check covers numeric entry and rendered PCM take switching, silence and fades.
