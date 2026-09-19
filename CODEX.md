@@ -2535,3 +2535,37 @@ messages, thresholds, missing pedal-up, partial selections, preserved values,
 command path. `scripts/browser-experimental-sustain-lengths-check.cjs` checks the
 UI, selected-only protection, keeping events, real PCM equality, undo/redo and
 reload. No external MIDI instrument was used for playback verification.
+
+### Experimental DAW: split and divide MIDI notes
+
+The piano roll now offers **Split notes** in its Tool menu. Click inside a note to
+cut it at the grid-snapped time; Shift bypasses snap. If the clicked note is in the
+current selection, all selected notes crossing that time split together. Otherwise
+only the clicked note is split. Clicking an endpoint or empty space does not add
+notes in this mode. Draw and Select retain their previous behavior.
+
+The **Split & divide notes** panel also provides keyboard-accessible numeric cuts,
+a **Use playhead** shortcut (converted from session time to beats relative to the
+region), and division into 2–128 equal time slots. **Note length · % of each part**
+sets the sounding portion from 1–100%; shorter values leave gaps. These are new
+note attacks, not time stretching. Pitch, velocity, channel and mute are preserved;
+controller events stay unchanged, so sustain can bridge the gaps. First pieces
+retain their original note IDs, while later pieces receive new IDs. One undo
+restores the original notes. The region length is unchanged.
+
+Shared commands:
+- `notes.split`, target MIDI region, `time` in seconds relative to region start.
+- `notes.divide`, target MIDI region, `parts` integer 2–128, optional `gate` .01–1
+  (default 1).
+- Both accept optional `noteId` or comma-separated `noteIds`; omission means all
+  notes. Splitting affects only notes strictly crossing the chosen time.
+
+The complete operation rejects if it would exceed 20,000 notes or produce an
+unrepresentable positive duration; it does not silently truncate output. The
+preview reports affected, added and total note counts before applying.
+Reference: [Logic's scissors tool](https://support.apple.com/guide/logicpro/common-tools-lgcp8b7459e4/10.7/mac/11.0).
+`test/experimental-note-split.test.js` covers identity/value preservation, bounds,
+capacity, subdivision, gaps, undo and MIDI export plus the mocked agent path.
+`scripts/browser-experimental-note-split-check.cjs` covers graphical grouped cuts,
+playhead conversion, the form, actual rendered note attacks/gaps, undo/redo and
+reload. Existing piano-grid and note-selection browser checks cover regressions.
