@@ -1,3 +1,4 @@
+import {automationRangeView,bindAutomationRange} from './automation-range.js';
 import {automationSegments,curveShapeOptions} from './automation-curves.js';
 import {automationValue} from './effects.js';
 const shapeSelect=(shape='linear')=>`<label>Curve to next point<select name="shape">${curveShapeOptions.map(([v,label])=>`<option value="${v}" ${shape===v?'selected':''}>${label}</option>`).join('')}</select></label>`;
@@ -5,9 +6,9 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const round=value=>Number(value.toFixed(2));
 const defaultParameters={gainDb:{label:'Volume (dB)',min:-96,max:12,step:.5},pan:{label:'Pan',min:-1,max:1,step:.05}};
 export function automationView(track,esc,{gainOnly=false,parameters=gainOnly?{gainDb:defaultParameters.gainDb}:defaultParameters}={}){
- return `<section class="daw-automation"><h4>Automation · ${esc(track.name)}</h4><label>Parameter<select data-auto-parameter>${Object.entries(parameters).map(([key,spec])=>`<option value="${key}">${esc(spec.label)}</option>`).join('')}</select></label><p class="muted">Click to add a point; drag a point to move it. Focus a point and use arrow keys to adjust it, or Delete to remove it. Curves override the static control. Each point’s shape controls the transition to the next point; Hold keeps its value until the next point.</p><svg data-auto-graph viewBox="0 0 600 160" preserveAspectRatio="none" aria-label="Automation curve"></svg><form data-auto-form="${track.id}"><label>Time · seconds<input type="number" name="time" min="0" max="86400" step=".01" value="0" required></label><label>Value<input type="number" name="value" step=".1" value="0" required></label>${shapeSelect()}<button type="submit">Add point</button><button type="button" data-auto-clear="${track.id}">Clear curve</button></form><div data-auto-points></div></section>`;
+ return `<section class="daw-automation"><h4>Automation · ${esc(track.name)}</h4><label>Parameter<select data-auto-parameter>${Object.entries(parameters).map(([key,spec])=>`<option value="${key}">${esc(spec.label)}</option>`).join('')}</select></label><p class="muted">Click to add a point; drag a point to move it. Focus a point and use arrow keys to adjust it, or Delete to remove it. Curves override the static control. Each point’s shape controls the transition to the next point; Hold keeps its value until the next point.</p><svg data-auto-graph viewBox="0 0 600 160" preserveAspectRatio="none" aria-label="Automation curve"></svg><form data-auto-form="${track.id}"><label>Time · seconds<input type="number" name="time" min="0" max="86400" step=".01" value="0" required></label><label>Value<input type="number" name="value" step=".1" value="0" required></label>${shapeSelect()}<button type="submit">Add point</button><button type="button" data-auto-clear="${track.id}">Clear curve</button></form><div data-auto-points></div><div data-auto-range-host></div></section>`;
 }
-export function bindAutomation(root,{track,execute,guard,duration,automationParameter='gainDb',onAutomationParameter=()=>{},
+export function bindAutomation(root,{track,session,rangeTarget=track.id,rangeBusId,execute,guard,duration,automationParameter='gainDb',onAutomationParameter=()=>{},
  point=values=>({op:'automation.point',target:track.id,values}),
  remove=id=>({op:'automation.delete',target:id}),
  parameters=defaultParameters,edit=(id,values)=>({op:'automation.set',target:id,values}),
@@ -18,6 +19,7 @@ export function bindAutomation(root,{track,execute,guard,duration,automationPara
  const host=root.closest('#experimental-root')||root;
  const graph=root.querySelector('[data-auto-graph]'),pointsRoot=root.querySelector('[data-auto-points]'),form=root.querySelector('[data-auto-form]');
  function draw(){
+  const rangeHost=root.querySelector('[data-auto-range-host]');rangeHost.innerHTML=automationRangeView();bindAutomationRange(rangeHost,{session,target:rangeTarget,busId:rangeBusId,parameter:parameter.value,execute,guard,duration});
   const key=parameter.value,{min,max,step}=parameters[key];
   const points=(track.automation||[]).filter(p=>p.parameter===key).sort((a,b)=>a.time-b.time),end=Math.min(86400,Math.max(1,duration,...points.map(p=>p.time)));
   // Keep handles inside the viewBox, including the first/last time and min/max value.

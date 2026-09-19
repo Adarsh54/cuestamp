@@ -37,7 +37,7 @@ const assert=require('node:assert/strict');
   assert.equal((await session()).tracks[0].automation[0].time,3);
   await editor.locator('[name=time]').fill('4');await editor.getByRole('button',{name:'Update point',exact:true}).click();
   assert.match(await page.locator('.daw-status').textContent(),/already exists/);assert.equal((await session()).tracks[0].automation[0].time,3);
-  const send=page.locator('[data-send-automation="b"]');await send.locator('summary').click();
+  const send=page.locator('[data-send-automation="b"]');await send.locator(':scope > summary').click();
   await send.locator('[data-auto-edit="send-a"] [name=value]').fill('-6');await send.getByRole('button',{name:'Update point',exact:true}).click();
   state=await session();assert.equal(state.tracks[0].sends[0].automation[0].value,-6);assert.equal(state.tracks[0].automation[0].value,-30);
   await page.reload();assert.deepEqual((await session()).tracks,state.tracks);

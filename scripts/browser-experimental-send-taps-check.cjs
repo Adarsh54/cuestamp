@@ -23,7 +23,7 @@ const assert=require('node:assert/strict');
   await page.reload();assert.equal(await page.locator('[data-send-tap]').inputValue(),'preFader');
   assert.equal(await page.locator('[data-send-gain]').inputValue(),'-6');
   const curve=page.locator('[data-send-automation]');
-  await curve.locator('summary').click();
+  await curve.locator(':scope > summary').click();
   await curve.locator('[data-auto-form] [name=value]').fill('-24');await curve.getByRole('button',{name:'Add point',exact:true}).click();
   assert.equal(await curve.getAttribute('open'),'');
   await curve.locator('[data-auto-form] [name=time]').fill('1');await curve.locator('[data-auto-form] [name=value]').fill('0');
@@ -31,7 +31,7 @@ const assert=require('node:assert/strict');
   assert.equal(await page.locator('.daw-mix-detail [data-auto-points]>div').count(),0);
   await curve.getByRole('button',{name:'Clear curve',exact:true}).click();assert.equal(await curve.locator('[data-auto-points]>div').count(),0);
   await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal(await curve.locator('[data-auto-points]>div').count(),2);
-  await page.reload();await curve.locator('summary').click();assert.equal(await curve.locator('[data-auto-points]>div').count(),2);
+  await page.reload();await curve.locator(':scope > summary').click();assert.equal(await curve.locator('[data-auto-points]>div').count(),2);
   const metrics=await page.evaluate(async()=>{
    const {newSession,applyCommands}=await import('/src/experimental/session.js'),{scheduleSession}=await import('/src/experimental/audio-engine.js'),{stemSession}=await import('/src/experimental/routing.js');
    async function render(tap,{mute=false,bus=false,filtered=false,automated=false,sendCurve=false,position=0,stem=false}={}){
