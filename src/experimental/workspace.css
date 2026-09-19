@@ -77,3 +77,12 @@ form.daw-note-editor{margin-top:8px}
 .daw-region-clipboard{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0}.daw-region-clipboard small{font-size:12px;color:var(--muted)}
 
 .daw-eq-graph{margin:12px 0;min-width:0}.daw-eq-graph svg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);touch-action:none;cursor:crosshair}.daw-eq-graph svg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.daw-eq-graph svg[aria-disabled=true]{cursor:default;opacity:.6}.daw-eq-graph .eq-grid{stroke:var(--line);stroke-width:1}.daw-eq-graph text{fill:var(--muted);font-size:16px}.daw-eq-graph [data-eq-curve]{fill:none;stroke:var(--accent);stroke-width:2}.daw-eq-graph circle{fill:var(--accent);stroke:var(--surface);stroke-width:2}.daw-eq-graph output,.daw-eq-graph small{display:block;font-size:12px;margin-top:6px}.daw-eq-graph small{color:var(--muted)}
+
+.daw-channel-settings{border-block:1px solid var(--line);padding:16px 0;margin-bottom:20px}
+.daw-channel-settings form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.daw-channel-settings form>p,.daw-channel-settings form>label:first-child{grid-column:1/-1;margin:0}
+.daw-channel-settings label{display:flex;align-items:center;gap:8px;font-size:13px}
+.daw-channel-settings label:first-child{display:grid;max-width:360px}
+.daw-channel-settings input[type=checkbox]{width:16px;height:16px;margin:0;flex-shrink:0;accent-color:var(--accent)}
+.daw-channel-settings button{justify-self:start}
+@media(max-width:700px){.daw-channel-settings form{grid-template-columns:1fr}}

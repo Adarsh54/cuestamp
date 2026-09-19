@@ -2243,3 +2243,9 @@ pointer cancellation, undo during a drag, invalid drafts, reload, and numerical
 response vs actual rendered sine audio at three frequencies for all five filter
 types (within .02 dB). Low sample-rate/Nyquist and bypass responses are also checked.
 The graph was visually inspected. Existing agent EQ commands need no new tool.
+
+### Experimental DAW: copy channel settings
+
+Select the destination channel in Mixer, expand **Copy channel settings**, and choose a source and categories. The operation replaces selected categories in one undo step; it preserves destination regions, name, kind, mute and solo. Effects include their automation. Volume/pan automation and static volume/pan are separate choices. Output routing includes sends and their curves. Instrument/sampler copying requires two MIDI tracks. Curves keep absolute project times; copied editable points/effects receive new IDs, while sample assets and routing targets remain shared references. Feedback loops are rejected atomically. Master/video channels and cross-session presets are not supported by this action.
+
+The agent uses the same `track.copySettings` command: destination `target`, `values.sourceId`, and explicit boolean `effects`, `mix`, `automation`, `routing`, `instrument` choices (at least one true). GUI defaults to effects only; omitted command choices are false. Regression coverage: `test/experimental-channel-settings.test.js` and `scripts/browser-experimental-channel-settings-check.cjs` (mocked auth, real UI/command engine).
