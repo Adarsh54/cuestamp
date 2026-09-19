@@ -2008,3 +2008,15 @@ note. At 0%, every note uses the same cutoff. Pitch bend does not move cutoff.
 Filtering is per voice before the volume envelope, and applies to playback,
 live MIDI monitoring and bounced audio. These are static filter settings;
 filter envelopes and automated modulation are not implemented yet.
+
+### Tune a sample without editing the notes
+
+The sampler has **Tune** (−48 to +48 semitones) and **Fine tune** (−100 to +100
+cents) controls. A hundred cents equals one semitone. They apply across the
+keyboard, including playback, exports, looping and live MIDI monitoring. Pitch
+bend adds to this tuning. Use sampler applies the settings as one undoable edit.
+
+Tuning changes playback speed: higher pitches consume the source sooner unless
+it loops. MIDI notes, source audio, envelope times and filter key tracking stay
+unchanged. This is not time stretching. Fractional tuning may restart a seek at
+a whole source sample frame rather than the exact fractional phase.

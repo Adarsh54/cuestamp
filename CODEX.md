@@ -1877,3 +1877,28 @@ physical MIDI hardware remain unverified.
 References:
 https://support.apple.com/guide/logicpro/synth-pane-lgcp24400b22/mac
 https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode/Q
+
+### Sampler coarse and fine tuning
+
+track.add/track.set now support sampleTune (integer -48..48 semitones) and
+sampleFineTune (-100..100 cents), defaulting to zero for existing projects.
+The sampler form applies them with the other instrument settings in one undo
+step. The agent prompt exposes units and clarifies that tuning changes sample
+playback speed, not MIDI pitches, source media, root mapping or ADSR duration.
+Filter key tracking continues to use MIDI pitch relative to the original root.
+
+One shared playback-rate calculation combines note/root mapping, semitones and
+cents. Arrangement rendering and live MIDI monitoring use that rate; pitch bend
+continues multiplying it through detune. Seek offset integration uses the same
+rate across prior bend events, then wraps source-time loops. Higher tuning can
+exhaust an unlooped sample sooner; this does not perform time stretching.
+
+322 tests and build pass. Unit checks cover tuning composition, bend-integrated
+seek offsets, loop wrapping, defaults, validation, undo and copies. Browser
+checks use real sampled audio to measure octave, cents, combined tuning, pitch
+bend and live monitoring frequencies, plus UI undo/redo/reload. Whole-frame
+looped seeks match uninterrupted rendering exactly in the test. Fractional-frame
+seeks differ within one source-frame phase bound: the observed difference matches
+rounding the requested source offset in Chromium, so no sub-sample seek precision
+is claimed. Sampler-filter browser regression passes. The form was visually
+inspected. Live model inference and physical MIDI hardware remain unverified.
