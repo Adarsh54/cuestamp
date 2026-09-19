@@ -278,13 +278,24 @@ executor validates the complete result before commit, rejects stale revisions an
 supports undo. `/api/daw` uses the same validation before returning a model plan.
 No arbitrary code or shell execution is exposed to the model.
 
-For the OpenAI adapter, configure server-only `OPENAI_API_KEY` and `DAW_AGENT_MODEL`
-in local `.env.local` or the intended Vercel environment. Choose a model available
-to that API project that supports Responses function calls. Never use a `VITE_`
-variable for these values. Restart the local API after changes. A configured status
-means variables are present, not that a real request has succeeded. Requests require
-login and same-origin checks; requests send the session document/selection, not
-source media. Production usage quotas and provider alternatives remain pending.
+The server supports OpenAI Responses and Anthropic Claude Messages through the
+same validated DAW tools. Configure one provider in ignored local `.env.local` or
+the intended Vercel environment:
+
+| Server variable | OpenAI (default) | Claude |
+| --- | --- | --- |
+| `DAW_AGENT_PROVIDER` | `openai` (or omit) | `anthropic` |
+| API key | `OPENAI_API_KEY` | `ANTHROPIC_API_KEY` |
+| `DAW_AGENT_MODEL` | Model ID available to your OpenAI API project | Model ID available to your Anthropic API account |
+
+Choose a model supporting the provider's client function tools and strict tool
+schemas. Model IDs are explicit; the app does not choose or upgrade them. Never
+use a `VITE_` variable for these settings. Restart the local API after changes.
+Configured status means the selected provider's variables are present, not that
+real inference has succeeded. Unknown providers fail configuration; there is no
+automatic fallback to another provider. Requests require login and same-origin
+checks, and send session/selection/conversation metadata to the selected provider,
+not source media. Production usage quotas remain pending.
 
 Checks: `npm test`, `npm run build`, and `scripts/browser-experimental-check.cjs`
 with the standard Playwright variables. The browser agent check mocks inference;
@@ -2165,3 +2176,35 @@ Browser checks compare real stereo PCM with the expected modulation, verify unit
 for zero depth and bypass, tempo conversion on every insert placement, rate/depth
 seek continuity (maximum observed error about 2.3e-5), UI, undo/redo and reload.
 The mixer form was visually inspected. Live model inference remains unverified.
+
+
+### OpenAI / Claude provider adapter
+
+server/daw-model.js maps the shared prompt and tools to OpenAI Responses or Claude
+Messages. OpenAI retains store:false and parallel_tool_calls:false. Claude uses a
+system prompt, user message, input_schema tools and auto tool choice with parallel
+tools disabled. Supported strict tools retain strict:true; the general edit tool
+continues to use post-response Zod validation. Requests retain the 90-second timeout
+and 6,000-output-token bound. Authentication and origin checks are unchanged.
+
+Claude tool_use blocks normalize to the same function-call representation before
+capability checks, one-action enforcement and session/command simulation. Text-only
+responses remain replies. Thinking blocks are not surfaced. Incomplete/max-token,
+unsupported continuation, malformed and unexpected tool responses fail without an
+edit. Network/HTTP/JSON errors expose a generic message, never raw provider bodies,
+credentials or model traces. Provider selection is server-only, with no client
+provider override or silent provider fallback. Claude has no store:false field;
+provider retention policies are not made equivalent by this adapter.
+
+The live-check CLI uses the selected provider/key and the same disposable two-edit
+session verification. --config-only never calls a provider. Current local preflight
+still fails because OPENAI_API_KEY and DAW_AGENT_MODEL are absent; neither provider
+has been tested live. 356 unit tests and build pass (existing chunk-size warning).
+New checks cover configuration/key isolation, Claude request format, parity for all
+seven action types, malformed/truncated/parallel/unoffered actions, text replies,
+error redaction, no fallback and Claude CLI configuration forwarding.
+
+References:
+- https://developers.openai.com/api/docs/guides/function-calling
+- https://platform.claude.com/docs/en/api/messages/create
+- https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use

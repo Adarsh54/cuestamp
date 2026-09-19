@@ -140,3 +140,23 @@ The >100 MB test took about 96 seconds end to end on this connection, including 
 Migration `006_reels.sql` adds `reel_audio` (private prepared MP3 paths, waveforms, processing leases) and `reel_publications` (share tokens and published snapshots). Vercel applies it during deployment. The `/api/reels` function includes FFmpeg/ffprobe and has a 300-second limit. It uses the existing server-only Neon and private Blob credentials. A standalone Vite output, `reel.html`, serves public share pages and iframe embeds without authentication.
 
 Publishing is explicit and requires a signed-in owner. Draft saves remain private; re-publishing updates the existing shared snapshot. Revoking deletes the share token, while cached derivatives stay private for reuse. Already downloaded/buffered audio cannot be revoked, and issued Blob URLs last up to five minutes. Every published reel provides MP3 downloads. See CODEX.md for endpoints, limits, storage lifecycle, and the synthetic development smoke test.
+
+
+## Experimental DAW model provider
+
+Set these only in the Vercel server environment, then redeploy:
+
+- OpenAI: `DAW_AGENT_PROVIDER=openai`, `OPENAI_API_KEY`, `DAW_AGENT_MODEL`.
+- Claude: `DAW_AGENT_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, `DAW_AGENT_MODEL`.
+
+Omitting the provider preserves OpenAI as the default. Set an explicit model ID
+available to that provider account with client tool-calling/strict-schema support.
+There is no automatic provider fallback or model upgrade. Never prefix keys with
+`VITE_`. Client requests cannot choose a provider or supply an API key. The selected
+provider receives the session document and editing context, not uploaded source
+media. Each provider's own data-retention policies apply.
+
+For local setup and the configuration-only/live smoke checks, see CODEX.md.
+A configured status is not proof of working credentials or model access. The
+existing live check makes up to two billable requests on a disposable in-memory
+session and does not save projects or media. Production usage quotas remain pending.

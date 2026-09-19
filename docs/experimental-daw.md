@@ -2163,3 +2163,19 @@ Example agent request: “Add stereo tremolo to this track, synced to one beat p
 cycle, with 50% depth and opposite left/right phase.” Playback and exports use the
 same effect implementation. [Apple's tremolo reference](https://support.apple.com/en-ie/guide/logicpro/lgcef266d9be/mac)
 describes the reference controls.
+
+
+### Model providers
+
+The server can use OpenAI or Claude for the editing agent. Both feed the same
+validated commands and actions; undo, stale-response checks and cancellation stay
+in the app. Provider selection and credentials are server configuration, documented
+in CODEX.md and SETUP.md. OpenAI remains the default; no automatic fallback or
+model upgrade is performed.
+
+Claude requests use the [Messages API](https://platform.claude.com/docs/en/api/messages/create)
+and [one-tool response setting](https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use).
+OpenAI continues using [Responses function calling](https://developers.openai.com/api/docs/guides/function-calling).
+Provider responses are normalized before the shared action validators run. Tool
+response tests cover both providers, but live inference remains unverified until
+server credentials and a model are configured and the live check succeeds.
