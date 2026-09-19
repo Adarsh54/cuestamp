@@ -92,3 +92,4 @@ form.daw-note-editor{margin-top:8px}
 .daw-step-row button[data-step-muted=true]{background:var(--surface);border:1px dashed var(--muted)}
 .daw-velocity-lane label[data-velocity-muted=true]{opacity:.5}
 .daw-note-transfer input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
+.daw-audio-comp{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.daw-audio-comp form{display:grid;gap:10px;margin:12px 0}.daw-audio-comp label{display:grid;gap:5px}.daw-audio-comp input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}.daw-audio-comp li{margin:8px 0;font-size:12px}.daw-audio-comp li button{margin-left:8px}
