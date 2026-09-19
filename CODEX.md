@@ -2049,3 +2049,37 @@ captured and explicit positions, shared undo/redo, actual conversation outcomes,
 clipboard/playhead race rejection, cancellation, mixed response rejection and missing
 track rejection. Manual clipboard browser regression also passes. Responses are mocked;
 live model inference remains unverified. The existing build chunk-size warning remains.
+
+### Committed MIDI arpeggiation
+
+Apple reference: https://support.apple.com/en-qa/guide/logicpro/lgce129c3fbe/mac
+Logic's arpeggiator provides note order, rate and octave controls; its Up/Down
+order repeats both endpoints. Cuestamp now implements an editable-note transform,
+not the live MIDI insert, latch, remote controls, inversions or pattern sequencer.
+
+notes.arpeggiate targets a MIDI region. Values: rate in quarter-note beats
+(.125..4, default .25), gate as fraction of a step (.01..1, default .8), order
+up/down/upDown/asPlayed, octaves 1..4 upward, optional noteId or CSV noteIds.
+Omission selects the whole region. Exact same-onset, same-channel notes form a
+chord. The pattern restarts at each selected chord, ending at the earliest of
+its longest source note end, the next selected chord in that channel, and region
+end. Shorter notes in a chord remain members of that chord's pattern. As played
+uses document order for simultaneous notes, independent of selection click order.
+Staggered starts are separate chords. Output inherits source velocity/channel.
+
+The pure plan prevalidates pitch and 20,000-note capacity limits. The shared
+atomic command replaces only chosen notes and gives generated notes fresh IDs;
+controller events, unselected notes, region settings and tempo remain unchanged.
+Rate is resolved using current project tempo; later tempo changes do not retime
+committed notes. Sustain/controller processing can extend their audible length.
+Undo restores source chords. The piano-roll form shows a note preview (first
+1,000 generated notes at most) and counts before applying, and shares validation
+with the server agent's command simulation.
+
+340 tests and build pass, with the existing chunk-size warning. Unit checks cover
+rate/tempo, gate, order, octave bounds, chord changes, channels, partial selection,
+region bounds, capacity/invalid-input rejection, preserved controllers, fresh IDs,
+undo/redo, MIDI export timing and mocked agent planning. Browser checks cover UI,
+preview, validation, selected chords, order/range/gate, persistent output, undo/redo
+and real offline PCM with eight gated notes. The form was visually inspected.
+Live model inference and physical MIDI hardware remain unverified.

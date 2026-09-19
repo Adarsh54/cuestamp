@@ -2092,3 +2092,27 @@ transport while a paste is pending also rejects it, even for an explicit positio
 Changing the project or cancelling the request prevents late edits. Missing original
 tracks reject the whole paste. Copy/cut use the selection captured when submitting.
 Clipboard actions currently require separate requests from other edits or playback.
+
+### Arpeggiate MIDI chords
+
+In the piano roll, open **Arpeggiate chords**. Choose selected notes or the whole
+region, then set rate, order, octave range and note length. The preview shows the
+pattern before **Apply arpeggio** replaces your chosen notes. Undo restores them.
+The result remains ordinary MIDI notes you can move, resize, export and edit.
+
+Example agent instruction: “Arpeggiate the selected chord downward in eighth
+notes, one octave, with notes lasting 80% of each step.”
+
+Notes starting at exactly the same time on the same MIDI channel form a chord.
+Each chord restarts the pattern. It ends at the chord's longest note end, the next
+chosen chord on that channel, or the region end, whichever comes first. Unselected
+notes remain untouched. Up / Down repeats the top and bottom notes; As played
+uses original note order. Octave range extends upward and rejects pitches beyond
+MIDI 127. Source velocities and channels carry through to the pattern.
+
+This is a committed MIDI edit, not a live keyboard arpeggiator. Later tempo changes
+do not retime the generated notes. Staggered note starts aren't grouped into a
+chord automatically, and sustain pedal events can extend the audible note lengths.
+Live latch, inversions, remote control and programmable arpeggiator steps remain
+future work. [Apple's note-order reference](https://support.apple.com/en-qa/guide/logicpro/lgce129c3fbe/mac)
+describes the Logic controls used as a reference for this feature.
