@@ -1,6 +1,7 @@
 import {z} from 'zod';
 const field=(label,min,max,step)=>({label,min,max,step});
 export const effectParameters={
+ chorus:{rate:field('Rate · Hz',.05,10,.05),depthMs:field('Delay modulation · ms',0,20,.1),mix:field('Wet mix',0,1,.01)},
  tremolo:{rate:field('Free rate · Hz',.05,20,.05),depth:field('Depth · 0–1',0,1,.01)},
  gain:{gainDb:field('Gain · dB',-96,24,.5),width:field('Width · 0 mono / 1 stereo',0,2,.01)},
  eq:{frequency:field('Frequency · Hz',20,20000,10),q:field('Q',.1,20,.1),gainDb:field('Gain · dB',-24,24,.5)},
