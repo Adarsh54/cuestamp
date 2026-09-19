@@ -1996,3 +1996,15 @@ Controllers needed by each part are copied too. Channel separation includes
 channels containing only MIDI events. Routing and effects are copied, so nonlinear
 track effects can change how the separated parts sound together. This separates
 MIDI events; it cannot isolate instruments from a mixed audio recording.
+
+### Shape a sampler sound
+
+The sampler's **Sample filter** controls offer low-pass (soften highs) and
+high-pass (remove lows), cutoff, resonance and keyboard tracking. Click **Use
+sampler** to apply; Undo restores the previous settings. Off keeps the original
+sound. At 100% keyboard tracking, cutoff doubles for each octave above the root
+note. At 0%, every note uses the same cutoff. Pitch bend does not move cutoff.
+
+Filtering is per voice before the volume envelope, and applies to playback,
+live MIDI monitoring and bounced audio. These are static filter settings;
+filter envelopes and automated modulation are not implemented yet.

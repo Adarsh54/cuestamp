@@ -1843,3 +1843,37 @@ Live provider inference remains unverified.
 
 Reference: Apple Logic Pro demix MIDI regions:
 https://support.apple.com/guide/logicpro/demix-midi-regions-lgcpf7c0f28c/mac
+
+### Sampler per-voice filters
+
+Tracks now persist sampleFilterType (off/lowpass/highpass, default off),
+sampleFilterCutoff (20..20000 Hz, default20000), sampleFilterResonance (-20..30 dB,
+default0), and sampleFilterKeyTrack (0..1, default0). Shared track.add/track.set
+commands validate these fields, and the agent prompt documents them. Existing
+projects parse with bypass defaults. Copy/separate/archive/project persistence
+use the same track schema and preserve settings.
+
+Each sampled note optionally passes through a second-order 12 dB/octave filter
+before its amplitude envelope. Low/high-pass resonance uses Web Audio Q's dB
+interpretation. Key tracking scales cutoff relative to sampleRoot by
+2^((pitch-root)/12 * tracking), clamped to 20 Hz..20 kHz and below Nyquist.
+Pitch bend changes sample playback pitch but does not modulate filter cutoff.
+Off creates no filter node, retaining the prior signal path. The same filter
+factory is used for arrangement/offline exports and live MIDI monitoring; voice
+cleanup disconnects the filter. Filters are static per voice, with no modulation
+envelope or automation yet. Seeking starts fresh filter state, as other existing
+DSP seeks do; it does not reconstruct prior filter history.
+
+The sampler inspector includes filter type, cutoff, resonance and percentage
+tracking controls applied with the other sampler settings in one undo step.
+320 tests and build pass. Unit checks cover old-project defaults, validation,
+undo/copy/bounce settings, tracking intervals and Nyquist limits. Browser checks
+use real offline audio with low/high-frequency tones to measure attenuation and
+pass-band preservation, check bypass creates no node, compare live monitoring,
+verify voice cleanup and UI undo/redo/reload. The panel was visually inspected;
+the previous sampler-envelope browser regression also passes. Live inference and
+physical MIDI hardware remain unverified.
+
+References:
+https://support.apple.com/guide/logicpro/synth-pane-lgcp24400b22/mac
+https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode/Q
