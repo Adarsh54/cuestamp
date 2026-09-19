@@ -2060,3 +2060,19 @@ Selection itself makes no project edit or undo entry. The resulting group works
 with move, duplicate, delete and agent selection context. A maximum of 1,000
 regions can be selected; an oversized box restores the prior selection and shows
 an explanation. Marquee selection is for mouse/pen; touch retains scrolling.
+
+### Copy, cut and paste arrangement regions
+
+Select one or more regions, then use **Copy regions**, **Cut regions**, or
+**Paste at playhead** above the arrangement. Ctrl/Cmd C, X and V work while editing
+the arrangement. Paste aligns the first copied region to the playhead, keeps the
+group's spacing, and returns each region to its original track. Copies have
+independent note/event IDs and retain their source media references.
+
+The clipboard captures the regions as they were when copied. Later edits to the
+originals do not change it. Cut and paste are separate undoable edits. Destination
+tracks must still exist; Undo can restore a deleted track before pasting.
+This clipboard is local to the current session, clears on reload or session
+replacement, and does not access the system clipboard. Text fields and the piano
+roll retain their own keyboard behavior. Direct agent control of the browser
+clipboard is not implemented yet.

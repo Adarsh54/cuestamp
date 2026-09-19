@@ -1991,3 +1991,36 @@ document and one-step group duplication undo. Existing group drag/cancel and
 duplicate/delete shortcut regressions pass. A live marquee screenshot was visually
 inspected. This supersedes the earlier missing-box-selection note; clipboard and
 broader arrangement workflows remain unfinished.
+
+### Arrangement region clipboard
+
+Copy/Cut/Paste at playhead controls now sit above the arrangement. Ctrl/Cmd C/X/V
+operate on arrangement regions, while text fields, selected page text, and the
+piano-roll editing context retain their native behavior. The clipboard is an
+immutable in-memory snapshot of 1..1000 selected regions, limited to 10 MiB UTF-8.
+It is isolated to the active session/history and clears on replacement or reload;
+it neither reads nor writes the OS clipboard. Copy changes no document state.
+Cut snapshots first, then uses the atomic regions.delete command.
+
+regions.paste accepts original clipboard JSON data and absolute position seconds.
+The payload contains version1, source sessionId and entries with original trackId,
+kind and full region snapshots. Shared region schemas validate content. Paste
+requires the same session and still-existing compatible destination tracks. It
+aligns the earliest copied start to the playhead while preserving relative spacing,
+source offsets, media references and region content/settings. Editable IDs are
+renewed. All track capacities and timeline starts are validated before insertion.
+Track settings remain current rather than being copied. Missing source tracks
+reject the entire paste; undoing their deletion makes paste possible again.
+
+Manual paste captures the current transport position, stops playback via execute,
+and selects the new regions. Cut and paste each use one undo step; the clipboard
+survives ordinary edits/undo and subsequent pastes. The agent command description
+allows regions.paste only with explicitly supplied original clipboard data; a
+browser clipboard tool/context is not exposed to the model yet.
+
+333 tests and build pass. Unit checks cover immutable snapshots, independent IDs,
+media/timing preservation, cut/paste undo, malformed/cross-session/missing-track
+payload rejection and shortcut mappings. Browser checks cover buttons and keyboard
+copy/cut/paste, playhead alignment, new selection, undo, field/piano isolation,
+retained saved content and transient clipboard reload. Marquee and group-action
+regressions pass. The toolbar was visually inspected. Live inference is unverified.
