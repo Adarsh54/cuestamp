@@ -6,7 +6,8 @@ export function duplicateTrack(source,{id=crypto.randomUUID(),name=(source.name.
  renew(copy.effects);for(const effect of copy.effects)renew(effect.automation||[]);renew(copy.automation);
  for(const send of copy.sends)renew(send.automation);
  copy.regions=includeRegions?copy.regions:[];
- renew(copy.regions);
+ const regionIds=new Map(copy.regions.map(r=>[r.id,crypto.randomUUID()]));for(const region of copy.regions)region.id=regionIds.get(region.id);
+ copy.compAlternatives=includeRegions?(copy.compAlternatives||[]).map(c=>({...c,id:crypto.randomUUID(),segments:c.segments.map(s=>({...s,regionId:regionIds.get(s.regionId)||s.regionId}))})):[];
  for(const region of copy.regions){renew(region.notes);renew(region.events);}
  return copy;
 }

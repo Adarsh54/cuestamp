@@ -2316,11 +2316,11 @@ This does not implement quick punch-in, loop takes, replacement/comping, or phys
 
 ### Experimental DAW: assemble an audio comp
 
-Select an audio track/region and expand **Build a comp from takes** below the arrangement. Choose timeline sections from audio regions on that track, name the comp, choose an edge fade (0–100 ms, default 5 ms), and create the comp. The section list is an in-memory draft until Create comp track; it is not restored after reload. The result is a normal editable audio track inserted after the source with copied gain/pan/effects/automation/output/sends and independent editable IDs. Source media references, offsets, gain and reverse playback are preserved. Selected sections play unmuted. **Mute original track** defaults on and silences that entire track, including areas outside the comp; original regions remain intact. Turn it off to retain simultaneous source playback. One undo removes the comp and restores source mute state.
+Select an audio track/region and expand **Build a comp from takes** below the arrangement. Choose timeline sections from audio regions on that track, name the comp, choose an edge fade (0–100 ms, default 5 ms), and create the comp. The section list is an in-memory draft until saved as an alternative or used to create a comp track; unsaved choices are not restored after reload. The result is a normal editable audio track inserted after the source with copied gain/pan/effects/automation/output/sends and independent editable IDs. Source media references, offsets, gain and reverse playback are preserved. Selected sections play unmuted. **Mute original track** defaults on and silences that entire track, including areas outside the comp; original regions remain intact. Turn it off to retain simultaneous source playback. One undo removes the comp and restores source mute state.
 
 Shared agent command: `track.comp` targets the source audio track, with `segments` as a JSON string containing 1–64 `{regionId,start,end}` objects in absolute timeline seconds. Optional values: `name`, `muteSource` boolean (default true), `edgeFade` seconds 0–0.1 (default .005). Sections must fit their source regions and not overlap; timeline gaps remain gaps. Each section gets linear edge fades capped at half its duration, replacing original region fades. These are short fades, not automatic overlapping crossfades. Missing source regions/media references, invalid boundaries and the 128-track capacity reject atomically.
 
-Reference: [Logic comp assembly](https://support.apple.com/guide/logicpro/create-and-save-comps-lgcpb193382e/10.7/mac/11.0). Current implementation is section-based assembly on one source audio track, not take folders, automatic recording take lanes, cross-track comping or non-destructive named comp alternatives. Resulting regions can use the existing trim/fade/move tools. Tests: `test/experimental-audio-comp.test.js` covers reverse offsets, copied settings, source preservation, mute choice, undo, bounds/overlap/capacity rejection and short-section fades. `scripts/browser-experimental-audio-comp-check.cjs` verifies section entry, naming, undo/redo, reload, and real PCM take switching with silence in gaps and faded edges.
+Reference: [Logic comp assembly](https://support.apple.com/guide/logicpro/create-and-save-comps-lgcpb193382e/10.7/mac/11.0). Current implementation is section-based assembly on one source audio track, not take folders, automatic recording take lanes, cross-track comping or automatic recording take folders. Resulting regions can use the existing trim/fade/move tools. Tests: `test/experimental-audio-comp.test.js` covers reverse offsets, copied settings, source preservation, mute choice, undo, bounds/overlap/capacity rejection and short-section fades. `scripts/browser-experimental-audio-comp-check.cjs` verifies section entry, naming, undo/redo, reload, and real PCM take switching with silence in gaps and faded edges.
 
 ### Experimental DAW: graphical comp selection
 
@@ -2367,3 +2367,37 @@ start/stop, automatic end, stopping on draft edits, unchanged session storage an
 PCM equivalence between audition and committed comp (including reverse playback,
 EQ, bus routing and both source-mute options). The agent transport browser check
 covers ordinary transport, cancellation, stale requests and cycle regression.
+
+### Experimental DAW: named comp alternatives
+
+The comp editor now has **Save new alternative**, **Update alternative**, and a
+saved-comp selector with explicit Load/Delete actions. Save keeps selections,
+name, edge fade and the mute-original choice in the source audio track without
+creating a track or changing source mute. Load replaces the temporary draft;
+audition and Create comp track then use that draft. Saving/updating/deleting is
+undoable and persists with the session in device storage, account saves and
+portable archives. Saving alternatives locally does not automatically save the
+session to the account. Unsaved draft changes still disappear after reload.
+
+Agent commands share the same validation:
+- `comp.save`, target source track: required `name` and `segments` JSON string of
+  `{regionId,start,end}` in timeline seconds; optional `id` (existing ID updates,
+  omitted generates a new ID), `edgeFade` 0–0.1 seconds and `muteSource` boolean.
+- `comp.delete`, target source track, `{compId}` removes a saved alternative.
+- `comp.createTrack`, target source track, `{compId}` creates its editable comp.
+
+Each audio track supports 32 alternatives, each with 1–64 non-overlapping sections.
+Saved alternatives refer to current source regions and use current mixer settings;
+they do not freeze or duplicate audio. Moving/trimming/deleting referenced takes
+can invalidate selections. Invalid choices remain saved for reference/deletion,
+but loading or creating them rejects missing/out-of-range sections. Undoing the
+source edit restores usability. Track duplication remaps comp IDs and region
+references; settings-only copies and newly created comp tracks omit alternatives.
+Saved alternatives are included in agent context and bounded change summaries.
+
+Reference: [Logic's saved comp alternatives](https://support.apple.com/guide/logicpro/create-and-save-comps-lgcpb193382e/10.7/mac/11.0).
+Tests: `test/experimental-comp-alternatives.test.js` covers commands, undo/redo,
+limits, stale references, duplication, portable media remapping and the mocked
+model command path. `scripts/browser-experimental-comp-lanes-check.cjs` covers
+save/load/update/delete, reload and audition with real uploaded WAVs. Existing comp
+PCM/browser checks also pass. Live model inference is not verified by these mocks.
