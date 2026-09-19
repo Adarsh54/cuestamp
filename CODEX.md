@@ -2430,3 +2430,42 @@ short sections, gaps, source bounds, disabled mode, alternatives and undo.
 The audio-comp browser check measures real rendered PCM before, within and after
 both linear and equal-power transitions. The comp-lanes browser check verifies
 settings, save/load/reload, audition and creation of overlapping output regions.
+
+### Experimental DAW: bounce an entire track in place
+
+Select an audio or instrument track (or one of its regions) and use **Bounce track
+in place** in the inspector. This renders all unmuted regions from their earliest
+start through their latest end and instrument/insert tails into one stereo 32-bit
+float WAV. Gaps and overlaps are rendered together. Muted regions are excluded,
+and track/bus solo settings are ignored for the render. Muted source tracks must
+be unmuted explicitly first. There is no normalization. The Export settings sample
+rate applies (44.1, 48 or 96 kHz); the rendered range is limited to ten minutes and
+the float WAV must fit the existing 250 MB playback limit. Initial timeline silence
+before the first included region is not rendered, so late-starting short tracks
+are supported. Like existing seeking, this does not pre-render earlier DSP history.
+
+A new audio track appears immediately after the original. Instruments, region
+processing and insert effects are baked in. Channel volume/pan/automation, sends
+and output routing are copied with independent editable IDs, and remain live;
+master and downstream bus processing are not baked. The original track is muted,
+with its regions, instrument, alternatives and settings retained. The new track
+has no insert chain or saved comp alternatives. One undo restores source mute and
+removes the new track; redo reuses the rendered asset. This is a new rendered track,
+not a reversible Freeze toggle or a destructive replacement.
+
+The agent's `bounce_track_in_place` tool requires `trackId` and nullable
+`sampleRate` (null uses the captured export rate). It uses the same browser render,
+revision checks, media storage and atomic commit as manual use. The internal
+`track.commitBounce` command validates rendered duration; the model cannot call it
+to invent media. Cancellation or edits during rendering prevent a stale commit.
+Document-storage failure rolls back the history and source mute and removes only
+the newly stored asset. Completed output uses the existing local media store and
+is included in account saves/portable archives through normal media references.
+
+Reference: [Logic track bounce in place](https://support.apple.com/en-ie/guide/logicpro/lgcp8aa3b784/10.7/mac/11.0).
+`test/experimental-track-bounce.test.js` verifies isolation, gaps, late timeline
+placement, tails, bounds, undo and capability-gated agent requests.
+`scripts/browser-experimental-track-bounce-check.cjs` renders MIDI and audio,
+compares routed stereo PCM before/after, checks muted-region exclusion, local
+reload/playback, undo/redo, storage failure cleanup, agent cancellation and stale
+renders. Model responses are mocked. The existing region-bounce regression passes.
