@@ -2031,7 +2031,7 @@ relative move in seconds. The whole move is one undoable edit.
 The group stops together at the timeline boundary. Overlaps are allowed; other
 regions, markers and track automation do not move. Trim and fade handles still
 edit one region. Other individual inspector actions use the primary region.
-Box selection is not available yet. Clear selection or click a
+Drag empty lane space to box-select regions. Clear selection or click a
 single region to return to individual editing. Selection resets on reload.
 
 ### Duplicate or delete a region group
@@ -2047,3 +2047,16 @@ for another duplicate or move. Delete removes regions without deleting their
 tracks or media files. Each operation is one undoable edit. Undo restores document
 content; it does not restore a cleared selection. The agent supports an explicit
 relative duplication offset through regions.duplicate when requested.
+
+### Box-select arrangement regions
+
+Drag empty lane space to select every region the box touches, across audio, MIDI
+and video tracks. Shift or Ctrl/Cmd adds to the existing selection. Dragging in
+either direction works; hold near the left or right edge to scroll horizontally.
+Escape or pointer cancellation restores the previous selection. Clicking empty
+space clears selection unless an additive modifier is held.
+
+Selection itself makes no project edit or undo entry. The resulting group works
+with move, duplicate, delete and agent selection context. A maximum of 1,000
+regions can be selected; an oversized box restores the prior selection and shows
+an explanation. Marquee selection is for mouse/pen; touch retains scrolling.

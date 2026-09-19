@@ -1963,3 +1963,31 @@ cover buttons and shortcuts, copied selection, repeated duplication, undo/redo,
 text-field/piano-roll isolation and reload. Existing group drag/clamp/cancellation
 regression also passes. The updated inspector was visually inspected. Live model
 inference remains unverified.
+
+### Arrangement marquee selection
+
+Dragging empty track-lane space creates a box selecting intersecting rendered
+region rectangles across all track kinds. Reverse-direction drags work. Shift,
+Ctrl or Cmd adds to the captured selection; normal drags replace it. Empty clicks
+clear unless additive. Escape, pointer cancellation and lost capture restore the
+previous selection. Ruler controls and region/handle gestures are excluded, as
+are busy/recording states. Touch is excluded to preserve scrolling; mouse and pen
+are supported. Selection changes no document revision or undo history.
+
+Hit testing uses timeline-local coordinates derived from actual DOM rectangles,
+including horizontal scroll and the rendered minimum region width. The box gives
+live class/aria-pressed feedback and a polite live selection count. Hint height is
+held during the gesture to prevent moving the timeline beneath the pointer.
+A requestAnimationFrame loop scrolls horizontally near viewport edges and updates
+hits. Release/cancel/removal cleans up capture, handlers and animation. More than
+1,000 hits rejects the selection without truncating or replacing the previous
+one. The selected IDs feed existing group actions and agent context.
+
+330 tests and build pass. Pure checks cover intersection directions, boundaries,
+additive deduplication, replacement and selection limits. Browser checks cover
+normal/additive/reverse boxes, Escape and pointer cancellation, empty clicks,
+horizontal auto-scroll to distant regions, scrolled hit testing, unchanged saved
+document and one-step group duplication undo. Existing group drag/cancel and
+duplicate/delete shortcut regressions pass. A live marquee screenshot was visually
+inspected. This supersedes the earlier missing-box-selection note; clipboard and
+broader arrangement workflows remain unfinished.
