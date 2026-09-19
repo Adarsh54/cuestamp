@@ -2179,3 +2179,21 @@ OpenAI continues using [Responses function calling](https://developers.openai.co
 Provider responses are normalized before the shared action validators run. Tool
 response tests cover both providers, but live inference remains unverified until
 server credentials and a model are configured and the live check succeeds.
+
+### Graphical EQ editing
+
+Every EQ insert now shows its frequency-response curve. Drag in the graph to set
+frequency and gain, or drag horizontally for low/high-pass filters. The numeric
+Q field controls resonance/bandwidth. A drag applies the displayed EQ settings in
+one undoable change. Escape cancels it.
+
+Focus the graph and use left/right arrows for frequency, up/down for gain. Hold
+Shift for smaller changes. Numeric fields preview the curve before Apply effect.
+Bypass shows a flat response. The plot is labeled with its preview sample rate.
+
+This displays static EQ settings, not a spectrum analysis or a live automation
+trace. Existing automation can override those settings during playback; the graph
+shows a reminder when automation is present. Each insert has its own graph; a
+combined multiband EQ display remains future work.
+
+Reference: [Logic's graphical EQ controls](https://support.apple.com/en-mide/guide/logicpro/lgcef1edc1d7/mac).

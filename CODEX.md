@@ -2208,3 +2208,38 @@ References:
 - https://developers.openai.com/api/docs/guides/function-calling
 - https://platform.claude.com/docs/en/api/messages/create
 - https://platform.claude.com/docs/en/agents-and-tools/tool-use/parallel-tool-use
+
+### Graphical EQ response editor
+
+Reference: https://support.apple.com/en-mide/guide/logicpro/lgcef1edc1d7/mac
+Each existing EQ insert now has a logarithmic 20 Hz–20 kHz response plot with a
+±24 dB display. This is one graph per existing biquad insert, not a combined
+multiband Channel EQ or spectrum analyzer. BiquadFilterNode.getFrequencyResponse
+uses the same filter type/frequency/Q/gain as the renderer. The graph uses the
+current AudioContext sample rate when available, otherwise a labeled 48 kHz
+preview. Frequencies above Nyquist are omitted; the actual engine frequency clamp
+is respected. Off-scale gain is clipped geometrically, not flattened as a fake
+response. Bypassed inserts show unity. No source audio is analyzed.
+
+Form input updates the static preview without committing. Dragging applies the
+shown EQ settings through one effect.set command; peaking/shelves change frequency
+and gain, pass filters only frequency. Left/right arrows move by a semitone, or a
+quarter-semitone with Shift; up/down move .5 dB, or .1 dB with Shift, for gain-bearing
+filters. Numeric Q controls remain available. Automation stays unchanged and an
+explicit caption explains that curves override this static preview in playback.
+The graph does not pretend to show live automated response or audition draft edits.
+
+Pointer capture supports mouse/pen/touch. Escape, pointer cancellation, capture
+loss, window blur or DOM removal restore draft fields without a commit. One drag
+is one undo step. A DOM-replacing edit cannot apply a late drag; commits also carry
+the captured document revision. Busy/recording states block graph edits. Number
+fields remain keyboard alternatives, and the SVG exposes keyboard instructions.
+Graph contexts are reused per sample rate and do not start audio playback.
+
+359 unit tests and production build pass with the existing chunk-size warning.
+New units cover coordinate mapping, boundaries, filter-specific fields and keyboard
+increments. Browser checks cover previews, drag/keys, one-step undo/redo, Escape,
+pointer cancellation, undo during a drag, invalid drafts, reload, and numerical
+response vs actual rendered sine audio at three frequencies for all five filter
+types (within .02 dB). Low sample-rate/Nyquist and bypass responses are also checked.
+The graph was visually inspected. Existing agent EQ commands need no new tool.
