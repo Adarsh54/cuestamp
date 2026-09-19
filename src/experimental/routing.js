@@ -43,7 +43,7 @@ export function bindRouting(root,{track,execute,guard,duration=1}){if(!track)ret
   scope.addEventListener('toggle',()=>{if(scope.isConnected){if(scope.open)openEditors.add(key);else openEditors.delete(key);}});
   const send=track.sends.find(s=>s.busId===scope.dataset.sendAutomation);if(!send)return;
   bindAutomation(scope,{track:{id:send.busId,gainDb:send.gainDb,automation:send.automation||[]},execute,guard,duration,
-   point:({time,value})=>({op:'send.automation.point',target:track.id,values:{busId:send.busId,time,value}}),
+   point:({time,value,shape})=>({op:'send.automation.point',target:track.id,values:{busId:send.busId,time,value,shape}}),
    clear:()=>({op:'send.automation.clear',target:track.id,values:{busId:send.busId}}),
   });
  });

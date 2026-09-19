@@ -1,9 +1,11 @@
+import {automationSegments,curveShapeOptions} from './automation-curves.js';
 import {automationValue} from './effects.js';
+const shapeSelect=(shape='linear')=>`<label>Curve to next point<select name="shape">${curveShapeOptions.map(([v,label])=>`<option value="${v}" ${shape===v?'selected':''}>${label}</option>`).join('')}</select></label>`;
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const round=value=>Number(value.toFixed(2));
 const defaultParameters={gainDb:{label:'Volume (dB)',min:-96,max:12,step:.5},pan:{label:'Pan',min:-1,max:1,step:.05}};
 export function automationView(track,esc,{gainOnly=false,parameters=gainOnly?{gainDb:defaultParameters.gainDb}:defaultParameters}={}){
- return `<section class="daw-automation"><h4>Automation · ${esc(track.name)}</h4><label>Parameter<select data-auto-parameter>${Object.entries(parameters).map(([key,spec])=>`<option value="${key}">${esc(spec.label)}</option>`).join('')}</select></label><p class="muted">Click to add a point; drag a point to move it. Focus a point and use arrow keys to adjust it, or Delete to remove it. Curves override the static control.</p><svg data-auto-graph viewBox="0 0 600 160" preserveAspectRatio="none" aria-label="Automation curve"></svg><form data-auto-form="${track.id}"><label>Time · seconds<input type="number" name="time" min="0" max="86400" step=".01" value="0" required></label><label>Value<input type="number" name="value" step=".1" value="0" required></label><button type="submit">Add point</button><button type="button" data-auto-clear="${track.id}">Clear curve</button></form><div data-auto-points></div></section>`;
+ return `<section class="daw-automation"><h4>Automation · ${esc(track.name)}</h4><label>Parameter<select data-auto-parameter>${Object.entries(parameters).map(([key,spec])=>`<option value="${key}">${esc(spec.label)}</option>`).join('')}</select></label><p class="muted">Click to add a point; drag a point to move it. Focus a point and use arrow keys to adjust it, or Delete to remove it. Curves override the static control. Each point’s shape controls the transition to the next point; Hold keeps its value until the next point.</p><svg data-auto-graph viewBox="0 0 600 160" preserveAspectRatio="none" aria-label="Automation curve"></svg><form data-auto-form="${track.id}"><label>Time · seconds<input type="number" name="time" min="0" max="86400" step=".01" value="0" required></label><label>Value<input type="number" name="value" step=".1" value="0" required></label>${shapeSelect()}<button type="submit">Add point</button><button type="button" data-auto-clear="${track.id}">Clear curve</button></form><div data-auto-points></div></section>`;
 }
 export function bindAutomation(root,{track,execute,guard,duration,automationParameter='gainDb',onAutomationParameter=()=>{},
  point=values=>({op:'automation.point',target:track.id,values}),
@@ -21,8 +23,8 @@ export function bindAutomation(root,{track,execute,guard,duration,automationPara
   // Keep handles inside the viewBox, including the first/last time and min/max value.
   const x=time=>8+time/end*584,y=value=>152-clamp((value-min)/(max-min),0,1)*144;
   const path=items=>{
-   const ordered=[...items].sort((a,b)=>a.time-b.time);
-   return [{time:0,value:automationValue(ordered,key,0,track[key])},...ordered,{time:end,value:automationValue(ordered,key,end,track[key])}].map((p,i)=>`${i?'L':'M'} ${x(p.time)} ${y(p.value)}`).join(' ');
+   const ordered=automationSegments(items,key),expanded=[{time:0,value:automationValue(items,key,0,track[key]),shape:'hold'},...ordered,{time:end,value:automationValue(items,key,end,track[key])}];
+   return expanded.map((p,i)=>`${i?(expanded[i-1].shape==='hold'?`L ${x(p.time)} ${y(expanded[i-1].value)} L`:'L'):'M'} ${x(p.time)} ${y(p.value)}`).join(' ');
   };
   const coords=event=>{
    const rect=graph.getBoundingClientRect();
@@ -57,13 +59,13 @@ export function bindAutomation(root,{track,execute,guard,duration,automationPara
     handle.onpointerup=guard(event=>{event.stopPropagation();reset();handle.releasePointerCapture(event.pointerId);if(moved&&values)applyEdit(original.id,values);});
    };
   });
-  pointsRoot.innerHTML=points.map(p=>`<div><form data-auto-edit="${p.id}"><label>Time · seconds<input name="time" type="number" min="0" max="86400" step="any" value="${p.time}" required></label><label>${parameters[key].label}<input name="value" type="number" min="${min}" max="${max}" step="any" value="${p.value}" required></label><button type="submit">Update point</button><button type="button" data-auto-remove="${p.id}" aria-label="Remove automation point at ${p.time} seconds">Remove</button></form></div>`).join('');
-  pointsRoot.querySelectorAll('[data-auto-edit]').forEach(editor=>editor.onsubmit=guard(e=>{e.preventDefault();applyEdit(editor.dataset.autoEdit,{time:Number(editor.elements.time.value),value:Number(editor.elements.value.value)});}));
+  pointsRoot.innerHTML=points.map(p=>`<div><form data-auto-edit="${p.id}"><label>Time · seconds<input name="time" type="number" min="0" max="86400" step="any" value="${p.time}" required></label><label>${parameters[key].label}<input name="value" type="number" min="${min}" max="${max}" step="any" value="${p.value}" required></label>${shapeSelect(p.shape)}<button type="submit">Update point</button><button type="button" data-auto-remove="${p.id}" aria-label="Remove automation point at ${p.time} seconds">Remove</button></form></div>`).join('');
+  pointsRoot.querySelectorAll('[data-auto-edit]').forEach(editor=>editor.onsubmit=guard(e=>{e.preventDefault();applyEdit(editor.dataset.autoEdit,{time:Number(editor.elements.time.value),value:Number(editor.elements.value.value),shape:editor.elements.shape.value});}));
   pointsRoot.querySelectorAll('[data-auto-remove]').forEach(button=>button.onclick=guard(()=>execute([remove(button.dataset.autoRemove)],'Removed automation point')));
   form.elements.value.min=min;form.elements.value.max=max;form.elements.value.step='any';if(Number(form.elements.value.value)<min||Number(form.elements.value.value)>max)form.elements.value.value=track[key]??min;
-  graph.onclick=guard(event=>{if(event.target.closest('[data-auto-point]'))return;execute([point({parameter:key,...coords(event)})],'Added automation point');});
+  graph.onclick=guard(event=>{if(event.target.closest('[data-auto-point]'))return;execute([point({parameter:key,...coords(event),shape:form.elements.shape.value})],'Added automation point');});
  }
  parameter.value=Object.hasOwn(parameters,automationParameter)?automationParameter:Object.keys(parameters)[0];parameter.onchange=()=>{onAutomationParameter(parameter.value);draw();};draw();
- form.onsubmit=guard(e=>{e.preventDefault();execute([point({parameter:parameter.value,time:Number(form.elements.time.value),value:Number(form.elements.value.value)})],'Added automation point');});
+ form.onsubmit=guard(e=>{e.preventDefault();execute([point({parameter:parameter.value,time:Number(form.elements.time.value),value:Number(form.elements.value.value),shape:form.elements.shape.value})],'Added automation point');});
  root.querySelector('[data-auto-clear]').onclick=guard(()=>execute([clear(parameter.value)],'Cleared automation curve'));
 }

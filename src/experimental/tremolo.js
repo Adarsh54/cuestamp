@@ -1,14 +1,8 @@
+import {integrateAutomation} from './automation-curves.js';
 import {scheduleEffectParameter} from './effect-automation.js';
 export function tremoloRateEffect(effect,tempo=120){return effect.sync?{...effect,rate:tempo/60/effect.beats,automation:(effect.automation||[]).filter(p=>p.parameter!=='rate')}:effect;}
-// Integrate the same piecewise-linear Hz curve scheduled on oscillator.frequency.
-// The first point extends backwards to zero, matching other automation lanes.
-export function tremoloCycles(effect,position){
- const points=(effect.automation||[]).filter(p=>p.parameter==='rate').sort((a,b)=>a.time-b.time);
- if(!points.length)return position*effect.rate;
- let total=0,time=0,value=points[0].value;
- for(const p of points){if(p.time===time){value=p.value;continue;}const end=Math.min(position,p.time);if(end>time){const last=value+(p.value-value)*(end-time)/(p.time-time);total+=(value+last)/2*(end-time);}if(position<=p.time)return total;time=p.time;value=p.value;}
- return total+Math.max(0,position-time)*value;
-}
+// Integrate the exact piecewise curve used for oscillator scheduling.
+export function tremoloCycles(effect,position){return integrateAutomation(effect.automation||[],'rate',position,effect.rate);}
 export function connectTremolo(context,input,effect,nodes,{position=0,base=context.currentTime,tempo=120}={}){
  const stereo=context.createGain(),split=context.createChannelSplitter(2),merge=context.createChannelMerger(2),rateEffect=tremoloRateEffect(effect,tempo),cycles=tremoloCycles(rateEffect,position);
  stereo.channelCount=2;stereo.channelCountMode='explicit';stereo.channelInterpretation='speakers';input.connect(stereo).connect(split);nodes.push(stereo,split,merge);

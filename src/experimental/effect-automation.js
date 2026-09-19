@@ -1,3 +1,4 @@
+import {automationShape,scheduleCurveAutomation} from './automation-curves.js';
 import {z} from 'zod';
 const field=(label,min,max,step)=>({label,min,max,step});
 export const effectParameters={
@@ -9,7 +10,7 @@ export const effectParameters={
  delay:{time:field('Delay · seconds',.01,2,.01),feedback:field('Feedback',0,.9,.01),mix:field('Wet mix',0,1,.01)},
  reverb:{mix:field('Wet mix',0,1,.01)},
 };
-export const effectPointSchema=z.object({id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),parameter:z.enum([...new Set(Object.values(effectParameters).flatMap(Object.keys))]),time:z.number().finite().min(0).max(86400),value:z.number().finite()}).strict();
+export const effectPointSchema=z.object({id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),parameter:z.enum([...new Set(Object.values(effectParameters).flatMap(Object.keys))]),shape:automationShape.optional(),time:z.number().finite().min(0).max(86400),value:z.number().finite()}).strict();
 export function validateEffectPoints(effect,ctx){
  const seen=new Set();for(const [i,p]of effect.automation.entries()){
   const spec=effectParameters[effect.kind][p.parameter],key=p.parameter+':'+p.time;
@@ -19,17 +20,15 @@ export function validateEffectPoints(effect,ctx){
 }
 // Values are linear in their displayed units. EQ gain is already a dB AudioParam.
 export function scheduleEffectParameter(param,effect,key,position,base,transform=v=>v){
- const points=(effect.automation||[]).filter(p=>p.parameter===key).sort((a,b)=>a.time-b.time);
- let value=effect[key];if(points.length){value=points[0].value;for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i];if(position<=a.time)break;if(position<b.time){value=a.value+(b.value-a.value)*(position-a.time)/(b.time-a.time);break;}value=b.value;}}
- param.setValueAtTime(transform(value),base);for(const p of points)if(p.time>position)param.linearRampToValueAtTime(transform(p.value),base+p.time-position);
+ scheduleCurveAutomation(param,effect.automation||[],key,position,base,effect[key],transform);
 }
 export function effectAutomationCommand(effects,op,target,values){
  const effect=effects.find(e=>op==='effect.automation.point'||op==='effect.automation.clear'?e.id===target:e.automation.some(p=>p.id===target));if(!effect)throw Error('Effect or automation point not found.');
- const allowed=op==='effect.automation.point'?['id','parameter','time','value']:op==='effect.automation.set'?['time','value']:op==='effect.automation.clear'?['parameter']:[];
+ const allowed=op==='effect.automation.point'?['id','parameter','time','value','shape']:op==='effect.automation.set'?['time','value','shape']:op==='effect.automation.clear'?['parameter']:[];
  if(Object.keys(values).some(k=>!allowed.includes(k)))throw Error('Unsupported effect automation field.');
  const points=effect.automation;
  if(op==='effect.automation.clear'){if(!Object.hasOwn(effectParameters[effect.kind],values.parameter))throw Error('Unknown effect automation parameter.');effect.automation=points.filter(p=>p.parameter!==values.parameter);}
  else if(op==='effect.automation.delete')points.splice(points.findIndex(p=>p.id===target),1);
  else if(op==='effect.automation.set'){const current=points.find(p=>p.id===target);Object.assign(current,effectPointSchema.parse({...current,...values}));}
- else{const point=effectPointSchema.parse({id:crypto.randomUUID(),...values}),previous=points.find(p=>p.parameter===point.parameter&&p.time===point.time);if(previous)previous.value=point.value;else points.push(point);}
+ else{const point=effectPointSchema.parse({id:crypto.randomUUID(),...values}),previous=points.find(p=>p.parameter===point.parameter&&p.time===point.time);if(previous){previous.value=point.value;if(values.shape!==undefined)previous.shape=point.shape;}else points.push(point);}
 }
