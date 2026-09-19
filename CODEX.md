@@ -2504,3 +2504,34 @@ limits, atomic undo and the mocked model tool path.
 one-step undo/redo, failure/cancellation on the second render after the first file
 was stored, cleanup after a failed document commit, agent execution and reload
 playback. Both existing single-track and region-bounce browser regressions pass.
+
+### Experimental DAW: convert sustain pedal to note lengths
+
+The piano roll's **Sustain pedal to note lengths** tool extends notes whose
+note-off occurs while their MIDI channel's CC64 value is at least 64. The new end
+is the next pedal-off message or the region end if none follows. Pitch, onset,
+velocity, channel and mute state are preserved, as are existing same-pitch
+retrigger overlaps. This uses the same binary pedal semantics as current playback;
+it does not model continuous half-pedaling.
+
+Choose all notes or selected notes. **Remove converted channels’ pedal events**
+defaults on and deletes CC64 only on channels represented by the chosen notes.
+Other controllers and events on other channels remain. If an unselected note on
+those channels still depends on sustain, removal rejects rather than changing its
+playback: include those notes or explicitly keep pedal events. Keeping the events
+allows them to continue affecting playback. The preview shows note/event counts;
+conversion is one undoable edit. MIDI export carries the new note lengths.
+
+Shared command: `notes.applySustain`, target MIDI region, optional `noteId` or
+comma-separated `noteIds` (omit for all), `removePedal` boolean default true.
+Events are indexed by channel and time so conversion does not repeatedly sort all
+controller data for every note. Conversions exceeding the existing one-hour note
+length limit reject atomically. An empty selection or non-MIDI source also rejects.
+
+Reference: [Logic sustain-pedal conversion](https://support.apple.com/en-in/guide/logicpro/lgcpa90a4474/mac).
+`test/experimental-sustain-lengths.test.js` covers channels, boundary/same-time
+messages, thresholds, missing pedal-up, partial selections, preserved values,
+20,000-note/event input, undo and MIDI export. It also verifies the mocked agent
+command path. `scripts/browser-experimental-sustain-lengths-check.cjs` checks the
+UI, selected-only protection, keeping events, real PCM equality, undo/redo and
+reload. No external MIDI instrument was used for playback verification.
