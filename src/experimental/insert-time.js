@@ -1,4 +1,4 @@
-import {splitMidiRegion,trimmedRegion} from './region-edit.js';
+import {splitRegion} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 
 // Preserve the rendered curve on both sides of the gap. Only a curved segment
@@ -32,14 +32,7 @@ export function insertProjectTime(session,{position,duration}){
    if(region.start+region.duration>position)shift(region.start+region.duration);
    if(region.start>=position)return [{...region,start:shift(region.start)}];
    if(region.start+region.duration<=position)return [region];
-   let left,right;
-   if(track.kind==='midi')({left,right}=splitMidiRegion(region,position));
-   else{
-    left={...structuredClone(region),...trimmedRegion(region,region.start,position),fadeOut:0,fadeIn:Math.min(region.fadeIn,position-region.start)};
-    right={...structuredClone(region),...trimmedRegion(region,position,region.start+region.duration),id:crypto.randomUUID(),fadeIn:0,fadeOut:Math.min(region.fadeOut,region.start+region.duration-position)};
-    // Audio/video regions have no playable MIDI payload.
-    left.notes=[];left.events=[];right.notes=[];right.events=[];
-   }
+   const {left,right}=splitRegion(region,position,track.kind);
    right.start+=duration;splitIds.set(region.id,right.id);return [left,right];
   });
   for(const alternative of track.compAlternatives||[])alternative.segments=alternative.segments.flatMap(segment=>{
