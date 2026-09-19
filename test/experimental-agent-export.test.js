@@ -21,3 +21,12 @@ test('agent export requires capability, validated context and exactly one strict
  await assert.rejects(planDawEdit(input,adapter([call(action),call(action)])),/Unexpected/);
  await assert.rejects(planDawEdit(input,adapter([call({...action,mode:'region',regionId:'gone'})])),/Select an audio/);
 });
+test('ordered edit-export validates the edited result, capability and exclusive follow-up before application',async()=>{
+ const input={session,instruction:'Shorten and export',allowExport:true,exportContext:context},args={summary:'Shorten and export',commands:[{op:'region.set',target:'r',values:{duration:1}}],afterEditExport:{...action,mode:'region'},verifyMix:true},edit=a=>({type:'function_call',name:'edit_session',arguments:JSON.stringify(a)});let sent;
+ const result=await planDawEdit(input,adapter([edit(args)],body=>sent=body));assert.deepEqual(result.afterEditExport,args.afterEditExport);assert.equal(session.tracks[0].regions[0].duration,2);assert.ok(sent.tools.find(t=>t.name==='edit_session').parameters.properties.afterEditExport);
+ await assert.rejects(planDawEdit({...input,allowExport:false},adapter([edit(args)],body=>sent=body)),/Export is unavailable/);assert.equal(sent.tools.find(t=>t.name==='edit_session').parameters.properties.afterEditExport,undefined);
+ await assert.rejects(planDawEdit(input,adapter([edit({...args,commands:[{op:'region.delete',target:'r'}]})])),/no longer exists/);
+ await assert.rejects(planDawEdit(input,adapter([edit({...args,commands:[]})])),/at least|requires|small/i);
+ await assert.rejects(planDawEdit({...input,allowTransport:true,transport:{sessionId:session.id,revision:session.revision,epoch:0,position:0,playing:false}},adapter([edit({...args,afterEditTransport:{operation:'play',position:null}})])),/one follow-up/);
+ const mix=await planDawEdit(input,adapter([edit({...args,commands:[{op:'region.delete',target:'r'}],afterEditExport:action})]));assert.equal(mix.afterEditExport.mode,'mix');
+});

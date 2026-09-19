@@ -1,4 +1,4 @@
-import {prepareAgentExport} from './agent-export.js';
+import {prepareAgentExport,prepareEditedExport} from './agent-export.js';
 import {transportActionSchema,transportSummary,transportWait} from './agent-transport.js';
 import {shortcutsView,bindWorkspaceShortcuts} from './shortcuts.js';
 import {joinMidiView,bindJoinMidi} from './join-midi.js';
@@ -40,7 +40,7 @@ import {pianoView,bindPiano} from './piano.js';
 import {mixerView,bindMixer} from './mixer.js';
 import JSZip from 'jszip';
 import './workspace.css';
-import {SessionHistory,newSession,sessionSchema} from './session.js';
+import {SessionHistory,newSession,sessionSchema,applyCommands} from './session.js';
 import {assetStore,storeAssets} from './media-store.js';
 import {exportArchive,importArchive} from './archive.js';
 import {encodeMidiImport,MAX_MIDI_IMPORT_BYTES,writeMidi} from './midi.js';
@@ -214,7 +214,7 @@ export function createExperimentalWorkspace({account,esc}){
    event.preventDefault();if(agentBusy||busy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');
    const instruction=root.querySelector('#daw-instruction').value.trim();if(!instruction)return;
    const original=history,before=structuredClone(session()),draftTicket=instructionDrafts.begin(before.id),revision=before.revision,request=new AbortController();agentController=request;const recent=structuredClone(conversation);trace.push({role:'user',text:instruction});agentBusy=true;paint();
-   let outcome='failed',summary='',applied=false,appliedSession,verifying=false,transportTouched=false,followingTransport=false;const timer=setTimeout(()=>request.abort(new Error('The agent request timed out.')),300000);
+   let outcome='failed',summary='',applied=false,appliedSession,verifying=false,transportTouched=false,followingTransport=false,followingExport=false;const timer=setTimeout(()=>request.abort(new Error('The agent request timed out.')),300000);
    try{
     const selection=region()?.notes.some(n=>n.id===selectedNote)?selectedNote:selected,selectedNoteIds=noteTools.selectionRegion===region()?.id?[...(noteTools.selectedIds||[])]:[];
     const exportContext={sessionId:before.id,revision,regionId:region()?.id||null,settings:{...bounceSettings}};
@@ -225,6 +225,7 @@ export function createExperimentalWorkspace({account,esc}){
      const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,session:before,conversation:recent,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selection}),signal:request.signal});
      result=await response.json();if(!response.ok)throw Error(result.error||'The agent request failed.');request.signal.throwIfAborted();
      if(!root?.isConnected||history!==original||session().id!==before.id||session().revision!==revision||result.revision!==revision){outcome='discarded';throw Error('The session changed. This response was not applied. Run the instruction again.');}
+     if(result.action!==undefined&&result.afterEditExport!==undefined)throw Error('Follow-up export belongs only in an edit plan.');
      if(result.action===undefined)break;
      if(result.action==='export_audio'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Export must be separate from edits and transport.');break;}
      if(result.action==='transport'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Use an edit plan with afterEditTransport for an ordered edit and transport action.');break;}
@@ -233,6 +234,8 @@ export function createExperimentalWorkspace({account,esc}){
      if(!root?.isConnected||history!==original||session().revision!==revision){outcome='discarded';throw Error('The session changed. Run the instruction again.');}
     }
     const afterTransport=result.afterEditTransport===undefined?null:transportActionSchema.parse(result.afterEditTransport);
+    const afterExport=result.afterEditExport;
+    if(afterExport!==undefined){if(afterTransport)throw Error('Choose one follow-up action.');if(!result.commands?.length)throw Error('Follow-up export requires an edit batch.');prepareEditedExport(applyCommands(before,result.commands,revision),afterExport,exportContext);}
     if(afterTransport){
      if(!result.commands?.length)throw Error('Follow-up transport requires an edit batch.');
      if(result.transportEpoch!==transportSnapshot.epoch||transportEpoch!==transportSnapshot.epoch){outcome='discarded';throw Error('Transport changed while planning. No edits applied. Run the instruction again.');}
@@ -246,6 +249,11 @@ export function createExperimentalWorkspace({account,esc}){
      transportTouched=true;summary=await performAgentTransport(action,request.signal);outcome='replied';trace.push({role:'action',text:summary});status=summary;
     }else if(result.commands?.length){const previous=history.session;try{execute(result.commands,summary,revision);}finally{applied=history.session!==previous;if(applied)appliedSession=structuredClone(session());}outcome='applied';let followEpoch=transportEpoch;
      if(result.verifyMix===true||result.commands.some(c=>c.op==='master.gain.offset')){verifying=true;trace.push({role:'assistant',text:'Checking the mix after the edit…'});const analysis=await analyzeMix({agentRequest:request});followEpoch=analysis.transportEpoch;const measured=currentMixAnalysis(mixAnalysis,session());if(!measured)throw Error('The mix changed before verification completed.');const peak=Math.max(...measured.channels.map(c=>c.peakDb??-Infinity)),over=measured.channels.reduce((sum,c)=>sum+c.overSamples,0),verification=`After the edit: sample peak ${Number.isFinite(peak)?peak.toFixed(2)+' dBFS':'Silence'}; ${over} samples over 0 dBFS. Measured the full mix.`;trace.push({role:'assistant',text:verification});summary=summary.slice(0,1600)+' '+verification;status=verification;verifying=false;}
+     if(afterExport!==undefined){
+      followingExport=true;request.signal.throwIfAborted();
+      if(history!==original||session().revision!==appliedSession.revision||!root?.isConnected)throw Error('The session changed before follow-up export.');
+      const prepared=prepareEditedExport(appliedSession,afterExport,exportContext),report=await bounce(afterExport.mode,prepared,request);summary=summary.slice(0,1600)+' '+report;trace.push({role:'action',text:report});
+     }
      if(afterTransport){
       followingTransport=true;request.signal.throwIfAborted();
       if(history!==original||session().revision!==appliedSession.revision||!root?.isConnected)throw Error('The session changed before follow-up transport.');
@@ -253,7 +261,7 @@ export function createExperimentalWorkspace({account,esc}){
       transportTouched=true;const report=await performAgentTransport(afterTransport,request.signal);summary=summary.slice(0,1800)+' '+report;trace.push({role:'action',text:report});status=report;
      }
     }else{outcome='replied';trace.push({role:'assistant',text:summary});}
-   }catch(error){const message=String(error?.message||error||'The agent request failed.');if(applied)outcome='applied';else if(request.signal.aborted)outcome='canceled';summary=applied?(followingTransport?'Edits applied; follow-up transport did not complete: ':verifying?'Edits applied; mix verification did not complete: ':'Edits applied, but ')+message:outcome==='canceled'?(request.signal.reason?.name==='AbortError'?'Request canceled. No edits applied.':request.signal.reason?.message||'Request canceled. No edits applied.'):message;
+   }catch(error){const message=String(error?.message||error||'The agent request failed.');if(applied)outcome='applied';else if(request.signal.aborted)outcome='canceled';summary=applied?(followingExport?'Edits applied; follow-up export did not complete: ':followingTransport?'Edits applied; follow-up transport did not complete: ':verifying?'Edits applied; mix verification did not complete: ':'Edits applied, but ')+message:outcome==='canceled'?(request.signal.reason?.name==='AbortError'?'Request canceled. No edits applied.':request.signal.reason?.message||'Request canceled. No edits applied.'):message;
     if(transportTouched&&!applied)summary=`Transport request ${request.signal.aborted?'canceled':'failed'}: ${message} Current transport: ${transportSummary('pause',currentTransport())}`;
     if(history===original&&root?.isConnected){trace.push({role:'assistant',text:summary});status=summary;}
    }finally{clearTimeout(timer);instructionDrafts.finish(draftTicket,outcome==='applied'||outcome==='replied');try{if(history===original&&root?.isConnected)appendConversation(conversation,conversationTurn({before,after:appliedSession||session(),instruction,summary,outcome}));}finally{if(agentController===request){agentController=null;agentBusy=false;}paint();}}

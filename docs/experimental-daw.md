@@ -1948,5 +1948,16 @@ The request captures the current selection, cycle range and export settings.
 Changing the project before completion invalidates the download. Cancel request
 prevents a late render from downloading. Export stops playback and creates no
 undo step. The completion report means the browser started the download; browser
-download permissions still apply. Edits and exports currently require separate
-requests. Model-tool tests are mocked until live provider configuration is set.
+download permissions still apply. An explicit edit-then-export request can use afterEditExport in one edit plan.
+The app validates the resulting export before applying the edit, completes any
+requested mix verification, then downloads. A failed verification or canceled
+export leaves the edit available to undo and reports the incomplete follow-up.
+Only one follow-up action is supported: export or transport. Model-tool tests
+are mocked until live provider configuration is set.
+
+For combined edits and export, inherited export preferences and region selection
+come from the submitted request, while an inherited cycle range comes from the
+edited project. Deleting the selected region and asking to export that region
+rejects the entire plan before changes apply. Explicitly targeting another
+existing or newly created region is supported. Exporting a mix after deleting a
+region is valid. Follow-up exports do not add a second undo entry.

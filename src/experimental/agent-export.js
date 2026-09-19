@@ -18,3 +18,10 @@ export function prepareAgentExport(session,value,context){
  if(action.mode==='range'&&action.start!==null){snapshot.loopStart=action.start;snapshot.loopEnd=action.end;}
  return {plan:createBouncePlan(snapshot,{...settings,mode:action.mode,regionId:action.regionId??context.regionId}),settings:{...settings}};
 }
+
+// Follow-up export uses the edited document and its cycle, while preserving the
+// originally selected region ID and export preferences unless explicitly replaced.
+export function prepareEditedExport(session,value,context){
+ const action=exportActionSchema.parse(value);
+ return prepareAgentExport(session,action,{...context,sessionId:session.id,revision:session.revision,regionId:action.mode==='region'?(action.regionId??context.regionId):null});
+}

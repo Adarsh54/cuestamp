@@ -1724,3 +1724,33 @@ ZIP contents, unchanged session/undo behavior, cancellation during delayed rende
 and stale-model response rejection. Existing manual bounce checks pass, including
 dither, master bypass, grouped stem alignment and mix reconstruction. Live model
 inference remains unverified without local provider credentials.
+
+### Ordered agent edits followed by export
+
+edit_session now offers afterEditExport when the browser advertises allowExport.
+It uses the standalone export_audio argument shape. The tool schema hides it
+for clients without that capability, and unsupported replies are rejected.
+Export and transport follow-ups are mutually exclusive. The prompt requires an
+explicit export request and forbids claiming completion before browser execution.
+
+Both server and browser validate the export against a simulated edited document
+before applying the batch. Missing/deleted region targets, invalid ranges and
+render limits reject the whole plan. Actual rendering uses the actual applied
+snapshot, not the simulated document (new IDs may be generated during edits).
+Inherited settings and selected region ID come from the original request; an
+inherited cycle range comes from the edited document. Selected-region context is
+irrelevant for a mix, so deleting that selection does not block mix export.
+
+Verification runs before export when requested or required for master gain.
+Failed verification prevents download but preserves the undoable edit. Likewise,
+cancellation, render failure or changed project state suppresses the follow-up
+without reversing applied edits. Conversation reports retain the real applied
+snapshot and distinguish an applied edit from an incomplete export. Export adds
+no undo entry. This supersedes the earlier separate-request limitation; arbitrary
+multi-action loops and live provider validation remain unfinished.
+
+308 tests and build pass. Browser checks use mocked model responses and real
+Web Audio/WAV downloads to verify a -6 dB edit in exported PCM, verification before
+export, one-step undo, invalid target rejection before edits, verification failure
+and canceled delayed render with no late download. Existing ordered transport and
+standalone export regressions are also checked. Live inference remains unverified.
