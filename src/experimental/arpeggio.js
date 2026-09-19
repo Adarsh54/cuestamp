@@ -22,7 +22,7 @@ export function arpeggioPlan(region,tempo,values={}){
    if(v.order==='upDown'&&pattern.length>1)pattern=[...pattern,...pattern.toReversed()];
    const count=Math.max(1,Math.ceil((end-start)/interval-1e-10));
    if(notes.length+count>capacity)throw Error('This pattern would exceed the region’s 20,000-note limit. Choose a slower rate or fewer notes.');
-   for(let i=0;i<count;i++){const n=pattern[i%pattern.length],onset=start+i*interval,duration=Math.min(interval*v.gate,end-onset);if(duration>0)notes.push({pitch:n.pitch,channel:n.channel??0,velocity:n.velocity,start:onset,duration});}
+   for(let i=0;i<count;i++){const n=pattern[i%pattern.length],onset=start+i*interval,duration=Math.min(interval*v.gate,end-onset);if(duration>0)notes.push({pitch:n.pitch,channel:n.channel??0,velocity:n.velocity,mute:n.mute??false,start:onset,duration});}
   }
  }
  return {removedIds:[...ids],notes};

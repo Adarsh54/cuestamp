@@ -86,3 +86,8 @@ form.daw-note-editor{margin-top:8px}
 .daw-channel-settings input[type=checkbox]{width:16px;height:16px;margin:0;flex-shrink:0;accent-color:var(--accent)}
 .daw-channel-settings button{justify-self:start}
 @media(max-width:700px){.daw-channel-settings form{grid-template-columns:1fr}}
+
+.daw-note-grid button[data-note-muted=true]{background:var(--surface);border:1px dashed var(--muted);color:var(--muted);opacity:.65!important}
+.daw-note-grid button[data-note-muted=true][aria-pressed=true]{outline:2px solid var(--accent);outline-offset:1px}
+.daw-step-row button[data-step-muted=true]{background:var(--surface);border:1px dashed var(--muted)}
+.daw-velocity-lane label[data-velocity-muted=true]{opacity:.5}
