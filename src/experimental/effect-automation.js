@@ -13,6 +13,7 @@ export const effectParameters={
 };
 export const effectPointSchema=z.object({id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),parameter:z.enum([...new Set(Object.values(effectParameters).flatMap(Object.keys))]),shape:automationShape.optional(),time:z.number().finite().min(0).max(86400),value:z.number().finite()}).strict();
 export function validateEffectPoints(effect,ctx){
+ for(const parameter of effect.automationMuted||[])if(!Object.hasOwn(effectParameters[effect.kind],parameter))ctx.addIssue({code:'custom',message:'Muted automation parameter is not supported by this effect.'});
  const seen=new Set();for(const [i,p]of effect.automation.entries()){
   const spec=effectParameters[effect.kind][p.parameter],key=p.parameter+':'+p.time;
   if(!spec||p.value<spec.min||p.value>spec.max)ctx.addIssue({code:'custom',path:['automation',i],message:'Unsupported effect parameter or automation value outside its range.'});

@@ -1,10 +1,10 @@
-import {automationModeSchema,activeAutomation} from './automation-mode.js';
+import {automationModeSchema,automationMutedSchema,activeAutomation} from './automation-mode.js';
 import {automationShape,curveAutomationValue,scheduleCurveAutomation} from './automation-curves.js';
 import {connectChorus} from './chorus.js';
 import {connectTremolo} from './tremolo.js';
 import {effectPointSchema,validateEffectPoints,scheduleEffectParameter} from './effect-automation.js';
 import {z} from 'zod';
-const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automation:z.array(effectPointSchema).max(2000).default([])};
+const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automationMuted:automationMutedSchema(['rate','depthMs','mix','depth','gainDb','width','frequency','q','threshold','ratio','attack','release','knee','time','feedback']),automation:z.array(effectPointSchema).max(2000).default([])};
 export const effectSchema=z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('chorus'),rate:z.number().finite().min(.05).max(10).default(.8),depthMs:z.number().finite().min(0).max(20).default(3),mix:z.number().finite().min(0).max(1).default(.35),stereoPhase:z.number().finite().min(-180).max(180).default(90)}).strict(),
  z.object({...base,kind:z.literal('tremolo'),rate:z.number().finite().min(.05).max(20).default(4),depth:z.number().finite().min(0).max(1).default(.5),phase:z.number().finite().min(-180).max(180).default(90),stereoPhase:z.number().finite().min(-180).max(180).default(0),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
