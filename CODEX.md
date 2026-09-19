@@ -1936,3 +1936,30 @@ cover modifier toggles, group form/drag, boundary clamping, unsnapped Shift move
 gesture cancellation, undo, agent request context, keyboard selection and reload.
 Existing single-region cross-track move and trim/fade/playback regressions pass.
 The group inspector was visually checked. Model responses remain mocked.
+
+### Group duplicate/delete and arrangement shortcuts
+
+regions.duplicate and regions.delete accept regionIds (CSV, 1..1000 distinct
+existing IDs). Duplicate accepts optional seconds (-86400..86400); the default is
+latest selected end minus earliest selected start, placing the copies after the
+complete group. Spacing, tracks, source media references, region settings and
+notes/events are preserved; region/note/event IDs are renewed. Overlapping copies
+are allowed. Starts must remain 0..86400 and each track must stay within 1,000
+regions. All targets and capacities are validated before adding copies. Delete
+removes only the selected regions, keeping tracks, media and automation. Both
+commands are atomic, undoable and documented in the agent prompt.
+
+The group inspector offers duplicate/delete buttons. Manual duplication selects
+the new copies; deleting clears the selection. D and Delete/Backspace use these
+buttons when the arrangement has multiple selected regions. Piano-roll shortcuts
+still take priority for selected notes, and form inputs remain excluded. Other
+primary-region controls remain individual. This supersedes the prior group-copy/
+delete limitation; marquee selection and clipboard workflows are still unfinished.
+
+328 tests and build pass. Unit checks cover group span/explicit offset, mixed
+tracks, preserved content/media, fresh IDs, delete semantics, undo and atomic
+failures for missing targets, timeline bounds and track capacity. Browser checks
+cover buttons and shortcuts, copied selection, repeated duplication, undo/redo,
+text-field/piano-roll isolation and reload. Existing group drag/clamp/cancellation
+regression also passes. The updated inspector was visually inspected. Live model
+inference remains unverified.

@@ -2030,6 +2030,20 @@ relative move in seconds. The whole move is one undoable edit.
 
 The group stops together at the timeline boundary. Overlaps are allowed; other
 regions, markers and track automation do not move. Trim and fade handles still
-edit one region. Other individual inspector actions use the primary region; group
-delete/copy and box selection are not available yet. Clear selection or click a
+edit one region. Other individual inspector actions use the primary region.
+Box selection is not available yet. Clear selection or click a
 single region to return to individual editing. Selection resets on reload.
+
+### Duplicate or delete a region group
+
+With several regions selected, use **Duplicate selected regions** or **Delete
+selected regions** in the inspector. D and Delete/Backspace do the same while
+working in the arrangement. In the piano roll those keys still operate on notes.
+Text inputs keep their normal keyboard behavior.
+
+Duplicates follow the end of the selected group, preserving internal spacing,
+tracks and source media references. The copies become the new selection, ready
+for another duplicate or move. Delete removes regions without deleting their
+tracks or media files. Each operation is one undoable edit. Undo restores document
+content; it does not restore a cleared selection. The agent supports an explicit
+relative duplication offset through regions.duplicate when requested.
