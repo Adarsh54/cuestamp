@@ -2569,3 +2569,9 @@ capacity, subdivision, gaps, undo and MIDI export plus the mocked agent path.
 `scripts/browser-experimental-note-split-check.cjs` covers graphical grouped cuts,
 playhead conversion, the form, actual rendered note attacks/gaps, undo/redo and
 reload. Existing piano-grid and note-selection browser checks cover regressions.
+
+### MIDI note joining
+
+The piano roll's **Join note fragments** panel and agent command `notes.join` share the same validated operation. Target a MIDI region; omit selection for all notes or provide `noteId` / comma-separated `noteIds`. Only chosen notes with matching pitch, channel and mute state join. Touching/overlapping chains join by default; `gap` (0–10 seconds) explicitly fills intervening silences. `velocity` accepts `first` (default, earliest note), `highest`, or `average` (arithmetic mean of fragment velocities). The earliest note ID remains; ties use region order. Controllers and unselected notes stay unchanged. Joined notes cannot exceed 3,600 seconds. Joining removes repeated attacks; this is a sustained note, not a legato articulation switch.
+
+Verification: `test/experimental-note-join.test.js` covers selection, identity, velocity, bounds, 20,000-note handling, undo, MIDI export and mocked agent commands. `scripts/browser-experimental-note-join-check.cjs` checks panel controls, actual offline audio sustaining across a former gap, undo/redo and local reload. Live model inference and physical MIDI hardware are not covered by these checks.
