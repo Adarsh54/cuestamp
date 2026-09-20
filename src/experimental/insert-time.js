@@ -1,4 +1,4 @@
-import {splitRegion} from './region-split.js';
+import {splitRegion,clampCompRounding} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 
 // Preserve the rendered curve on both sides of the gap. Only a curved segment
@@ -41,7 +41,7 @@ export function insertProjectTime(session,{position,duration}){
    if(segment.start>=position)return [{...segment,regionId:rightId,start:shift(segment.start),end:shift(segment.end)}];
    return [{...segment,end:position},{...segment,regionId:rightId,start:position+duration,end:segment.end+duration}];
   });
-  automate(track);for(const owner of [...track.effects,...track.sends])automate(owner);
+  clampCompRounding(track);automate(track);for(const owner of [...track.effects,...track.sends])automate(owner);
  }
  session.masterAutomation=insertAutomationTime(session.masterAutomation,position,duration);
  for(const effect of session.masterEffects)automate(effect);

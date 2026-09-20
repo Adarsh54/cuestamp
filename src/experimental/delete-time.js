@@ -1,4 +1,4 @@
-import {splitRegion} from './region-split.js';
+import {splitRegion,clampCompRounding} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 
 export function deleteAutomationTime(points,start,end){
@@ -44,7 +44,7 @@ export function deleteProjectTime(session,{start,end}){
     return pieces;
    });return segments.length?[{...alternative,segments}]:[];
   });
-  automate(track);for(const owner of [...track.effects,...track.sends])automate(owner);
+  clampCompRounding(track);automate(track);for(const owner of [...track.effects,...track.sends])automate(owner);
  }
  session.masterAutomation=deleteAutomationTime(session.masterAutomation,start,end);for(const effect of session.masterEffects)automate(effect);
  session.markers=session.markers.filter(m=>m.time<start||m.time>=end).map(m=>({...m,time:shift(m.time)}));

@@ -38,3 +38,10 @@ export function splitSelectedRegions(session,values){
   });
  }
 }
+
+// Keep comp bounds within surviving regions when timestamp arithmetic differs
+// by a few ULPs. Larger discrepancies remain stale and must be edited by the user.
+export function clampCompRounding(track){
+ const regionsById=new Map(track.regions.map(r=>[r.id,r]));
+ for(const comp of track.compAlternatives||[])for(const segment of comp.segments){const region=regionsById.get(segment.regionId);if(!region)continue;const stop=region.start+region.duration;if(segment.start<region.start&&region.start-segment.start<=1e-9)segment.start=region.start;if(segment.end>stop&&segment.end-stop<=1e-9)segment.end=stop;}
+}
