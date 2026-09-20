@@ -3174,3 +3174,7 @@ Reverse note timing now offers Musical beats (editor default) and Elapsed second
 ### Musical phrase time scaling
 
 Scale note timing offers Musical beats (editor default) and Elapsed seconds. Beat mode scales spacing and optional lengths through the tempo map; disabling length scaling preserves each note’s beat length at its new position. `notes.timeScale` accepts `timing: "beats" | "seconds"`; existing commands still default to seconds. The factor, phrase/region anchor, selection, explicit region extension, preview and undo work in either mode. Controllers and tempo maps remain unchanged. Absolute note ends cannot exceed the 24-hour timeline. Verify with `test/experimental-note-time-scale.test.js` and `scripts/browser-experimental-musical-time-scale-check.cjs`.
+
+### Musical legato gaps
+
+Legato & note lengths offers gap units in milliseconds (existing default) or musical beats. `notes.legato` accepts `timing: "seconds" | "beats"`; command gap values use that unit, with bounds −10..10. Positive beat gaps are measured backward from the next eligible onset, negative gaps forward for overlap, through the session tempo map. Last-note region-end behavior still ignores the gap. Chord grouping, channel/pitch matching, selection, shorten-only mode, protection and undo remain in effect. The UI remembers separate values for each unit. Verify with `test/experimental-legato.test.js` and `scripts/browser-experimental-musical-legato-check.cjs`.

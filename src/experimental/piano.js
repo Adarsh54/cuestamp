@@ -45,7 +45,7 @@ export function bindPiano(root,{session,region,tempo,getPosition,selected,select
  bindTranspose(root,{region,settings,execute,guard});
  bindTimeScale(root,{region,session,tempo,settings,execute,guard});
  bindReverseNotes(root,{region,session,tempo,settings,execute,guard});
- bindLegato(root,{region,settings,execute,guard});
+ bindLegato(root,{region,session,tempo,settings,execute,guard});
  bindScale(root,{region,settings,execute,guard});
  bindVelocity(root,{region,ids,settings,select,execute,guard});
  bindControllerLane(root,{region,tempo,session,settings,execute,guard,repaint:()=>select(selected)});
