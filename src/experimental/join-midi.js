@@ -7,6 +7,7 @@ export function joinedMidiRegion(track,target,values){
  const wanted=new Set(ids),regions=track.regions.filter(r=>wanted.has(r.id));
  if(regions.length!==ids.length)throw Error('Every joined region must belong to this MIDI track.');
  const anchor=regions.find(r=>r.id===target),start=Math.min(...regions.map(r=>r.start)),end=Math.max(...regions.map(r=>r.start+r.duration)),duration=end-start;
+ if(regions.some(r=>(r.tempoFollow!==false)!==(anchor.tempoFollow!==false)))throw Error('Choose the same tempo-following setting for all regions before joining.');
  if(duration>86400)throw Error('The joined region exceeds the 86,400-second limit.');
  const noteCount=regions.reduce((n,r)=>n+r.notes.length,0),eventCount=regions.reduce((n,r)=>n+r.events.length,0);
  if(noteCount>20000||eventCount>20000)throw Error('The joined region can contain at most 20,000 notes and 20,000 MIDI events.');

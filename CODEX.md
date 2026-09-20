@@ -3540,3 +3540,11 @@ Experimental → Tempo map → **Fit music to a timestamp** accepts a start/end 
 The shared agent command `tempo.fit` takes zero-based `startBeat`, `endBeat`, and `targetTime` in absolute project seconds. MIDI notes and regions preserve beat positions, including later material shifting by the duration difference. Audio/video, markers and automation remain at absolute times. Impossible BPM (outside 20–300), invalid ranges, excessive tempo point counts and timeline bounds reject atomically. One undo restores the entire change. An already matching endpoint leaves tempo data unchanged.
 
 Reference workflow: [Apple Tempo Operations](https://support.apple.com/en-gb/guide/logicpro/lgcp0f61a684/mac). Tests cover nonzero starts, varying tempo, exact endpoints within floating-point tolerance, downstream shifts, fixed video/markers, invalid ranges and undo; browser checks cover choosing a marker, preview, apply and undo. This operation does not time-stretch audio or lock later MIDI to picture.
+
+### MIDI regions with fixed timing
+
+In a selected MIDI region’s inspector, disable **Follow tempo changes** and Apply edits to keep the region’s start, duration, notes, controllers and fades in seconds during tempo edits. The timeline labels it **Fixed timing**. Defaults and older sessions continue to follow tempo. This applies to tempo add/set/delete, initial BPM, curves, scaling, constant tempo, timestamp fitting and adopted MIDI tempo maps.
+
+Agent `region.add` and `region.set` accept `tempoFollow:false` (MIDI only); `true` reenables following from the region’s current musical position. Toggling never moves content. Copies and splits retain the setting; joining different modes rejects until they agree. This is a tempo response setting, not a general edit lock: explicit moves, trims and arrangement edits still apply. MIDI file export preserves performance timing but cannot round-trip this app editing preference.
+
+Reference: [Apple absolute-time workflow](https://support.apple.com/en-gb/guide/logicpro/lgcpfffcaf81/10.7/mac/11.0). Verification: `test/experimental-midi-fixed-timing.test.js` covers tempo operations, adoption, undo, serialization, duplication, mixed joins, protection and MIDI export; the browser check exercises the inspector, indicator and tempo change.

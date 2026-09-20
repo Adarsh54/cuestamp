@@ -19,6 +19,7 @@ export function retimeMidiTracks(tracks,previousTiming,nextTiming){
  if(from.points.length===to.points.length&&from.points.every((p,i)=>p.beat===to.points[i].beat&&p.bpm===to.points[i].bpm))return;
  const remap=time=>to.timeAtBeat(from.beatAtTime(time)),positive=value=>{if(!(value>0))throw Error('Tempo change collapses a MIDI interval below timeline precision.');return value;};
  for(const track of tracks){if(track.kind!=='midi')continue;for(const region of track.regions){
+  if(region.tempoFollow===false)continue;
   // Keep existing constant-tempo arithmetic exactly, including tiny local notes.
   if(!from.hasChanges&&!to.hasChanges){const ratio=from.points[0].bpm/to.points[0].bpm;if((region.start+region.duration)*ratio>86400)throw Error('Tempo change moves MIDI beyond the 24-hour timeline.');region.start*=ratio;region.duration*=ratio;region.fadeIn*=ratio;region.fadeOut*=ratio;for(const note of region.notes){note.start*=ratio;note.duration*=ratio;}for(const event of region.events||[])event.start*=ratio;continue;}
   const start=region.start,end=start+region.duration,newStart=remap(start),newEnd=remap(end);if(newEnd>86400)throw Error('Tempo change moves MIDI beyond the 24-hour timeline.');
