@@ -2959,3 +2959,22 @@ to edit a note, draw one and split through a mapped fixture. This is not yet a
 fully map-enabled piano roll: group drag/resize, group timing forms, duplication
 and grid-line rendering still need musical integration before enabling saved
 project tempo maps.
+
+### Experimental DAW: tempo-aware piano grid rendering
+
+Mapped piano grids render their line positions from region-local musical beats,
+so spacing expands/contracts at tempo changes while the horizontal axis remains
+seconds. Off-beat region origins are supported. Snap Off removes lines; returning
+to constant-tempo sessions clears the mapped CSS overrides. The existing uniform
+grid path remains for constant tempo.
+
+Visual density is bounded to 1,000 lines with a minimum four-pixel interval at
+the fastest mapped tempo. Dense grids are thinned by powers of two without
+changing note editing's actual snap interval. Shared CSS custom properties apply
+one bounded gradient to pitch rows, without adding DOM elements per note row or
+allocating a large bitmap.
+
+Unit coverage extends `experimental-musical-piano.test.js`; the browser check
+verifies mapped line positions and snap switching and captures
+`/tmp/cuestamp-musical-piano-grid.png`. Group gestures and group timing forms
+still require integration before project tempo maps can be enabled.

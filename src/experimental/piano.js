@@ -45,9 +45,9 @@ export function bindPiano(root,{session,region,tempo,getPosition,selected,select
  bindScale(root,{region,settings,execute,guard});
  bindVelocity(root,{region,ids,settings,select,execute,guard});
  bindControllerLane(root,{region,tempo,session,settings,execute,guard,repaint:()=>select(selected)});
- applyPianoGrid(root,beat,settings.snap);bindMarquee(root,{region,settings,select});
+ applyPianoGrid(root,beat,settings.snap,region,session);bindMarquee(root,{region,settings,select});
  root.querySelector('[data-piano-tool]').onchange=e=>{settings.tool=e.target.value;root.querySelector('.daw-note-grid').dataset.tool=settings.tool;};
- root.querySelector('[data-piano-snap]').onchange=e=>{const value=Number(e.target.value);if(pianoSnapOptions.some(([snap])=>snap===value)){settings.snap=value;applyPianoGrid(root,beat,value);}};
+ root.querySelector('[data-piano-snap]').onchange=e=>{const value=Number(e.target.value);if(pianoSnapOptions.some(([snap])=>snap===value)){settings.snap=value;applyPianoGrid(root,beat,value,region,session);}};
  root.querySelectorAll('[data-pitch]').forEach(row=>row.onclick=guard(e=>{if(e.target.closest('[data-note]')||['select','split'].includes(settings.tool)||e.altKey)return;const raw=(e.clientX-row.getBoundingClientRect().left-28)/80,placement=session?.tempoChanges?.length?musicalNotePlacement(raw,region,session,e.shiftKey?0:settings.snap):notePlacement(raw,region.duration,e.shiftKey?0:beat*settings.snap,beat/4);if(!placement)return;const id=crypto.randomUUID();choose(id,false);execute([{op:'note.add',target:region.id,values:{id,pitch:Number(row.dataset.pitch),...placement,velocity:.8}}],'Added MIDI note');}));
  const group=(op,values={})=>execute([{op,target:region.id,values:{noteIds:settings.selectedIds.join(','),...values}}],'Edited selected MIDI notes');
  root.querySelector('[data-notes-select-muted]').onclick=()=>{settings.selectedIds=region.notes.filter(n=>n.mute).map(n=>n.id);select(settings.selectedIds[0]||null);};
