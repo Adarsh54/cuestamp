@@ -1,3 +1,4 @@
+import {compileTempoMap} from './tempo-map.js';
 import {eventBytes,eventFromBytes} from './midi-events.js';
 // Standard MIDI File types 0/1, PPQ timing, tempo maps and note-on/off pairs.
 export function readMidi(buffer){
@@ -10,7 +11,7 @@ export function readMidi(buffer){
  for(let ti=0;ti<count;ti++){
   if(text(4)!=='MTrk')throw Error('Invalid MIDI track.');const length=u32(),end=p+length;if(end>bytes.length)throw Error('Truncated MIDI track.');let tick=0,running=0,name=`MIDI ${ti+1}`;const open=new Map(),notes=[],events=[];
   while(p<end){tick+=vlq();let status=u8();if(status<128){if(!running)throw Error('Invalid running status.');p--;status=running;}
-   if(status===255){running=0;const type=u8(),n=vlq();check(n);if(type===0x51&&n===3)tempos.push({tick,microseconds:(bytes[p]<<16)|(bytes[p+1]<<8)|bytes[p+2]});if(type===6){if(markers.length>=1000)throw Error('MIDI imports support up to 1,000 markers.');markers.push({tick,name:new TextDecoder().decode(bytes.slice(p,p+n)).slice(0,200)});}if(type===3)name=new TextDecoder().decode(bytes.slice(p,p+n));p+=n;continue;}
+   if(status===255){running=0;const type=u8(),n=vlq();check(n);if(type===0x51&&n===3){const microseconds=(bytes[p]<<16)|(bytes[p+1]<<8)|bytes[p+2];if(!microseconds)throw Error('MIDI tempo must be positive.');tempos.push({tick,microseconds});}if(type===6){if(markers.length>=1000)throw Error('MIDI imports support up to 1,000 markers.');markers.push({tick,name:new TextDecoder().decode(bytes.slice(p,p+n)).slice(0,200)});}if(type===3)name=new TextDecoder().decode(bytes.slice(p,p+n));p+=n;continue;}
    if(status===240||status===247){running=0;const n=vlq();check(n);p+=n;continue;}
    if(status>=240)throw Error('Unsupported MIDI system event.');running=status;const type=status>>4,channel=status&15,a=u8(),b=type===12||type===13?0:u8();if(a>127||b>127)throw Error('Invalid MIDI event data.');const key=channel+':'+a;
    if(type===9&&b){const list=open.get(key)||[];list.push({pitch:a,channel,tick,velocity:b/127});open.set(key,list);}
@@ -19,17 +20,21 @@ export function readMidi(buffer){
   if(p!==end)throw Error('MIDI event exceeds its track.');tracks.push({name,notes,events});
  }
  tempos.sort((a,b)=>a.tick-b.tick);const seconds=tick=>{let last=0,time=0,tempo=500000;for(const point of tempos){if(point.tick>tick)break;time+=(point.tick-last)*tempo/ppq/1e6;last=point.tick;tempo=point.microseconds;}return time+(tick-last)*tempo/ppq/1e6;};
- return {markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
+ const tempoChanges=[...new Map(tempos.map(point=>[point.tick,point])).values()].filter(point=>point.tick>0).map(point=>({beat:point.tick/ppq,bpm:60000000/point.microseconds}));
+ return {tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
 }
 export function writeMidi(session,{includeMuted=false}={}){
- const ppq=480,tempo=Math.round(60000000/session.tempo),chunks=[];
+ const ppq=480,map=compileTempoMap(session),chunks=[];
+ const tickAt=time=>Math.round(map.beatAtTime(time)*ppq);
  const int=(n,bytes)=>Array.from({length:bytes},(_,i)=>(n>>>((bytes-1-i)*8))&255),str=s=>[...new TextEncoder().encode(s)];
- const vlq=n=>{let out=[n&127];while((n>>>=7)>0)out.unshift((n&127)|128);return out;};
+ const vlq=n=>{if(!Number.isInteger(n)||n<0||n>0x0fffffff)throw Error('MIDI event spacing exceeds the file format limit.');let out=[n&127];while((n>>>=7)>0)out.unshift((n&127)|128);return out;};
  const chunk=data=>[...str('MTrk'),...int(data.length,4),...data];
- const conductor=[0,255,81,3,...int(tempo,3)];let markerTick=0;
- for(const marker of [...(session.markers||[])].sort((a,b)=>a.time-b.time)){const tick=Math.round(marker.time*session.tempo/60*ppq),name=str(marker.name);conductor.push(...vlq(tick-markerTick),255,6,...vlq(name.length),...name);markerTick=tick;}
+ const conductorEvents=map.points.map(point=>({tick:Math.round(point.beat*ppq),priority:0,data:[255,81,3,...int(Math.round(60000000/point.bpm),3)]}));
+ for(const marker of session.markers||[]){const name=str(marker.name);conductorEvents.push({tick:tickAt(marker.time),priority:1,data:[255,6,...vlq(name.length),...name]});}
+ conductorEvents.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);const conductor=[];let previousTick=0;
+ for(const event of conductorEvents){conductor.push(...vlq(event.tick-previousTick),...event.data);previousTick=event.tick;}
  conductor.push(0,255,47,0);chunks.push(chunk(conductor));
- for(const track of session.tracks.filter(t=>t.kind==='midi'&&(includeMuted||!t.mute))){const events=[];for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const e of r.events||[])events.push({tick:Math.round((r.start+e.start)*session.tempo/60*ppq),priority:0,data:eventBytes(e)});for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const n of r.notes){if(n.velocity===0||(!includeMuted&&n.mute))continue;const start=Math.round((r.start+n.start)*session.tempo/60*ppq),end=Math.max(start+1,Math.round((r.start+n.start+n.duration)*session.tempo/60*ppq));events.push({tick:start,priority:2,data:[144|(n.channel||0),n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,priority:1,data:[128|(n.channel||0),n.pitch,0]});}events.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);let previous=0;const name=str(track.name),data=[0,255,3,...vlq(name.length),...name];for(const e of events){data.push(...vlq(e.tick-previous),...e.data);previous=e.tick;}data.push(0,255,47,0);chunks.push(chunk(data));}
+ for(const track of session.tracks.filter(t=>t.kind==='midi'&&(includeMuted||!t.mute))){const events=[];for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const e of r.events||[])events.push({tick:tickAt(r.start+e.start),priority:0,data:eventBytes(e)});for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const n of r.notes){if(n.velocity===0||(!includeMuted&&n.mute))continue;const start=tickAt(r.start+n.start),end=Math.max(start+1,tickAt(r.start+n.start+n.duration));events.push({tick:start,priority:2,data:[144|(n.channel||0),n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,priority:1,data:[128|(n.channel||0),n.pitch,0]});}events.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);let previous=0;const name=str(track.name),data=[0,255,3,...vlq(name.length),...name];for(const e of events){data.push(...vlq(e.tick-previous),...e.data);previous=e.tick;}data.push(0,255,47,0);chunks.push(chunk(data));}
  return new Uint8Array([...str('MThd'),0,0,0,6,0,1,...int(chunks.length,2),...int(ppq,2),...chunks.flat()]);
 }
 

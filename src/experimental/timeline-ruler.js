@@ -1,8 +1,9 @@
+import {compileTempoMap} from './tempo-map.js';
 import {formatTimecode,parseTimecode,exactFrameRate} from './timecode.js';
 export const rulerModes=[['seconds','Seconds'],['musical','Bars / beats'],['timecode','Timecode · non-drop']];
 const ticksPerBeat=960;
 export function formatMusicalPosition(seconds,session){
- const ticks=Math.max(0,Math.floor(seconds*session.tempo/60*ticksPerBeat+1e-7)),beat=Math.floor(ticks/ticksPerBeat),meter=session.meter||4;
+ const ticks=Math.max(0,Math.floor(compileTempoMap(session).beatAtTime(seconds)*ticksPerBeat+1e-7)),beat=Math.floor(ticks/ticksPerBeat),meter=session.meter||4;
  return `${Math.floor(beat/meter)+1}:${beat%meter+1}:${String(ticks%ticksPerBeat).padStart(3,'0')}`;
 }
 export function parseMusicalPosition(text,session){
@@ -10,7 +11,7 @@ export function parseMusicalPosition(text,session){
  if(!match)throw Error('Enter bar:beat:tick, for example 2:1:000. Bars and beats start at 1.');
  const bar=Number(match[1]),beat=Number(match[2]),tick=Number(match[3]||0),meter=session.meter||4;
  if(bar<1||beat<1||beat>meter||tick<0||tick>=ticksPerBeat)throw Error(`Use bars from 1, beats 1–${meter}, and ticks 0–959.`);
- const time=((bar-1)*meter+beat-1+tick/ticksPerBeat)*60/session.tempo;
+ const time=compileTempoMap(session).timeAtBeat((bar-1)*meter+beat-1+tick/ticksPerBeat);
  if(!Number.isFinite(time)||time>86400)throw Error('Choose a position within 24 hours.');return time;
 }
 export function timelinePosition(time,session,mode){return mode==='musical'?formatMusicalPosition(time,session):mode==='timecode'?formatTimecode(time,session.frameRate):time.toFixed(2)+' s';}
@@ -19,7 +20,8 @@ const niceStep=minimum=>{const scale=10**Math.floor(Math.log10(Math.max(1,minimu
 export function timelineTicks(session,mode,zoom,width){
  const end=width/zoom,minimum=Math.max(end/999,(mode==='timecode'?105:mode==='musical'?32:55)/zoom);let step;
  if(mode==='musical'){
-  const beat=60/session.tempo,meter=session.meter||4;
+  const map=compileTempoMap(session),beat=60/Math.max(...map.points.map(p=>p.bpm)),meter=session.meter||4;
+  if(map.hasChanges){const stepBeats=minimum<=beat?1:meter*niceStep(minimum/(beat*meter)),count=Math.min(1000,Math.ceil(map.beatAtTime(end)/stepBeats));return Array.from({length:count},(_,i)=>{const beat=i*stepBeats;return {time:map.timeAtBeat(beat),label:`${Math.floor(beat/meter)+1}|${beat%meter+1}`};});}
   step=minimum<=beat?beat:beat*meter*niceStep(minimum/(beat*meter));
  }else if(mode==='timecode')step=niceStep(minimum)*Math.round(session.frameRate||24)/exactFrameRate(session.frameRate||24);
  else step=niceStep(Math.max(2,minimum));

@@ -2766,3 +2766,32 @@ Both operations move audio, MIDI, video, automation, markers and saved comp sele
 Agent commands use `section.editContent` targeting the selected section with `{action:"swap",otherId}` or `{action:"replace",otherId}`. The two IDs must exist and be different. Replacement direction matters: the target disappears; otherId supplies the copied contents. Drag-to-swap/replace and multi-section exchange remain unfinished.
 
 Verification: `test/experimental-section-exchange.test.js` covers unequal and adjacent swaps, both replacement directions, locator behavior, marker IDs, automation curves, saved comps, 40 fractional-boundary cases, atomic undo/protection and mocked agent execution. The deletion suite also checks exact-boundary remnant removal. `scripts/browser-experimental-section-exchange-check.cjs` verifies controls, replacement selection, real reversed-audio PCM with automation, undo/redo, reload and the single-section guard. Live model inference remains unverified. Reference: [Apple's arrangement marker swap and replacement workflow](https://support.apple.com/en-ca/guide/logicpro/lgcpf7c0a3d7/mac).
+
+### Experimental DAW: tempo-map foundation
+
+`src/experimental/tempo-map.js` provides shared, piecewise-constant beat/time
+conversion. Tempo points use zero-based quarter-note beats and BPM; the base
+BPM remains `tempo`. Compiled maps validate 20–300 BPM, at most 256 changes,
+unique positive beat positions, and the 24-hour timeline. MIDI retiming preserves
+musical endpoints for regions, notes, controller events and fades; audio/video
+retain absolute time. Existing global BPM commands now use this shared retimer
+and reject MIDI that would move beyond the timeline atomically.
+
+Musical ruler and snapping helpers accept maps. Standard MIDI file helpers
+preserve conductor tempo points and use them to convert note, controller and
+marker timing. MIDI tempo precision is integer microseconds per quarter note;
+export timing uses 480 PPQ. The reader rejects zero tempo and the writer rejects
+delta times that exceed the SMF limit instead of wrapping them.
+
+**This is internal groundwork, not an enabled project tempo editor.** The session
+schema and command harness still expose only a single BPM. MIDI imports continue
+to preserve performance timing in seconds without adopting their tempo map into
+the project. Before enabling saved maps, integrate the piano/drum/controller
+editors, metronome and count-in, recording, tempo-synced effects, project-time
+operations, grid drawing, and agent descriptions. Do not add UI controls that
+would leave these consumers using contradictory clocks.
+
+Regression coverage: `test/experimental-tempo-map.test.js` and
+`test/experimental-midi-tempo-map.test.js`, plus existing ruler, snapping, MIDI,
+protection and undo tests. The browser arrangement snap check covers existing
+constant-tempo editing behavior.
