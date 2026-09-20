@@ -15,9 +15,9 @@ export function updateMixerReadback(root,session,time,liveValue=()=>undefined){
   // Never overwrite a pointer gesture or a partially typed numeric value.
   if(input.dataset.mixerEditing==='true'||(input.type==='number'&&input.ownerDocument.activeElement===input))continue;
   const parameter=('mixGain' in input.dataset||'masterGain' in input.dataset)?'gainDb':'pan',target=input.dataset.mixGain||input.dataset.mixPan||session.id;
-  const value=liveValue(target,parameter)??entry.value(target,parameter,time);if(!Number.isFinite(value))continue;
+  const trim=input.dataset.trimOffset==='true',value=liveValue(target,parameter)??(trim?0:entry.value(target,parameter,time));if(!Number.isFinite(value))continue;
   input.value=String(value);
   const output=input.parentElement.querySelector('output');if(output)output.textContent=parameter==='gainDb'?`${value.toFixed(1)} dB`:value.toFixed(2);
-  input.setAttribute('aria-valuetext',parameter==='gainDb'?`${value.toFixed(1)} decibels`:value===0?'Center':`${Math.round(Math.abs(value)*100)}% ${value<0?'left':'right'}`);
+  input.setAttribute('aria-valuetext',(trim?'Trim offset: ':'')+(parameter==='gainDb'?`${value.toFixed(1)} decibels`:value===0?'Center':`${Math.round(Math.abs(value)*100)}% ${value<0?'left':'right'}`));
  }
 }
