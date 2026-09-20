@@ -25,3 +25,8 @@ test('agent rejects invalid score edits and protected pitch changes before retur
   await assert.rejects(planDawEdit({session:h.session,instruction:'Edit the score'},{provider:'openai',key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Edit',commands})}]})})}));assert.deepEqual(h.session,before);
  }
 });
+test('agent receives computed chord candidates with explicit timing evidence',async()=>{
+ const h=setup();h.execute([{op:'note.add',target:'r',values:{id:'third',pitch:64,start:1,duration:1}},{op:'note.add',target:'r',values:{id:'fifth',pitch:67,start:1,duration:1}}]);let request;
+ await planDawEdit({session:h.session,selectedNoteIds:['n','third','fifth'],instruction:'What chord is selected?'},{provider:'openai',key:'test',model:'test',fetchImpl:async(_,init)=>{request=JSON.parse(init.body);return {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:'C major'}]}]})};}});
+ const data=JSON.parse(request.input.at(-1).content);assert.equal(data.selectedChord.candidates[0].label,'C major');assert.equal(data.selectedChord.simultaneous,true);assert.equal(data.selectedChord.noteCount,3);
+});
