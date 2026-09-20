@@ -18,9 +18,9 @@ export const automationSchema=z.object({id:z.string().min(1).max(100).regex(/^[a
 export const automationValue=curveAutomationValue;
 export function scheduleAutomation(param,points,parameter,position,base,fallback){scheduleCurveAutomation(param,points,parameter,position,base,fallback,parameter==='gainDb'?v=>10**(v/20):v=>v,parameter==='gainDb');}
 export function effectTail(effects=[],inheritedOff=false){const peak=(e,key)=>Math.max(e[key],...activeAutomation(e,inheritedOff).filter(p=>p.parameter===key).map(p=>p.value));return Math.min(30,effects.filter(e=>e.enabled).reduce((sum,e)=>{if(e.kind==='reverb')return sum+e.decay;if(e.kind==='chorus')return sum+(peak(e,'mix')>0?.025+peak(e,'depthMs')/1000:0);if(e.kind!=='delay'||peak(e,'mix')===0)return sum;const time=peak(e,'time'),feedback=peak(e,'feedback');return sum+time*(feedback>0?Math.ceil(Math.log(.001)/Math.log(feedback))+1:1);},0));}
-export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120}={}){let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
+export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120,tempoChanges=[]}={}){let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
  if(effect.kind==='chorus'){output=connectChorus(context,output,effect,nodes,{position,base});}
- else if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo});}
+ else if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo,tempoChanges});}
  else if(effect.kind==='gain'){
   // Force speaker upmix before splitting so mono is present on both channels.
   const stereo=context.createGain(),split=context.createChannelSplitter(2),merge=context.createChannelMerger(2),gain=context.createGain();

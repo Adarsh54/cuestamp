@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {syncedTremoloTiming} from '../src/experimental/tremolo.js';
+const session={tempo:120,tempoChanges:[{beat:8,bpm:60},{beat:12,bpm:180}]};
+test('synced modulation integrates musical phase and schedules only future tempo changes',()=>{const effect={beats:2};assert.deepEqual(syncedTremoloTiming(effect,session,3),{cycles:3,rate:1,changes:[{time:4,rate:.5},{time:8,rate:1.5}]});assert.deepEqual(syncedTremoloTiming(effect,session,4),{cycles:4,rate:.5,changes:[{time:8,rate:1.5}]});assert.deepEqual(syncedTremoloTiming(effect,session,9),{cycles:7.5,rate:1.5,changes:[]});});
+test('phase is continuous at changes, independent of retained automation, and validates interval',()=>{const effect={beats:.75,automationMode:'off',automation:[{parameter:'rate',time:0,value:19}]},before=structuredClone(effect);const a=syncedTremoloTiming(effect,session,4-1e-7),b=syncedTremoloTiming(effect,session,4+1e-7);assert.ok(Math.abs(a.cycles-b.cycles)<1e-6);assert.deepEqual(effect,before);for(const beats of [0,-1,NaN])assert.throws(()=>syncedTremoloTiming({beats},session,0));});

@@ -3050,3 +3050,20 @@ with a stubbed resume, because this host's real-time AudioContext startup can
 stall. It still exercises real browser audio-node creation and cleanup plus the
 mocked MIDI capture/save workflow, but not audible output. Set
 `CHECK_REALTIME_AUDIO=1` to exercise native AudioContext on a working audio host.
+
+### Experimental DAW: tempo-synced tremolo maps
+
+Track, bus and master effect chains now receive tempo points from the session.
+Synced tremolo schedules rate changes as steps at tempo boundaries and derives
+seek phase from integrated musical beats divided by beats per cycle. This avoids
+restarting phase or extrapolating the initial BPM across the whole song. Tempo
+sync applies independently of effect automation Read/Off; retained free-rate
+points remain ignored in sync mode. Depth automation, stereo phase and the
+existing constant-tempo/free-rate paths remain unchanged.
+
+`experimental-mapped-tremolo.test.js` checks rates, phase continuity, seeks and
+retained automation. `browser-experimental-mapped-tremolo-check.cjs` renders actual
+OfflineAudioContext audio through complete track/master effect chains, compares
+samples with expected modulation, and compares a seek render with the matching
+full-render segment. This verifies offline PCM, not hardware real-time output.
+Saved project tempo-map controls are still pending arrangement-time integration.
