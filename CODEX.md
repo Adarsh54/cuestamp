@@ -3548,3 +3548,9 @@ In a selected MIDI region’s inspector, disable **Follow tempo changes** and Ap
 Agent `region.add` and `region.set` accept `tempoFollow:false` (MIDI only); `true` reenables following from the region’s current musical position. Toggling never moves content. Copies and splits retain the setting; joining different modes rejects until they agree. This is a tempo response setting, not a general edit lock: explicit moves, trims and arrangement edits still apply. MIDI file export preserves performance timing but cannot round-trip this app editing preference.
 
 Reference: [Apple absolute-time workflow](https://support.apple.com/en-gb/guide/logicpro/lgcpfffcaf81/10.7/mac/11.0). Verification: `test/experimental-midi-fixed-timing.test.js` covers tempo operations, adoption, undo, serialization, duplication, mixed joins, protection and MIDI export; the browser check exercises the inspector, indicator and tempo change.
+
+### Selected MIDI timing modes
+
+Select multiple regions with Command/Ctrl-click or the arrangement marquee. The group inspector shows how many selected MIDI regions keep fixed timing, with **Keep MIDI timing fixed** and **Make MIDI follow tempo** actions. Audio/video in mixed selections stay unchanged. Buttons disable when all selected MIDI already match. One undo restores the group.
+
+The shared `regions.tempoFollow` command accepts comma-separated `regionIds` and boolean `tempoFollow`. It validates every ID, requires at least one MIDI region, rejects protected changes atomically and avoids adding explicit defaults to already-matching protected regions. Regression checks verify fixed mode survives split, clipboard paste and repeat. Browser checks exercise both group buttons and undo.
