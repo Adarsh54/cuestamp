@@ -23,6 +23,21 @@ export function timelineTicks(session,mode,zoom,width){
  const end=width/zoom,minimum=Math.max(end/999,(mode==='timecode'?105:mode==='musical'?32:55)/zoom);let step;
  if(mode==='musical'){
   const map=compileTempoMap(session),beat=60/Math.max(...map.points.map(p=>p.bpm)),meter=session.meter||4;
+  if(session.meterChanges?.length||(session.meterDenominator??4)!==4){
+   const signatures=compileMeterMap(session),endBar=signatures.positionAtBeat(map.beatAtTime(end)).bar;
+   const shortestBeat=beat*Math.min(...signatures.points.map(p=>4/p.denominator)),shortestBar=beat*Math.min(...signatures.points.map(p=>p.numerator*4/p.denominator));
+   const showBeats=minimum<=shortestBeat,stride=showBeats?1:Math.max(1,niceStep(minimum/shortestBar),Math.ceil(endBar/999)),ticks=[];
+   // Bound both candidates and output; very long/high-resolution sessions must
+   // not allocate one label per bar before thinning.
+   for(let bar=1;bar<=endBar&&ticks.length<1000;bar+=stride){
+    const signature=signatures.signatureAtBar(bar),origin=signatures.barStart(bar);
+    for(let index=0;index<(showBeats?signature.numerator:1)&&ticks.length<1000;index++){
+     const time=map.timeAtBeat(origin+index*4/signature.denominator);
+     if(time>=end)break;ticks.push({time,label:`${bar}|${index+1}`});
+    }
+   }
+   return ticks;
+  }
   if(map.hasChanges){const stepBeats=minimum<=beat?1:meter*niceStep(minimum/(beat*meter)),count=Math.min(1000,Math.ceil(map.beatAtTime(end)/stepBeats));return Array.from({length:count},(_,i)=>{const beat=i*stepBeats;return {time:map.timeAtBeat(beat),label:`${Math.floor(beat/meter)+1}|${beat%meter+1}`};});}
   step=minimum<=beat?beat:beat*meter*niceStep(minimum/(beat*meter));
  }else if(mode==='timecode')step=niceStep(minimum)*Math.round(session.frameRate||24)/exactFrameRate(session.frameRate||24);
