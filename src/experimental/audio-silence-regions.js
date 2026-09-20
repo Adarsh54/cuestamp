@@ -1,3 +1,4 @@
+import {silenceOptionsSchema} from './audio-silence.js';
 import {z} from 'zod';
 import {duplicateTrack} from './duplicate-track.js';
 import {trimmedRegion} from './region-edit.js';
@@ -23,4 +24,12 @@ export function silenceRegionsView(region,kind,busy,preview){
  if(!region||kind!=='audio')return '';
  const valid=preview?.regionId===region.id,settings=valid?preview.settings:{thresholdDb:-40,minimumGap:.1,preRoll:.01,postRoll:.05},ranges=valid?preview.ranges:null,noChange=ranges?.length===1&&ranges[0].start===0&&ranges[0].end===region.duration;
  return `<details data-strip-silence-panel ${valid?'open':''}><summary>Strip silence</summary><form data-strip-silence>${[['thresholdDb','Threshold · dBFS',-120,0,.5],['minimumGap','Minimum quiet gap · seconds',.001,60,.001],['preRoll','Keep before sound · seconds',0,10,.001],['postRoll','Keep after sound · seconds',0,10,.001]].map(([name,label,min,max,step])=>`<label>${label}<input name="${name}" type="number" min="${min}" max="${max}" step="${step}" value="${settings[name]}" required></label>`).join('')}<button ${busy||region.mute?'disabled':''}>Preview silence removal</button></form>${ranges?`<div data-silence-preview><p>${noChange?'No silence to remove at these settings.':ranges.length?`${ranges.length} retained regions`:'No sound above this threshold. Original kept.'}</p><svg role="img" aria-label="Retained audio ranges; gaps will be removed" viewBox="0 0 1000 32" width="100%" height="32"><rect width="1000" height="32" fill="currentColor" opacity=".1"/>${ranges.map(r=>`<rect x="${r.start/region.duration*1000}" y="3" width="${(r.end-r.start)/region.duration*1000}" height="26" fill="currentColor"/>`).join('')}</svg><button data-apply-silence ${busy||!ranges.length||noChange?'disabled':''}>Apply silence removal</button></div>`:''}<p class="muted">Analyzes source audio before fades, gain and effects. Quiet gaps stay in their timeline positions. Creates a new track and mutes the original region; no source audio is deleted. Keep some sound before and after each cut to avoid abrupt edges.</p></details>`;
+}
+
+export const silenceActionSchema=z.object({operation:z.enum(['preview','apply']),regionId:z.string().min(1).max(100).nullable(),settings:silenceOptionsSchema}).strict();
+export function prepareSilenceAction(session,value,context){
+ const action=silenceActionSchema.parse(value);
+ if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Silence context does not match the session.');
+ const {region}=silenceRegionSource(session,action.regionId??context.regionId);
+ return {...action,regionId:region.id};
 }
