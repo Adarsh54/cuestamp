@@ -1,3 +1,4 @@
+import {deleteArrangementSections} from './arrangement-sections.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 
@@ -48,6 +49,7 @@ export function deleteProjectTime(session,{start,end}){
  }
  session.masterAutomation=deleteAutomationTime(session.masterAutomation,start,end);for(const effect of session.masterEffects)automate(effect);
  session.markers=session.markers.filter(m=>m.time<start||m.time>=end).map(m=>({...m,time:shift(m.time)}));
+ session.sections=deleteArrangementSections(session.sections,start,end);
  for(const prefix of ['loop','audioPunch','midiPunch']){
   const a=prefix+'Start',b=prefix+'End';session[a]=shift(session[a]);session[b]=shift(session[b]);
   if(session[b]<=session[a]){session[prefix+'Enabled']=false;session[b]=Math.min(86400,session[a]+1);}

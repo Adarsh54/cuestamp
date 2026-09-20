@@ -1,3 +1,4 @@
+import {copiedArrangementSections} from './arrangement-sections.js';
 import {insertProjectTime,insertAutomationTime} from './insert-time.js';
 import {deleteProjectTime} from './delete-time.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
@@ -39,6 +40,7 @@ export function transferProjectSection(session,{mode,start,end,position}){
   }
   clampCompRounding(track);track.automation=automate(previous.automation,original.automation);track.effects.forEach((effect,j)=>{effect.automation=automate(previous.effects[j].automation,original.effects[j].automation);});track.sends.forEach((send,j)=>{send.automation=automate(previous.sends[j].automation,original.sends[j].automation);});
  }
+ session.sections.push(...copiedArrangementSections(source.sections,start,end,position,mode==='move'));
  session.masterAutomation=automate(destination.masterAutomation,source.masterAutomation);session.masterEffects.forEach((effect,j)=>{effect.automation=automate(destination.masterEffects[j].automation,source.masterEffects[j].automation);});
  session.markers.push(...source.markers.filter(m=>m.time>=start&&m.time<end).map(m=>({...m,id:mode==='move'?m.id:crypto.randomUUID(),time:position+(m.time-start)})));
  // A locator range wholly inside the moved section follows that section.

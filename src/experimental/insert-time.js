@@ -1,3 +1,4 @@
+import {insertArrangementSections} from './arrangement-sections.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 
@@ -46,6 +47,7 @@ export function insertProjectTime(session,{position,duration}){
  session.masterAutomation=insertAutomationTime(session.masterAutomation,position,duration);
  for(const effect of session.masterEffects)automate(effect);
  for(const marker of session.markers)marker.time=shift(marker.time);
+ session.sections=insertArrangementSections(session.sections,position,duration);
  for(const prefix of ['loop','audioPunch','midiPunch']){
   const start=prefix+'Start',end=prefix+'End';
   // A range ending at the cut stays on the left; one starting there moves.

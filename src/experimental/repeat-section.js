@@ -1,3 +1,4 @@
+import {copiedArrangementSections} from './arrangement-sections.js';
 import {insertProjectTime} from './insert-time.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
@@ -42,6 +43,7 @@ function repeatOnce(session,start,end){
   track.effects.forEach((effect,j)=>{effect.automation=repeatAutomationSection(original.effects[j].automation,start,end);});
   track.sends.forEach((send,j)=>{send.automation=repeatAutomationSection(original.sends[j].automation,start,end);});
  }
+ session.sections.push(...copiedArrangementSections(source.sections,start,end,end));
  session.masterAutomation=repeatAutomationSection(source.masterAutomation,start,end);
  session.masterEffects.forEach((effect,j)=>{effect.automation=repeatAutomationSection(source.masterEffects[j].automation,start,end);});
  session.markers.push(...source.markers.filter(m=>m.time>=start&&m.time<end).map(m=>({...m,id:crypto.randomUUID(),time:m.time+duration})));
