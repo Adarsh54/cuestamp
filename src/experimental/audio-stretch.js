@@ -9,6 +9,12 @@ export function stretchAudioChannels(channels,sampleRate,ratio,onProgress=()=>{}
  for(const c of channels)for(const value of c)if(!Number.isFinite(value))throw Error('Audio contains non-finite samples.');
  if(ratio===1){onProgress(1);return channels.map(c=>c.slice());}
  const processor=new Stretch({sampleRate,createBuffers:true});processor.tempo=1/ratio;
+ return renderProcessedChannels(processor,channels,sampleRate,outputFrames,onProgress);
+}
+
+// Shared bounded offline drain for the core stereo processors.
+export function renderProcessedChannels(processor,channels,sampleRate,outputFrames,onProgress){
+ const frames=channels[0].length;
  const output=channels.map(()=>new Float32Array(outputFrames)),chunk=4096,input=new Float32Array(chunk*2),scratch=new Float32Array(chunk*2);let cursor=0,written=0;
  // The public processor has no flush API. Bounded silence drains its final
  // overlap windows; crop to the requested frame count rather than exporting padding.

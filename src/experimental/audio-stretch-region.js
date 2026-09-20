@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {durationForBeats} from './tempo-map.js';
 import {duplicateTrack} from './duplicate-track.js';
 import {validateAudioStretch} from './audio-stretch-options.js';
+const semitoneSchema=z.number().finite().min(-12).max(12);
 const ratioSchema=z.number().finite().min(.5).max(2);
 export function audioStretchPlan(session,regionId,ratio){
  ratio=ratioSchema.parse(ratio);const source=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=source?.regions.find(r=>r.id===regionId);
@@ -21,12 +22,20 @@ export function stretchedRegionTrack(session,regionId,values){
  copy.regions=[{...structuredClone(r),id:crypto.randomUUID(),name:plan.name,assetId:v.assetId,offset:0,reverse:false,duration,fadeIn:r.fadeIn*scale,fadeOut:r.fadeOut*scale}];
  return {track:copy,sourceTrackId:plan.source.id};
 }
-export function audioStretchView(region,kind,busy){return region&&kind==='audio'?`<details data-audio-stretch-panel><summary>Time stretch audio</summary><form data-audio-stretch><label>Fit by<select name="mode"><option value="percent">Duration percentage</option><option value="beats">Musical length</option></select></label><label data-stretch-percent>Duration · %<input name="percent" type="number" min="50" max="200" step="any" value="100" required></label><label data-stretch-beats hidden>Length · quarter-note beats<input name="beats" type="number" min="0.001" max="432000" step="any" value="4" disabled required></label><output data-audio-stretch-preview>${region.duration.toFixed(3)} seconds</output><button ${busy||region.mute?'disabled':''}>Stretch to new track</button></form><p class="muted">Preserves pitch. Creates a rendered file on a new track and mutes this region. Musical length uses the tempo map from the region’s start and fits its endpoint; it does not align individual transients. Original audio remains available; undo restores it. Fades scale with duration; track effects and automation stay editable. Stretching can alter transients and texture.</p></details>`:'';}
+export function audioPitchPlan(session,regionId,semitones){
+ semitones=semitoneSchema.parse(semitones);const plan=audioStretchPlan(session,regionId,1);
+ return {...plan,semitones,name:plan.region.name.slice(0,180)+' transposed'};
+}
+export function pitchedRegionTrack(session,regionId,values){
+ const v=z.object({semitones:semitoneSchema,assetId:z.string(),sampleRate:z.number(),channels:z.number(),frames:z.number()}).strict().parse(values),plan=audioPitchPlan(session,regionId,v.semitones);
+ const {semitones,...rendered}=v,result=stretchedRegionTrack(session,regionId,{...rendered,ratio:1});result.track.name=plan.name;result.track.regions[0].name=plan.name;return result;
+}
+export function audioStretchView(region,kind,busy){return region&&kind==='audio'?`<details data-audio-stretch-panel><summary>Time and pitch</summary><form data-audio-stretch><label>Change<select name="mode"><option value="percent">Duration percentage</option><option value="beats">Musical length</option><option value="pitch">Pitch only</option></select></label><label data-stretch-percent>Duration · %<input name="percent" type="number" min="50" max="200" step="any" value="100" required></label><label data-stretch-beats hidden>Length · quarter-note beats<input name="beats" type="number" min="0.001" max="432000" step="any" value="4" disabled required></label><label data-stretch-pitch hidden>Pitch · semitones<input name="semitones" type="number" min="-12" max="12" step="0.01" value="0" disabled required></label><output data-audio-stretch-preview>${region.duration.toFixed(3)} seconds</output><button ${busy||region.mute?'disabled':''}>Stretch to new track</button></form><p class="muted">Duration edits preserve pitch; pitch edits preserve duration. Creates a rendered file on a new track and mutes this region. Musical length uses the tempo map from the region’s start and fits its endpoint; it does not align individual transients. Original audio remains available; undo restores it. Fades scale with duration; track effects and automation stay editable. Processing can alter transients and texture; pitch edits do not preserve vocal formants.</p></details>`:'';}
 export function bindAudioStretch(root,{session,region,run,guard}){
  const form=root.querySelector('[data-audio-stretch]');if(!form||!region)return;
  const number=name=>form.elements[name].value.trim()?Number(form.elements[name].value):NaN;
- const plan=()=>form.elements.mode.value==='beats'?audioStretchBeatPlan(session,region.id,number('beats')):audioStretchPlan(session,region.id,number('percent')/100);
- form.oninput=()=>{const beats=form.elements.mode.value==='beats';form.querySelector('[data-stretch-beats]').hidden=!beats;form.querySelector('[data-stretch-percent]').hidden=beats;form.elements.beats.disabled=!beats;form.elements.percent.disabled=beats;try{const result=plan();form.querySelector('output').textContent=`${region.duration.toFixed(3)} → ${(region.duration*result.ratio).toFixed(3)} seconds · ${(result.ratio*100).toFixed(1)}%`; }catch(error){form.querySelector('output').textContent=error.message;}};
+ const plan=()=>form.elements.mode.value==='pitch'?audioPitchPlan(session,region.id,number('semitones')):form.elements.mode.value==='beats'?audioStretchBeatPlan(session,region.id,number('beats')):audioStretchPlan(session,region.id,number('percent')/100);
+ form.oninput=()=>{const beats=form.elements.mode.value==='beats',pitch=form.elements.mode.value==='pitch';form.querySelector('[data-stretch-pitch]').hidden=!pitch;form.elements.semitones.disabled=!pitch;form.querySelector('[data-stretch-beats]').hidden=!beats;form.querySelector('[data-stretch-percent]').hidden=beats||pitch;form.elements.beats.disabled=!beats;form.elements.percent.disabled=beats||pitch;form.querySelector('button').textContent=pitch?'Transpose to new track':'Stretch to new track';try{const result=plan();form.querySelector('output').textContent=pitch?`${result.semitones>0?'+':''}${result.semitones} semitones · ${region.duration.toFixed(3)} seconds unchanged`:`${region.duration.toFixed(3)} → ${(region.duration*result.ratio).toFixed(3)} seconds · ${(result.ratio*100).toFixed(1)}%`; }catch(error){form.querySelector('output').textContent=error.message;}};
  form.onsubmit=guard(async e=>{e.preventDefault();await run(plan());});
 }
 export function audioStretchBeatPlan(session,regionId,beats){
@@ -47,4 +56,11 @@ export function prepareAudioStretch(session,value,context){
  const action=audioStretchActionSchema.parse(value);
  if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Stretch context does not match the session.');
  return audioStretchPlan(session,action.regionId??context.regionId,action.ratio);
+}
+
+export const audioPitchActionSchema=z.object({regionId:z.string().min(1).max(100).nullable(),semitones:semitoneSchema}).strict();
+export function prepareAudioPitch(session,value,context){
+ const action=audioPitchActionSchema.parse(value);
+ if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Pitch context does not match the session.');
+ return audioPitchPlan(session,action.regionId??context.regionId,action.semitones);
 }
