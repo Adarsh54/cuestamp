@@ -12,7 +12,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
    if(instrument==='roundtrip'){const data=encodeMidiImport(writeMidi(h.session).buffer);h=new SessionHistory(newSession());h.execute([{op:'midi.import',values:{data}}]);h.execute([{op:'track.set',target:h.session.tracks[0].id,values:{instrument:'sine'}}]);}
    scheduleSession(ctx,h.session,new Map([['sample',sample]]),.2,{baseTime:0});results.push({instrument,frequency:frequency(await ctx.startRendering())});
   }
-  const ctx=new OfflineAudioContext(2,24000,48000),monitor=createLiveMidiMonitor(ctx,{instrument:'sine'});monitor.push([0x90,69,127]);for(const [parameter,value] of messages)monitor.push([0xb0,parameter,value]);results.push({instrument:'held live note',frequency:frequency(await ctx.startRendering())});
+  const ctx=new OfflineAudioContext(2,24000,48000),monitor=createLiveMidiMonitor(ctx,{instrument:'sine'});monitor.push([0x90,69,127]);for(const [parameter,value] of messages)monitor.push([0xb0,parameter,value]);monitor.push([0xb0,121,0]);results.push({instrument:'held live note',frequency:frequency(await ctx.startRendering())});
   return results;
  });
  for(const r of results)assert.ok(Math.abs(r.frequency-440*2**(12.5/12))<5,JSON.stringify(r));console.log('PASS: rendered channel tuning in synth, sampler seek, MIDI roundtrip and held live note.',results);

@@ -37,7 +37,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
    if(a===64){c.sustain=b>=64;if(!c.sustain)for(const v of matching())if(!v.held&&!v.drum)release(v);}
    if(a===120)for(const v of matching())release(v,true);
    if(a===123)for(const v of matching()){v.held=false;if(!c.sustain&&!v.drum)release(v);}
-   if(a===121){c.expression=1;c.sustain=false;update(c);for(const v of matching()){if(!v.drum)v.osc.detune.setValueAtTime(0,context.currentTime);if(!v.held&&!v.drum)release(v);}}
+   if(a===121){c.expression=1;c.sustain=false;update(c);for(const v of matching()){if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);if(!v.held&&!v.drum)release(v);}}
   }
  }
  return {push,get voiceCount(){return voices.size;},stop(){if(disposed)return;disposed=true;for(const v of [...voices])release(v,true);for(const c of channels.values()){c.gain.disconnect();c.pan.disconnect();}channels.clear();}};

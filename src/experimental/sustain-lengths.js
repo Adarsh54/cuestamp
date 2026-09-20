@@ -6,7 +6,7 @@ function upperBound(items,time){let lo=0,hi=items.length;while(lo<hi){const mid=
 export function sustainLengthPlan(region,values={}){
  const v=options.parse(values),notes=selectedMidiNotes(region,v);if(!notes.length)throw Error('Add or select notes to convert.');
  const channels=new Set(notes.map(n=>n.channel??0)),byChannel=new Map();
- for(const e of region.events||[])if(pedal(e)&&channels.has(e.channel??0)){const key=e.channel??0;if(!byChannel.has(key))byChannel.set(key,[]);byChannel.get(key).push(e);}
+ for(const e of region.events||[])if((pedal(e)||(e.type==='controlChange'&&e.parameter===121))&&channels.has(e.channel??0)){const key=e.channel??0;if(!byChannel.has(key))byChannel.set(key,[]);byChannel.get(key).push(e.parameter===121?{...e,value:0}:e);}
  const index=new Map([...byChannel].map(([channel,events])=>{events.sort((a,b)=>a.start-b.start);return [channel,{events,up:events.filter(e=>e.value<64)}];}));
  const endFor=n=>{const end=n.start+n.duration,data=index.get(n.channel??0);if(!data)return end;const last=upperBound(data.events,end)-1;if(last<0||data.events[last].value<64)return end;return Math.max(end,Math.min(region.duration,data.up[upperBound(data.up,end)]?.start??region.duration));};
  const selected=new Set(notes.map(n=>n.id));

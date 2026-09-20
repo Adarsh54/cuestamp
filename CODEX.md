@@ -3554,3 +3554,9 @@ Reference: [Apple absolute-time workflow](https://support.apple.com/en-gb/guide/
 Select multiple regions with Command/Ctrl-click or the arrangement marquee. The group inspector shows how many selected MIDI regions keep fixed timing, with **Keep MIDI timing fixed** and **Make MIDI follow tempo** actions. Audio/video in mixed selections stay unchanged. Buttons disable when all selected MIDI already match. One undo restores the group.
 
 The shared `regions.tempoFollow` command accepts comma-separated `regionIds` and boolean `tempoFollow`. It validates every ID, requires at least one MIDI region, rejects protected changes atomically and avoids adding explicit defaults to already-matching protected regions. Regression checks verify fixed mode survives split, clipboard paste and repeat. Browser checks exercise both group buttons and undo.
+
+### MIDI Reset All Controllers consistency
+
+CC121 now restores expression to 127 and sustain to zero during scheduled playback, seeking and controller chasing; a reset releases pedal-held notes. Trimming and Sustain pedal to note lengths use the same release boundary. Reset messages remain when pedal data is removed because they also affect other controllers. Volume and pan remain unchanged, as do bend sensitivity and channel tuning. Live monitoring retains tuning when centering the pitch wheel. Parameter selection is cleared for both RPN and NRPN.
+
+Source: MIDI Association RP-015, linked from [MIDI 1.0 Addenda](https://midi.org/midi-1-0-addenda). Supported synthesis does not yet implement every controller listed in RP-015. Tests cover reset/renewed controller state after chasing, note release/trim/conversion, channel gain scheduling and native audio rendering; the tuning render check includes a reset on a held live note.
