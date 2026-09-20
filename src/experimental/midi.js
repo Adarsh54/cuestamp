@@ -7,11 +7,11 @@ export function readMidi(buffer){
  const u8=()=>{check(1);return view.getUint8(p++);},u16=()=>{check(2);const n=view.getUint16(p);p+=2;return n;},u32=()=>{check(4);const n=view.getUint32(p);p+=4;return n;},text=n=>{check(n);const s=new TextDecoder().decode(bytes.slice(p,p+n));p+=n;return s;};
  const vlq=()=>{let n=0;for(let i=0;i<4;i++){const b=u8();n=(n<<7)|(b&127);if(!(b&128))return n;}throw Error('Invalid MIDI variable length value.');};
  if(text(4)!=='MThd')throw Error('Not a standard MIDI file.');const header=u32(),format=u16(),count=u16(),ppq=u16();if(header<6||format>1||ppq&0x8000||!ppq)throw Error('Use type 0/1 MIDI with PPQ timing.');p+=header-6;
- const tempos=[{tick:0,microseconds:500000}],tracks=[],markers=[];
+ const tempos=[{tick:0,microseconds:500000}],tracks=[],markers=[],signatures=[];
  for(let ti=0;ti<count;ti++){
   if(text(4)!=='MTrk')throw Error('Invalid MIDI track.');const length=u32(),end=p+length;if(end>bytes.length)throw Error('Truncated MIDI track.');let tick=0,running=0,name=`MIDI ${ti+1}`;const open=new Map(),notes=[],events=[];
   while(p<end){tick+=vlq();let status=u8();if(status<128){if(!running)throw Error('Invalid running status.');p--;status=running;}
-   if(status===255){running=0;const type=u8(),n=vlq();check(n);if(type===0x51&&n===3){const microseconds=(bytes[p]<<16)|(bytes[p+1]<<8)|bytes[p+2];if(!microseconds)throw Error('MIDI tempo must be positive.');tempos.push({tick,microseconds});}if(type===6){if(markers.length>=1000)throw Error('MIDI imports support up to 1,000 markers.');markers.push({tick,name:new TextDecoder().decode(bytes.slice(p,p+n)).slice(0,200)});}if(type===3)name=new TextDecoder().decode(bytes.slice(p,p+n));p+=n;continue;}
+   if(status===255){running=0;const type=u8(),n=vlq();check(n);if(type===0x51&&n===3){const microseconds=(bytes[p]<<16)|(bytes[p+1]<<8)|bytes[p+2];if(!microseconds)throw Error('MIDI tempo must be positive.');tempos.push({tick,microseconds});}if(type===0x58){if(n!==4||!bytes[p]||bytes[p+1]>30||!bytes[p+3])throw Error('Invalid or unsupported MIDI time signature.');signatures.push({tick,numerator:bytes[p],denominator:2**bytes[p+1],clocksPerClick:bytes[p+2],notated32ndsPerQuarter:bytes[p+3]});}if(type===6){if(markers.length>=1000)throw Error('MIDI imports support up to 1,000 markers.');markers.push({tick,name:new TextDecoder().decode(bytes.slice(p,p+n)).slice(0,200)});}if(type===3)name=new TextDecoder().decode(bytes.slice(p,p+n));p+=n;continue;}
    if(status===240||status===247){running=0;const n=vlq();check(n);p+=n;continue;}
    if(status>=240)throw Error('Unsupported MIDI system event.');running=status;const type=status>>4,channel=status&15,a=u8(),b=type===12||type===13?0:u8();if(a>127||b>127)throw Error('Invalid MIDI event data.');const key=channel+':'+a;
    if(type===9&&b){const list=open.get(key)||[];list.push({pitch:a,channel,tick,velocity:b/127});open.set(key,list);}
@@ -25,15 +25,18 @@ export function readMidi(buffer){
  for(const point of ordered){const previous=segments.at(-1);segments.push({...point,time:previous?previous.time+(point.tick-previous.tick)*previous.microseconds/ppq/1e6:0});}
  const seconds=tick=>{let lo=0,hi=segments.length;while(lo<hi){const mid=(lo+hi)>>1;if(segments[mid].tick<=tick)lo=mid+1;else hi=mid;}const point=segments[Math.max(0,lo-1)];return point.time+(tick-point.tick)*point.microseconds/ppq/1e6;};
  const tempoChanges=ordered.filter(point=>point.tick>0).map(point=>({beat:point.tick/ppq,bpm:60000000/point.microseconds}));
- return {hasTempoEvents:tempos.length>1,tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
+ const timeSignatures=[...new Map(signatures.map(point=>[point.tick,point])).values()].sort((a,b)=>a.tick-b.tick).map(({tick,...point})=>({...point,beat:tick/ppq,time:seconds(tick)}));
+ return {timeSignatures,hasTempoEvents:tempos.length>1,tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
 }
 export function writeMidi(session,{includeMuted=false}={}){
- const ppq=480,map=compileTempoMap(session),chunks=[];
+ const ppq=480,map=compileTempoMap(session),chunks=[],meter=session.meter??4;
+ if(!Number.isInteger(meter)||meter<1||meter>16)throw Error('MIDI export requires 1–16 quarter-note beats per bar.');
  const tickAt=time=>Math.round(map.beatAtTime(time)*ppq);
  const int=(n,bytes)=>Array.from({length:bytes},(_,i)=>(n>>>((bytes-1-i)*8))&255),str=s=>[...new TextEncoder().encode(s)];
  const vlq=n=>{if(!Number.isInteger(n)||n<0||n>0x0fffffff)throw Error('MIDI event spacing exceeds the file format limit.');let out=[n&127];while((n>>>=7)>0)out.unshift((n&127)|128);return out;};
  const chunk=data=>[...str('MTrk'),...int(data.length,4),...data];
  const conductorEvents=map.points.map(point=>({tick:Math.round(point.beat*ppq),priority:0,data:[255,81,3,...int(Math.round(60000000/point.bpm),3)]}));
+ conductorEvents.push({tick:0,priority:-1,data:[255,88,4,meter,2,24,8]});
  for(const marker of session.markers||[]){const name=str(marker.name);conductorEvents.push({tick:tickAt(marker.time),priority:1,data:[255,6,...vlq(name.length),...name]});}
  conductorEvents.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);const conductor=[];let previousTick=0;
  for(const event of conductorEvents){conductor.push(...vlq(event.tick-previousTick),...event.data);previousTick=event.tick;}
