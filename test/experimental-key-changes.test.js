@@ -29,3 +29,18 @@ test('key-change controls submit validated changes and reject blank positions',a
  const view=keyChangesView(h.session,projectKeys);assert.match(view,/Bar 3/);assert.match(view,/4.00 s/);assert.match(view,/data-key-change-delete/);
  const before=structuredClone(h.session);form.elements.beat.value='';assert.throws(()=>form.onsubmit({preventDefault(){}}),/Choose a beat/);assert.deepEqual(h.session,before);
 });
+
+test('project-key scale and diatonic tools follow each note onset across modulations',()=>{
+ const base=applyCommands(newSession(),[{op:'key.set',values:{sharps:0,mode:'major'}},add('mod',8,1),{op:'tempo.add',values:{id:'tempo',beat:4,bpm:60}},{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',start:2,duration:8}},...[0,3.9,4,5].map((start,i)=>({op:'note.add',target:'r',values:{id:`n${i}`,pitch:64,start,duration:.1,velocity:.8}}))]);
+ // Key changes at project second 6; region-relative second 4. E minor begins there.
+ const scale=applyCommands(base,[{op:'notes.scale',target:'r',values:{useProjectKey:true,direction:'up'}}]);assert.deepEqual(scale.tracks[0].regions[0].notes.map(n=>n.pitch),[64,64,64,64]);
+ for(const op of ['notes.diatonicTranspose','notes.transpose']){
+  const result=applyCommands(base,[{op,target:'r',values:{useProjectKey:true,steps:1,...(op==='notes.transpose'?{mode:'diatonic'}:{})}}]);assert.deepEqual(result.tracks[0].regions[0].notes.map(n=>n.pitch),[65,65,66,66]);
+ }
+ const f=applyCommands(base,[{op:'note.set',target:'n2',values:{pitch:65}},{op:'notes.scale',target:'r',values:{useProjectKey:true,direction:'up',noteId:'n2'}}]);assert.equal(f.tracks[0].regions[0].notes[2].pitch,66);
+});
+test('unknown earlier keys reject only when affected notes are selected, without partial edits',()=>{
+ const h=new SessionHistory(applyCommands(newSession(),[add('mod',4,1),{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',start:0,duration:8}},{op:'note.add',target:'r',values:{id:'early',pitch:64,start:0,duration:1,velocity:.8}},{op:'note.add',target:'r',values:{id:'late',pitch:64,start:3,duration:1,velocity:.8}}]));
+ const before=structuredClone(h.session);assert.throws(()=>h.execute([{op:'notes.diatonicTranspose',target:'r',values:{steps:1,useProjectKey:true}}]),/selected passage/);assert.deepEqual(h.session,before);
+ h.execute([{op:'notes.diatonicTranspose',target:'r',values:{steps:1,useProjectKey:true,noteId:'late'}}]);assert.deepEqual(h.session.tracks[0].regions[0].notes.map(n=>n.pitch),[64,66]);
+});

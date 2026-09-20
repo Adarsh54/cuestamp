@@ -24,6 +24,12 @@ const assert=require('node:assert/strict');
   await page.locator('[data-key-change-delete]').last().click();assert.equal((await session()).keyChanges.length,1);
   await page.locator('[data-action=undo]').click();assert.equal((await session()).keyChanges.length,2);
   await page.reload();await page.locator('[data-key-panel]').waitFor();assert.equal((await session()).keyChanges.length,2);assert.deepEqual(errors,[]);
-  console.log('PASS: MIDI key-map import, key-change edit/add/remove, undo and reload persistence.');
+  await page.getByText('Command harness',{exact:true}).click();
+  const commands=[...(await session()).keyChanges.map(p=>({op:'keyChange.delete',target:p.id})),{op:'key.set',values:{sharps:0,mode:'major'}},{op:'keyChange.add',values:{id:'follow-key',beat:4,sharps:1,mode:'minor'}},{op:'track.add',values:{id:'follow-track',kind:'midi'}},{op:'region.add',target:'follow-track',values:{id:'follow-region',duration:4}},...[0,3].map((start,i)=>({op:'note.add',target:'follow-region',values:{id:'follow-note'+i,start,duration:.5,pitch:64,velocity:.8}}))];
+  await page.locator('#daw-json').fill(JSON.stringify(commands));await page.locator('[data-action=json]').click();await page.locator('[data-region=follow-region]').click();
+  const pitches=async()=>(await session()).tracks[0].regions[0].notes.map(n=>n.pitch);
+  await page.getByText('Transpose notes',{exact:true}).first().click();const transpose=page.locator('[data-transpose-form]');await transpose.locator('[name=mode]').selectOption('diatonic');await transpose.locator('[name=followKey]').check();await transpose.locator('[name=amount]').fill('1');await transpose.getByRole('button',{name:'Transpose notes',exact:true}).click();assert.deepEqual(await pitches(),[65,66]);
+  await page.getByText('Key & scale',{exact:true}).click();const scale=page.locator('[data-scale-form]');await scale.locator('[name=followKey]').check();await scale.locator('[name=direction]').selectOption('up');assert.equal(await scale.locator('[name=root]').isDisabled(),true);await scale.getByRole('button',{name:'Apply scale',exact:true}).click();assert.deepEqual(await pitches(),[65,66]);assert.deepEqual(errors,[]);
+  console.log('PASS: MIDI key-map import, key-change edit/add/remove, undo, reload persistence and note-onset key-following controls.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

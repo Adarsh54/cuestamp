@@ -1,3 +1,4 @@
+import {compileTempoMap} from './tempo-map.js';
 const major=['Cb','Gb','Db','Ab','Eb','Bb','F','C','G','D','A','E','B','F#','C#'];
 const minor=['Ab','Eb','Bb','F','C','G','D','A','E','B','F#','C#','G#','D#','A#'];
 export function validateKeySignature({sharps,mode}){
@@ -22,4 +23,10 @@ export function projectKeyScale(session){
  const key=validateKeySignature(session.keySignature);
  // Each sharp advances seven semitones; relative minor is nine above major.
  return {root:((key.sharps*7+(key.mode==='minor'?9:0))%12+12)%12,scale:key.mode};
+}
+
+// Resolve each note at its onset; sustained notes are not split at key changes.
+export function projectKeyAtTime(session){
+ const keys=compileKeyMap(session),tempo=compileTempoMap(session);
+ return time=>{const key=keys.keyAtBeat(tempo.beatAtTime(time));if(!key)throw Error('Set a project key for the selected passage first.');return projectKeyScale({keySignature:key});};
 }
