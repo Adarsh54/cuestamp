@@ -1,3 +1,4 @@
+import {regionBeatTiming} from './tempo-map.js';
 export const pianoSnapOptions=[[0,'Off'],[1,'1/4'],[.5,'1/8'],[.25,'1/16'],[.125,'1/32'],[1/3,'1/8 triplet'],[1/6,'1/16 triplet']];
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export function snapTime(value,step,{floor=false}={}){
@@ -18,4 +19,12 @@ export function applyPianoGrid(root,beat,snap){
  const grid=root.querySelector('.daw-note-grid');if(!grid)return;
  grid.style.setProperty('--piano-snap-width',`${snap?beat*snap*80:1}px`);
  grid.style.setProperty('--piano-grid-color',snap?'var(--line)':'transparent');
+}
+
+export function musicalNotePlacement(time,region,timing,snap){
+ const clock=regionBeatTiming(region,timing),beat=clock.beatAtTime(Math.max(0,time)),startBeat=snapTime(beat,snap,{floor:true}),start=clock.timeAtBeat(startBeat);
+ if(start>=region.duration)return null;
+ const duration=Math.min(clock.durationAtBeat(startBeat,snap||.25),region.duration-start);
+ if(!(duration>0)||start+duration<=start)throw Error('Note length is below timeline precision.');
+ return {start,duration};
 }

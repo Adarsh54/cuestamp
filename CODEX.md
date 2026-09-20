@@ -2942,3 +2942,20 @@ strength across a boundary, zero strength, selection, limits and command undo.
 The existing note-tools browser check exercises form submission, generated note
 positions and history. Saved project tempo maps are still pending remaining
 piano-roll, effects and arrangement-time integration.
+
+### Experimental DAW: piano-roll musical fields and entry
+
+Single-note start/length fields, piano note labels and velocity accessibility
+labels now use region-local beat timing. Editing a note measures its duration
+at the entered starting beat, including across a tempo boundary. Drawing a note
+uses local beat snapping and a musical grid-step length; with snap bypassed it
+uses a sixteenth-note default at the clicked position. Notes are clipped at the
+region end. The split tool snaps in local beats. Constant-tempo note drawing
+retains the existing path.
+
+Tests: `experimental-musical-piano.test.js` checks placement, clipping and labels;
+`browser-experimental-musical-piano-check.cjs` uses the actual piano view/bindings
+to edit a note, draw one and split through a mapped fixture. This is not yet a
+fully map-enabled piano roll: group drag/resize, group timing forms, duplication
+and grid-line rendering still need musical integration before enabling saved
+project tempo maps.
