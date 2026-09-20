@@ -2978,3 +2978,25 @@ Unit coverage extends `experimental-musical-piano.test.js`; the browser check
 verifies mapped line positions and snap switching and captures
 `/tmp/cuestamp-musical-piano-grid.png`. Group gestures and group timing forms
 still require integration before project tempo maps can be enabled.
+
+### Experimental DAW: musical group moves, resizes and copies
+
+`notes.move`, `notes.resize` and `notes.duplicate` accept `beats` as an alternative
+to `seconds`; supplying both is rejected. Beat moves/copies convert each onset
+and end separately, preserving musical spacing and duration through tempo
+changes. Beat resize shifts the end only. Negative shifts are allowed when all
+resulting notes remain valid inside the region. The existing seconds paths are
+unchanged. Numeric group timing forms now emit beats directly, and the agent
+prompt documents this option.
+
+`musicalNoteShift` plans all note results without mutating input. The command
+engine applies the plan atomically, preserving protection, undo, selection and
+schema validation. Copies receive new IDs. Out-of-range or collapsed notes
+reject the edit. Constant-tempo calculations retain original note durations on
+moves/copies.
+
+Tests: `experimental-musical-note-shift.test.js` covers tempo-boundary movement,
+round trips, resize, rejected edits, command undo, copies and protection. The
+musical piano browser check now submits both group timing forms. Pointer group
+drag/resize still uses seconds and is the next piano-roll integration needed
+before saved project tempo maps can be enabled.

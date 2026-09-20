@@ -1,3 +1,4 @@
+import {musicalNoteShift} from './musical-note-shift.js';
 import {retimeMidiTracks} from './tempo-map.js';
 import {swapProjectSections,replaceProjectSection} from './section-exchange.js';
 import {arrangementSectionSchema,arrangementSectionsSchema} from './arrangement-sections.js';
@@ -148,10 +149,12 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'note.delete':need(n,'Note');noteRegion.notes=noteRegion.notes.filter(x=>x!==n);break;
    case 'notes.move':case 'notes.resize':case 'notes.delete':case 'notes.duplicate':{
     need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');
-    pick(v,op==='notes.delete'?['noteIds']:['notes.duplicate','notes.resize'].includes(op)?['noteIds','seconds']:['noteIds','seconds','semitones']);
+    pick(v,op==='notes.delete'?['noteIds']:['notes.duplicate','notes.resize'].includes(op)?['noteIds','seconds','beats']:['noteIds','seconds','beats','semitones']);
     const notes=selectedMidiNotes(r,v),seconds=v.seconds??0,semitones=v.semitones??0;
     if(!Number.isFinite(seconds)||!Number.isInteger(semitones))throw Error('Use finite seconds and whole semitones.');
-    if(op==='notes.delete'){const ids=new Set(notes.map(n=>n.id));r.notes=r.notes.filter(n=>!ids.has(n.id));}
+    if(v.beats!==undefined&&v.seconds!==undefined)throw Error('Choose beats or seconds, not both.');
+    if(v.beats!==undefined){const edited=musicalNoteShift(r,session,notes,v.beats,{resize:op==='notes.resize',semitones});if(op==='notes.duplicate')r.notes.push(...edited.map(n=>({...n,id:crypto.randomUUID()})));else for(let i=0;i<notes.length;i++)Object.assign(notes[i],edited[i]);}
+    else if(op==='notes.delete'){const ids=new Set(notes.map(n=>n.id));r.notes=r.notes.filter(n=>!ids.has(n.id));}
     else if(op==='notes.resize')for(const n of notes)n.duration+=seconds;
     else if(op==='notes.duplicate')r.notes.push(...notes.map(n=>({...n,id:crypto.randomUUID(),start:n.start+seconds})));
     else for(const n of notes){n.start+=seconds;n.pitch+=semitones;}

@@ -56,8 +56,8 @@ export function bindPiano(root,{session,region,tempo,getPosition,selected,select
  root.querySelector('[data-notes-clear]').onclick=()=>choose(null);
  root.querySelector('[data-notes-delete]').onclick=guard(()=>group('notes.delete'));
  root.querySelector('[data-notes-copy]').onclick=guard(()=>{const notes=region.notes.filter(n=>selectedSet.has(n.id)),span=Math.max(...notes.map(n=>n.start+n.duration))-Math.min(...notes.map(n=>n.start));group('notes.duplicate',{seconds:span});});
- root.querySelector('[data-notes-move]')?.addEventListener('submit',guard(e=>{e.preventDefault();group('notes.move',{seconds:Number(e.currentTarget.elements.beats.value)*beat,semitones:Number(e.currentTarget.elements.semitones.value)});}));
- root.querySelector('[data-notes-resize]')?.addEventListener('submit',guard(e=>{e.preventDefault();group('notes.resize',{seconds:Number(e.currentTarget.elements.beats.value)*beat});}));
+ root.querySelector('[data-notes-move]')?.addEventListener('submit',guard(e=>{e.preventDefault();group('notes.move',{beats:Number(e.currentTarget.elements.beats.value),semitones:Number(e.currentTarget.elements.semitones.value)});}));
+ root.querySelector('[data-notes-resize]')?.addEventListener('submit',guard(e=>{e.preventDefault();group('notes.resize',{beats:Number(e.currentTarget.elements.beats.value)});}));
  const toggle=(id,event)=>{if(event.ctrlKey||event.metaKey){settings.selectedIds=ids.includes(id)?ids.filter(n=>n!==id):[...ids,id];select(settings.selectedIds.at(-1)||null);}else choose(id);};
  const remove=id=>execute([{op:'note.delete',target:id}],'Removed MIDI note');
  root.querySelector('[data-note-editor]')?.addEventListener('submit',guard(e=>{e.preventDefault();const f=e.currentTarget;execute([{op:'note.set',target:f.dataset.noteEditor,values:{pitch:Number(f.elements.pitch.value),start:clock.timeAtBeat(Number(f.elements.start.value)),duration:clock.durationAtBeat(Number(f.elements.start.value),Number(f.elements.duration.value)),velocity:Number(f.elements.velocity.value)/127,channel:Number(f.elements.channel.value)-1}}],'Edited MIDI note');}));
