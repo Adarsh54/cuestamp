@@ -1,13 +1,12 @@
-import {pitchBendCents} from './pitch-bend.js';
+import {pitchBendTimeline} from './pitch-bend-state.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
 import {createSamplerFilter} from './sampler-filter.js';
 import {samplerEnvelope,scheduleSamplerEnvelope} from './sampler-envelope.js';
-import {controllerValue,schedulePitchBend} from './midi-events.js';
-const bendRate=(value,settings)=>2**(pitchBendCents(value,settings.pitchBendRange)/1200);
+import {schedulePitchBend} from './midi-events.js';
 export function samplerOffset(note,root,events,at,settings={}){
- const rate=samplerPlaybackRate(note.pitch,root,settings);let previous=note.start,bend=controllerValue(events,'pitchBend',null,previous,8192),offset=0;
- for(const event of events.filter(e=>e.type==='pitchBend'&&e.start>previous&&e.start<at).sort((a,b)=>a.start-b.start)){offset+=(event.start-previous)*rate*bendRate(bend,settings);previous=event.start;bend=event.value;}
- return offset+Math.max(0,at-previous)*rate*bendRate(bend,settings);
+ const rate=samplerPlaybackRate(note.pitch,root,settings),points=pitchBendTimeline(events,settings.pitchBendRange);let previous=note.start,cents=points.findLast(p=>p.time<=previous)?.cents??0,offset=0;
+ for(const point of points.filter(p=>p.time>previous&&p.time<at)){offset+=(point.time-previous)*rate*2**(cents/1200);previous=point.time;cents=point.cents;}
+ return offset+Math.max(0,at-previous)*rate*2**(cents/1200);
 }
 export function samplerLoop(buffer,{sampleLoop=false,sampleLoopStart=0,sampleLoopEnd=null}={}){
  if(!sampleLoop)return {loop:false};

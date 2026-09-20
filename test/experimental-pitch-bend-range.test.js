@@ -5,7 +5,7 @@ import {schedulePitchBend} from '../src/experimental/midi-events.js';
 import {newSession,SessionHistory} from '../src/experimental/session.js';
 test('pitch bend uses configurable symmetric endpoints and preserves legacy default',()=>{
  assert.equal(pitchBendCents(0),-200);assert.equal(pitchBendCents(16383),200);assert.equal(pitchBendCents(8192,96),0);assert.equal(pitchBendCents(0,12),-1200);assert.equal(pitchBendCents(16383,2.5),250);assert.equal(pitchBendCents(16383,0),0);
- for(const range of [-1,97,NaN])assert.throws(()=>pitchBendCents(0,range));
+ for(const range of [-1,129,NaN])assert.throws(()=>pitchBendCents(0,range));
  const calls=[],osc={detune:{setValueAtTime:(...args)=>calls.push(args)}};schedulePitchBend(osc,[{type:'pitchBend',start:0,value:16383},{type:'pitchBend',start:2,value:0}],1,10,3,12);assert.deepEqual(calls,[[1200,10],[-1200,11]]);
 });
 test('sampler seek integrates configured bends with tuning rather than restarting its source',()=>{

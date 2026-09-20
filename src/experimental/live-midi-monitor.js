@@ -1,3 +1,4 @@
+import {createPitchBendState} from './pitch-bend-state.js';
 import {pitchBendRangeSchema} from './pitch-bend.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
 import {createSamplerFilter} from './sampler-filter.js';
@@ -13,7 +14,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
  const loop=instrument==='sampler'?samplerLoop(sampleBuffer,{sampleLoop:loopEnabled,sampleLoopStart,sampleLoopEnd}):null;
  const envelope=samplerEnvelope({sampleAttack,sampleDecay,sampleSustain,sampleRelease});
  const voices=new Set(),channels=new Map();let disposed=false;
- function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bend:0,sustain:false});update(channels.get(id));}return channels.get(id);}
+ function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false});update(channels.get(id));}return channels.get(id);}
  function update(c){c.gain.gain.setValueAtTime(c.volume*c.expression,context.currentTime);}
  function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();}
  function release(v,immediate=false){if(v.released&&!immediate)return;v.released=true;const now=context.currentTime;if(immediate){v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(0,now);v.osc.stop(now);destroy(v);}else{const duration=v.sampler?envelope.release:.03;v.gain.gain.cancelAndHoldAtTime(now);if(duration)v.gain.gain.linearRampToValueAtTime(0,now+duration);else v.gain.gain.setValueAtTime(0,now);v.osc.stop(now+duration+.005);}}
@@ -24,18 +25,19 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
   if(kind===0x90&&b){
    while(voices.size>=maxVoices)release(voices.values().next().value,true);
    const drum=instrument==='drumKit',sampler=instrument==='sampler',osc=(drum||sampler)?context.createBufferSource():context.createOscillator(),gain=context.createGain(),now=context.currentTime;
-   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=sampleBuffer;Object.assign(osc,loop);osc.playbackRate.value=samplerPlaybackRate(a,sampleRoot,{sampleTune,sampleFineTune});osc.detune.value=c.bend*pitchBendRange*100;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127,envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bend*pitchBendRange*100;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
+   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=sampleBuffer;Object.assign(osc,loop);osc.playbackRate.value=samplerPlaybackRate(a,sampleRoot,{sampleTune,sampleFineTune});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127,envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
    const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);gain.connect(c.gain);const v={osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();
   }else if(kind===0x80||(kind===0x90&&!b)){
    const v=matching().find(v=>v.pitch===a&&v.held);if(v){v.held=false;if(!c.sustain&&!v.drum)release(v);}
-  }else if(kind===0xe0){const bend=(a|(b<<7))-8192;c.bend=bend/(bend<0?8192:8191);for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bend*pitchBendRange*100,context.currentTime);
+  }else if(kind===0xe0){c.bendState.push({type:'pitchBend',value:a|(b<<7)});for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);
   }else if(kind===0xb0){
+   if(c.bendState.push({type:'controlChange',parameter:a,value:b}))for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);
    if(a===7){c.volume=b/127;update(c);}if(a===11){c.expression=b/127;update(c);}
    if(a===10)c.pan.pan.setValueAtTime((b-64)/(b<64?64:63),context.currentTime);
    if(a===64){c.sustain=b>=64;if(!c.sustain)for(const v of matching())if(!v.held&&!v.drum)release(v);}
    if(a===120)for(const v of matching())release(v,true);
    if(a===123)for(const v of matching()){v.held=false;if(!c.sustain&&!v.drum)release(v);}
-   if(a===121){c.expression=1;c.bend=0;c.sustain=false;update(c);for(const v of matching()){if(!v.drum)v.osc.detune.setValueAtTime(0,context.currentTime);if(!v.held&&!v.drum)release(v);}}
+   if(a===121){c.expression=1;c.sustain=false;update(c);for(const v of matching()){if(!v.drum)v.osc.detune.setValueAtTime(0,context.currentTime);if(!v.held&&!v.drum)release(v);}}
   }
  }
  return {push,get voiceCount(){return voices.size;},stop(){if(disposed)return;disposed=true;for(const v of [...voices])release(v,true);for(const c of channels.values()){c.gain.disconnect();c.pan.disconnect();}channels.clear();}};
