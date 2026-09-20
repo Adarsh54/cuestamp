@@ -8,7 +8,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   for(const instrument of ['sine','sampler'])for(const range of [0,2,12,24,36]){
    const ctx=new OfflineAudioContext(2,24000,48000),sample=ctx.createBuffer(1,96000,48000);for(let i=0;i<sample.length;i++)sample.getChannelData(0)[i]=Math.sin(2*Math.PI*440*i/48000)*.2;
    const h=new SessionHistory(newSession());h.execute([{op:'track.add',values:{id:'t',kind:'midi',instrument,pitchBendRange:range,sampleRoot:69,sampleAssetId:'sample'}},{op:'region.add',target:'t',values:{id:'r',duration:1}},{op:'note.add',target:'r',values:{pitch:69,start:0,duration:1,velocity:1}},{op:'event.add',target:'r',values:{type:'pitchBend',start:0,value:16383}}]);
-   if(range===24)h.execute([...[101,100,6].map((parameter,i)=>({op:'event.add',target:'r',values:{type:'controlChange',parameter,value:i===2?12:0,start:0}}))]);
+   if(range===24)h.execute([{op:'midi.bendRange',target:'r',values:{start:0,range:12}}]);
    if(range===36)h.execute([[101,0],[100,0],[6,11],[38,98],[96,0],[96,127]].map(([parameter,value])=>({op:'event.add',target:'r',values:{type:'controlChange',parameter,value,start:0}})));
    scheduleSession(ctx,h.session,new Map([['sample',sample]]),.2,{baseTime:0});results.push({instrument,range:range>=24?12:range,frequency:frequency(await ctx.startRendering())});
   }
