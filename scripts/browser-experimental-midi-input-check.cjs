@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_EXECUTABLE,headless:true});
  try{
   const page=await browser.newPage({viewport:{width:1600,height:1200}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(()=>{const resumeAudio=AudioContext.prototype.resume;AudioContext.prototype.resume=async function(){if(window.holdClickResume)await new Promise(resolve=>window.resolveClickResume=resolve);return resumeAudio.call(this);};window.activeClicks=new Set();const startBuffer=AudioBufferSourceNode.prototype.start,stopBuffer=AudioBufferSourceNode.prototype.stop;
+  await page.addInitScript(({realtime})=>{if(!realtime)window.AudioContext=class extends OfflineAudioContext{constructor(){super(2,8000,8000);}async resume(){}};const resumeAudio=AudioContext.prototype.resume;AudioContext.prototype.resume=async function(){if(window.holdClickResume)await new Promise(resolve=>window.resolveClickResume=resolve);return resumeAudio.call(this);};window.activeClicks=new Set();const startBuffer=AudioBufferSourceNode.prototype.start,stopBuffer=AudioBufferSourceNode.prototype.stop;
  AudioBufferSourceNode.prototype.start=function(...args){if(this.loop)window.activeClicks.add(this);return startBuffer.apply(this,args);};
  AudioBufferSourceNode.prototype.stop=function(...args){if(!args.length||args[0]<=this.context.currentTime)window.activeClicks.delete(this);return stopBuffer.apply(this,args);};
    class Port extends EventTarget{
@@ -18,7 +18,7 @@ const assert=require('node:assert/strict');
    Object.defineProperty(navigator,'requestMIDIAccess',{value:async options=>{window.midiOptions=options;if(window.denyMidi)throw new DOMException('Denied','NotAllowedError');return access;},configurable:true});
    window.emitMidi=data=>{const event=new Event('midimessage');Object.defineProperty(event,'data',{value:new Uint8Array(data)});port.dispatchEvent(event);};
    const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(window.failMidiSave&&key==='cuestamp-experimental:midi-input'){window.failMidiSave=false;throw new DOMException('Test storage full','QuotaExceededError');}return original.call(this,key,value);};
-  });
+  },{realtime:process.env.CHECK_REALTIME_AUDIO==='1'});
   await page.route('**/api/auth?*',r=>r.fulfill({json:{configured:true,user:{id:'midi-input',email:'test@example.com'},profile:{name:'Test',occupation:'Composer',complete:true}}}));
   await page.route('**/api/projects*',r=>r.fulfill({json:{projects:[]}}));await page.route('**/api/daw',r=>r.fulfill({json:{configured:false}}));
   await page.goto((process.env.CUESTAMP_URL||'http://127.0.0.1:5190/')+'#/experimental');
@@ -52,6 +52,6 @@ const assert=require('node:assert/strict');
   await page.evaluate(()=>{window.holdMidiOpen=false;location.hash='/experimental';});await page.getByRole('button',{name:'Connect MIDI',exact:true}).waitFor();
   await page.evaluate(()=>window.denyMidi=true);await page.getByRole('button',{name:'Connect MIDI',exact:true}).click();await page.getByText(/MIDI access was denied/).waitFor();
   await page.screenshot({path:'/tmp/cuestamp-midi-input.png'});assert.deepEqual(errors,[]);
-  console.log('PASS simulated Web MIDI permission, capture/import/undo, cancel, disconnect, save retry and late-open navigation cleanup. Physical hardware not exercised.');
+  console.log('PASS simulated Web MIDI permission, capture/import/undo, cancel, disconnect, save retry and late-open navigation cleanup. Physical hardware not exercised; audio uses an offline graph unless CHECK_REALTIME_AUDIO=1.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exit(1);});

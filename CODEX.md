@@ -3022,3 +3022,31 @@ resize anchoring, snap bypass and group bounds. The real-mouse browser script
 a tempo change, checks their preview geometry and emitted commands, then applies
 the shared planner to its isolated fixture. Saved project maps still require
 remaining recording, effects and arrangement-time integration.
+
+### Experimental DAW: MIDI take tempo excerpts
+
+`tempoWindow(session, position, duration)` rebases a tempo map to an excerpt's
+beat/time zero. Its initial tempo is the tempo at the excerpt start; subsequent
+points inside the take are offset by that start's musical beat. It supports
+recording starts between beats and exactly on tempo changes, omits unrelated
+points, and validates the 24-hour range.
+
+MIDI recording placement now captures a detached tempo snapshot. Saving the take
+uses its actual duration and recording start to encode a MIDI conductor map,
+instead of encoding everything at the session's initial BPM. Recorded event and
+note times remain take-relative seconds before encoding, and the existing MIDI
+import path reconstructs those times for placement. Count-in is not part of the
+saved take. New empty MIDI regions measure their four-bar duration at the
+playhead through the shared beat conversion.
+
+Tests: `experimental-tempo-window.test.js` checks rebasing, boundaries, snapshot
+isolation and note/controller MIDI roundtrips. The browser MIDI-input check
+covers the existing mocked device recording workflow; it does not verify a
+physical MIDI device or real-time hardware audio. Project tempo-map controls
+remain pending the effects and arrangement-time integrations.
+
+The MIDI-input browser check defaults to an OfflineAudioContext-backed graph
+with a stubbed resume, because this host's real-time AudioContext startup can
+stall. It still exercises real browser audio-node creation and cleanup plus the
+mocked MIDI capture/save workflow, but not audible output. Set
+`CHECK_REALTIME_AUDIO=1` to exercise native AudioContext on a working audio host.

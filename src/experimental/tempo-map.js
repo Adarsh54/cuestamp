@@ -38,3 +38,10 @@ export function regionBeatTiming(region,timing){
  const timeAtBeat=beat=>map.timeAtBeat(origin+beat)-start,beatAtTime=time=>map.beatAtTime(start+time)-origin;
  return {timeAtBeat,beatAtTime,durationAtBeat:(beat,length)=>timeAtBeat(beat+length)-timeAtBeat(beat),beatsInDuration:(time,duration)=>beatAtTime(time+duration)-beatAtTime(time)};
 }
+
+// Rebase an excerpt to beat/time zero for an independent MIDI take or export.
+export function tempoWindow(session,position,duration){
+ if(!Number.isFinite(position)||position<0||!Number.isFinite(duration)||duration<0||position+duration>86400)throw Error('Choose a tempo excerpt within the 24-hour timeline.');
+ const map=compileTempoMap(session),origin=map.beatAtTime(position);
+ return {tempo:map.tempoAtTime(position),tempoChanges:map.points.filter(p=>p.time>position&&p.time<position+duration).map(p=>({beat:p.beat-origin,bpm:p.bpm}))};
+}
