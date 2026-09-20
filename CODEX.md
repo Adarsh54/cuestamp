@@ -3146,3 +3146,11 @@ Tests: `experimental-musical-region-repeat.test.js` covers mapped copy placement
 MIDI internal timing/fades, unchanged media speed, IDs and command undo/validation.
 The existing repeat-region browser check exercises the form and history workflow.
 Saved tempo maps and their editor controls remain pending end-to-end integration.
+
+### Experimental DAW tempo maps
+
+The Tempo map panel adds, updates and removes step tempo changes. Its beat fields are one-based quarter notes (beat 9 means eight quarter notes from the start); command/API beat values are zero-based. The toolbar BPM controls the initial tempo. Sessions persist up to 256 unique tempo points as `tempoChanges: [{id, beat, bpm}]`; older sessions default to no changes.
+
+Manual controls and agent commands share `tempo.add`, `tempo.set`, and `tempo.delete`. Changes preserve MIDI region, note and controller beat positions, including MIDI fades. Audio/video, automation, markers and locators retain absolute seconds. Protected MIDI tracks reject timing changes. Tempo maps support undo, local/account saves and MIDI export; this is step tempo, not tempo ramps or changing time signatures.
+
+Verification: `node --test test/experimental-tempo-commands.test.js test/experimental-cloud-projects.test.js`; `scripts/browser-experimental-tempo-map-check.cjs` covers actual controls, reload and rendered MIDI audio timing. The agent test mocks provider responses; it does not establish live model quality.
