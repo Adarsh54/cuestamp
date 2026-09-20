@@ -3446,3 +3446,7 @@ Controller tests exercise all four recording modes for Master effect frequency a
 ### Mixer numeric input safety
 
 Master numeric faders ignore blank, incomplete, non-finite, and out-of-range input while typing. Such values never write a static setting or automation sample. Committing or leaving an invalid field restores the last accepted value and ends any active Touch gesture; an explicit `0` remains valid. Regression coverage: `test/experimental-mixer-input.test.js`. Live model verification still requires server-only `OPENAI_API_KEY` (or the configured Anthropic key) and `DAW_AGENT_MODEL`; use `npm run check:daw-agent -- --config-only` before the billable inference check.
+
+### MIDI opening-key import
+
+The MIDI signature import controls include **Keep project key** (default) and **Use file opening key**. The latter sets the global project key from an explicit MIDI key-signature event at beat zero, without transposing imported or existing notes. It does not import later modulations and rejects files without an opening signature rather than assuming C major. The same operation is available to the agent/command harness as `midi.import` with `keyMode: "opening"`; `"preserve"` is the default. Key-only files can be adopted without creating tracks. The complete import remains one undoable transaction. Tests: `test/experimental-midi-import-key.test.js`.
