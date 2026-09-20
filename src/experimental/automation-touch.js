@@ -1,10 +1,12 @@
+import {createMixerReadback} from './mixer-readback.js';
 import {createAutomationCapture} from './automation-capture.js';
 
 // Captured edits use the same revision-checked commands as manual/agent edits.
 // Latch keeps several lanes live until Stop; the resulting batch is one undo.
 export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
+ let writeTarget=null;
  const active=new Map(),key=(target,parameter)=>`${target}:${parameter}`;
- function cancel(){const gestures=[...active.values()];active.clear();for(const g of gestures){g.capture.cancel();try{g.playback.automation.cancel(g.target,g.parameter);}catch{}}}
+ function cancel(){writeTarget=null;const gestures=[...active.values()];active.clear();for(const g of gestures){g.capture.cancel();try{g.playback.automation.cancel(g.target,g.parameter);}catch{}}}
  function verify(g,state){if(state.playback!==g.playback||state.epoch!==g.epoch||state.session.id!==g.sessionId||state.session.revision!==g.revision)throw Error('Playback or the project changed during automation recording.');}
  function finish(gestures=[...active.values()]){
   if(!gestures.length)return false;
@@ -27,20 +29,30 @@ export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
  }
  function release(target,parameter){
   const g=active.get(key(target,parameter));if(!g)return false;
-  if(g.mode!=='latch')return finish([g]);
+  if(g.mode==='touch')return finish([g]);
   try{const state=getState();verify(g,state);g.capture.push(state.position,g.value);g.released=true;return false;}catch(error){cancel();throw error;}
  }
- return {
+ const api={
   get active(){return active.size>0;},get count(){return active.size;},value(target,parameter){return active.get(key(target,parameter))?.value;},finish,cancel,release,
   beforePaint(){
    // A latch remains deliberately held across channel selection and repaint.
-   if(getMode()==='latch'){try{for(const g of active.values())release(g.target,g.parameter);}catch{cancel();}}else cancel();
+   if(['latch','write'].includes(getMode())){try{for(const g of active.values())release(g.target,g.parameter);}catch{cancel();}}else cancel();
+  },
+  beginWrite(target){
+   if(getMode()!=='write')return false;
+   if(active.size)throw Error('Finish the active automation pass before starting Write.');
+   const state=getState(),read=createMixerReadback(state.session);writeTarget=target;
+   try{
+    for(const parameter of ['gainDb','pan']){api.input(target,parameter,read(target,parameter,state.position));api.release(target,parameter);}
+    return true;
+   }catch(error){cancel();throw error;}
   },
   input(target,parameter,value){
    let state=getState();const mode=getMode(),id=key(target,parameter);
-   if(mode!=='latch'&&active.size&&!active.has(id)){finish();state=getState();}
+   if(mode==='write'&&target!==writeTarget)throw Error('Write is recording the channel selected when playback started. Stop to choose another channel.');
+   if(mode==='touch'&&active.size&&!active.has(id)){finish();state=getState();}
    try{
-    if(!['touch','latch'].includes(mode))throw Error('Choose Touch or Latch recording.');
+    if(!['touch','latch','write'].includes(mode))throw Error('Choose Touch, Latch or Write recording.');
     if(!state.playback||state.playback.loop||state.playback.compPreview||!state.playback.automation)throw Error('Automation recording needs normal playback with Cycle off.');
     const owner=target===state.session.id?{automationMode:state.session.masterAutomationMode,automationMuted:state.session.masterAutomationMuted}:state.session.tracks.find(t=>t.id===target);
     if(!owner||owner.kind==='video'||owner.mute||owner.protected)throw Error('Choose an unmuted, unprotected mixer channel.');
@@ -60,4 +72,5 @@ export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
    }catch(error){cancel();throw error;}
   },
  };
+ return api;
 }

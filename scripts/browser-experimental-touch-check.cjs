@@ -36,6 +36,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
  await page.waitForFunction(old=>document.querySelector('[data-clock]').textContent!==old,clock);assert.equal(await page.locator('[data-mix-gain="t"]').inputValue(),'-7');
  await page.locator('[data-mix-gain="t"]').dispatchEvent('pointerup');await page.waitForFunction(()=>document.querySelector('[data-mix-gain="t"]').parentElement.querySelector('output').textContent==='-7.2 dB');
  await page.locator('[data-marker-jump="seek-test"]').first().click();assert.equal(await page.locator('[data-mix-gain="t"]').inputValue(),'-12');
+ // Write starts both selected-channel lanes without touching either fader.
+ await page.locator('[data-touch-mode]').selectOption('write');const beforeWrite=await session();await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();await page.getByText('2 automation lanes recording',{exact:true}).waitFor();
+ await page.evaluate(()=>window.testAudioTime=22.05);await page.locator('[data-action=stop]').click();const afterWrite=await session();assert.equal(afterWrite.revision,beforeWrite.revision+1);assert.equal(await page.locator('[data-touch-mode]').inputValue(),'touch');
+ assert.ok(afterWrite.tracks[0].automation.some(p=>p.parameter==='gainDb'&&p.time>6&&p.value===-12));assert.ok(afterWrite.tracks[0].automation.some(p=>p.parameter==='pan'&&p.time>6));await page.locator('[data-action=undo]').click();assert.deepEqual((await session()).tracks,beforeWrite.tracks);
+ // Discarding an active Write pass leaves playback running in Touch.
+ await page.locator('[data-touch-mode]').selectOption('write');await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();await page.locator('[data-touch-cancel]').click();assert.equal(await page.locator('[data-touch-mode]').inputValue(),'touch');await page.locator('[data-action=stop]').click();assert.deepEqual((await session()).tracks,beforeWrite.tracks);
  // Verify actual rendered audio separately from the UI's controllable clock.
  const rendered=await page.evaluate(async()=>{
   const {scheduleSession}=await import('/src/experimental/audio-engine.js'),{newSession,SessionHistory}=await import('/src/experimental/session.js');
@@ -47,5 +53,5 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   return [.1,.4,.8].map(t=>d[Math.floor(t*48000)]);
  });
  assert.ok(Math.abs(rendered[1]/rendered[0]-.1)<.001);assert.ok(Math.abs(rendered[2]/rendered[0]-1)<.001);assert.deepEqual(errors,[]);
- console.log('PASS automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
+ console.log('PASS Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
