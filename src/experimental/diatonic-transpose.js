@@ -2,7 +2,7 @@ import {z} from 'zod';
 import {scales,scaleIntervals} from './scales.js';
 import {selectedMidiNotes} from './note-selection.js';
 import {projectKeyScale} from './key-map.js';
-const options=z.object({steps:z.number().int().min(-70).max(70),root:z.number().int().min(0).max(11).optional(),scale:z.enum([...scales.map(([id])=>id),'custom']).optional(),custom:z.string().max(40).optional(),useProjectKey:z.boolean().default(false),accidentals:z.enum(['preserve','reject']).default('preserve'),noteId:z.string().optional(),noteIds:z.string().max(2020000).optional()}).strict();
+const options=z.object({steps:z.number().int().min(-127).max(127),root:z.number().int().min(0).max(11).optional(),scale:z.enum([...scales.map(([id])=>id),'custom']).optional(),custom:z.string().max(40).optional(),useProjectKey:z.boolean().default(false),accidentals:z.enum(['preserve','reject']).default('preserve'),noteId:z.string().optional(),noteIds:z.string().max(2020000).optional()}).strict();
 export function diatonicNoteEdits(region,values,session){
  const v=options.parse(values);let key;
  if(v.useProjectKey){if(v.root!==undefined||v.scale!==undefined||v.custom!==undefined)throw Error('Choose project key or an explicit scale, not both.');key=projectKeyScale(session);}

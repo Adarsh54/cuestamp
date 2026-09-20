@@ -208,7 +208,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'notes.quantize':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');quantizeNotes(r,v,session);break;
    case 'notes.humanize':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');humanizeNotes(r,v);break;
    case 'notes.diatonicTranspose':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(diatonicNoteEdits(r,v,session).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
-   case 'notes.transpose':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(transposeNoteEdits(r,v).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
+   case 'notes.transpose':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(transposeNoteEdits(r,v,session).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
    case 'effect.automation.point':case 'effect.automation.set':case 'effect.automation.delete':case 'effect.automation.clear':effectAutomationCommand(effectChains.flat(),op,target,v);break;
    case 'effect.add':(target===session.id?session.masterEffects:need(t,'Track').effects).push(effectSchema.parse({id:crypto.randomUUID(),...v}));break;
    case 'effect.set':{const e=effectChains.flat().find(e=>e.id===target);need(e,'Effect');Object.assign(e,effectSchema.parse({...e,...pick(v,[...Object.keys(e).filter(k=>!['id','kind'].includes(k)),'automationMode'])}));break;}

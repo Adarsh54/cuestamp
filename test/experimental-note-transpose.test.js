@@ -35,3 +35,8 @@ test('transposed pitches and preserved channel/timing data survive MIDI export',
  const midi=readMidi(writeMidi(h.session).buffer),notes=midi.tracks.flatMap(t=>t.notes).sort((a,b)=>a.start-b.start);
  assert.deepEqual(notes.map(n=>n.pitch),[64,64,71]);assert.deepEqual(notes.map(n=>n.channel),[0,1,2]);assert.deepEqual(notes.map(n=>n.start),[0,1,2]);assert.ok(notes.every(n=>n.duration===.5));
 });
+test('unified transpose accepts project keys and custom definitions with explicit accidental policy',()=>{
+ const h=fixture();h.execute([{op:'key.set',values:{sharps:0,mode:'major'}},{op:'notes.transpose',target:'r',values:{mode:'diatonic',useProjectKey:true,steps:2}}]);assert.deepEqual(r(h).notes.map(n=>n.pitch),[64,67,71]);h.undo();
+ const result=transposeNoteEdits({notes:[{id:'x',pitch:61}]},{mode:'diatonic',root:0,scale:'custom',custom:'0,2,4,6,8,10',steps:1,accidentals:'preserve'});assert.equal(result[0].pitch,63);
+ assert.throws(()=>transposeNoteEdits({notes:[{id:'x',pitch:61}]},{mode:'diatonic',root:0,scale:'custom',custom:'0,2,4,6,8,10',steps:1}));
+});
