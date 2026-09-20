@@ -7,26 +7,25 @@ export function createLiveAutomation({context,base,position,lanes}){
  const trimmed=new Set(),touched=new Map(),key=(target,parameter)=>`${target}:${parameter}`;
  function resolve(target,parameter){
   if(stopped)throw Error('Playback has stopped.');
-  if(!['gainDb','pan'].includes(parameter))throw Error('Unsupported live automation parameter.');
   const lane=lanes.get(key(target,parameter));
   if(!lane)throw Error('This channel cannot be automated during playback.');
   return lane;
  }
  function now(){return Math.max(base,context.currentTime);}
  function schedule(lane,parameter,points,time,fallback){
-  lane.param.cancelScheduledValues(time);
-  scheduleCurveAutomation(lane.param,points,parameter,position+time-base,time,fallback,parameter==='gainDb'?v=>10**(v/20):v=>v,parameter==='gainDb');
+  const bindings=lane.bindings||[{param:lane.param,transform:parameter==='gainDb'?v=>10**(v/20):v=>v,exponential:parameter==='gainDb'}];
+  for(const binding of bindings){binding.param.cancelScheduledValues(time);scheduleCurveAutomation(binding.param,points,parameter,position+time-base,time,fallback,binding.transform,binding.exponential);}
  }
  return {
   set(target,parameter,value){
-   const lane=resolve(target,parameter),min=parameter==='gainDb'?-96:-1,max=parameter==='gainDb'?12:1;
+   const lane=resolve(target,parameter),min=lane.min??(parameter==='gainDb'?-96:-1),max=lane.max??(parameter==='gainDb'?12:1);
    if(!Number.isFinite(value)||value<min||value>max)throw Error('Invalid live automation value.');
    const time=now();schedule(lane,parameter,[],time,value);trimmed.delete(key(target,parameter));touched.set(key(target,parameter),value);
    return position+time-base;
   },
   trim(target,parameter,offset){
    const lane=resolve(target,parameter),time=now(),start=position+time-base;
-   const min=parameter==='gainDb'?-96:-1,max=parameter==='gainDb'?12:1;
+   const min=lane.min??(parameter==='gainDb'?-96:-1),max=lane.max??(parameter==='gainDb'?12:1);
    if(!Number.isFinite(offset)||Math.abs(offset)>max-min)throw Error('Invalid live trim offset.');
    const ordered=automationSegments(lane.points,parameter),previous=ordered.findLast(p=>p.time<=start);
    // These are already rendered segments. Do not expand their original curve

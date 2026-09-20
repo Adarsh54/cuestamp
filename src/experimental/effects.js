@@ -18,24 +18,24 @@ export const automationSchema=z.object({id:z.string().min(1).max(100).regex(/^[a
 export const automationValue=curveAutomationValue;
 export function scheduleAutomation(param,points,parameter,position,base,fallback){scheduleCurveAutomation(param,points,parameter,position,base,fallback,parameter==='gainDb'?v=>10**(v/20):v=>v,parameter==='gainDb');}
 export function effectTail(effects=[],inheritedOff=false){const peak=(e,key)=>Math.max(e[key],...activeAutomation(e,inheritedOff).filter(p=>p.parameter===key).map(p=>p.value));return Math.min(30,effects.filter(e=>e.enabled).reduce((sum,e)=>{if(e.kind==='reverb')return sum+e.decay;if(e.kind==='chorus')return sum+(peak(e,'mix')>0?.025+peak(e,'depthMs')/1000:0);if(e.kind!=='delay'||peak(e,'mix')===0)return sum;const time=peak(e,'time'),feedback=peak(e,'feedback');return sum+time*(feedback>0?Math.ceil(Math.log(.001)/Math.log(feedback))+1:1);},0));}
-export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120,tempoChanges=[]}={}){let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
- if(effect.kind==='chorus'){output=connectChorus(context,output,effect,nodes,{position,base});}
- else if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo,tempoChanges});}
+export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120,tempoChanges=[],register}={}){const schedule=(param,effect,key,position,base,transform=v=>v)=>{register?.(effect,key,param,transform,false);scheduleEffectParameter(param,effect,key,position,base,transform);};let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
+ if(effect.kind==='chorus'){output=connectChorus(context,output,effect,nodes,{position,base,register});}
+ else if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo,tempoChanges,register});}
  else if(effect.kind==='gain'){
   // Force speaker upmix before splitting so mono is present on both channels.
   const stereo=context.createGain(),split=context.createChannelSplitter(2),merge=context.createChannelMerger(2),gain=context.createGain();
   stereo.channelCount=2;stereo.channelCountMode='explicit';stereo.channelInterpretation='speakers';output.connect(stereo).connect(split);
   for(let source=0;source<2;source++)for(let destination=0;destination<2;destination++){
    const coefficient=context.createGain(),sign=(source===0?effect.invertLeft:effect.invertRight)?-1:1;
-   scheduleEffectParameter(coefficient.gain,effect,'width',position,base,w=>sign*(source===destination?1+w:1-w)/2);
+   schedule(coefficient.gain,effect,'width',position,base,w=>sign*(source===destination?1+w:1-w)/2);
    split.connect(coefficient,source);coefficient.connect(merge,0,effect.swap?1-destination:destination);nodes.push(coefficient);
   }
-  scheduleAutomation(gain.gain,activeAutomation(effect),'gainDb',position,base,effect.gainDb);merge.connect(gain);nodes.push(stereo,split,merge,gain);output=gain;
+  register?.(effect,'gainDb',gain.gain,v=>10**(v/20),true);scheduleAutomation(gain.gain,activeAutomation(effect),'gainDb',position,base,effect.gainDb);merge.connect(gain);nodes.push(stereo,split,merge,gain);output=gain;
  }
- else if(effect.kind==='eq'){const filter=context.createBiquadFilter();filter.type=effect.type;scheduleEffectParameter(filter.frequency,effect,'frequency',position,base,v=>Math.min(v,context.sampleRate/2-1));scheduleEffectParameter(filter.Q,effect,'q',position,base);scheduleEffectParameter(filter.gain,effect,'gainDb',position,base);output.connect(filter);nodes.push(filter);output=filter;}
- else if(effect.kind==='compressor'){const compressor=context.createDynamicsCompressor();for(const key of ['threshold','ratio','attack','release','knee'])scheduleEffectParameter(compressor[key],effect,key,position,base);output.connect(compressor);nodes.push(compressor);output=compressor;}
- else{const dry=context.createGain(),wet=context.createGain(),sum=context.createGain();scheduleEffectParameter(dry.gain,effect,'mix',position,base,v=>1-v);scheduleEffectParameter(wet.gain,effect,'mix',position,base);output.connect(dry).connect(sum);nodes.push(dry,wet,sum);
-  if(effect.kind==='delay'){const delay=context.createDelay(2),feedback=context.createGain();scheduleEffectParameter(delay.delayTime,effect,'time',position,base);scheduleEffectParameter(feedback.gain,effect,'feedback',position,base);output.connect(delay);delay.connect(feedback).connect(delay);delay.connect(wet).connect(sum);nodes.push(delay,feedback);}
+ else if(effect.kind==='eq'){const filter=context.createBiquadFilter();filter.type=effect.type;schedule(filter.frequency,effect,'frequency',position,base,v=>Math.min(v,context.sampleRate/2-1));schedule(filter.Q,effect,'q',position,base);schedule(filter.gain,effect,'gainDb',position,base);output.connect(filter);nodes.push(filter);output=filter;}
+ else if(effect.kind==='compressor'){const compressor=context.createDynamicsCompressor();for(const key of ['threshold','ratio','attack','release','knee'])schedule(compressor[key],effect,key,position,base);output.connect(compressor);nodes.push(compressor);output=compressor;}
+ else{const dry=context.createGain(),wet=context.createGain(),sum=context.createGain();schedule(dry.gain,effect,'mix',position,base,v=>1-v);schedule(wet.gain,effect,'mix',position,base);output.connect(dry).connect(sum);nodes.push(dry,wet,sum);
+  if(effect.kind==='delay'){const delay=context.createDelay(2),feedback=context.createGain();schedule(delay.delayTime,effect,'time',position,base);schedule(feedback.gain,effect,'feedback',position,base);output.connect(delay);delay.connect(feedback).connect(delay);delay.connect(wet).connect(sum);nodes.push(delay,feedback);}
   else{const convolver=context.createConvolver(),length=Math.ceil(context.sampleRate*effect.decay),impulse=context.createBuffer(2,length,context.sampleRate);let seed=9173;for(let c=0;c<2;c++){const data=impulse.getChannelData(c);for(let i=0;i<length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;data[i]=(seed/2147483648-1)*(1-i/length)**3;}}convolver.buffer=impulse;output.connect(convolver).connect(wet).connect(sum);nodes.push(convolver);}
   output=sum;
  }
