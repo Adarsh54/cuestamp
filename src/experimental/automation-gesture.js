@@ -2,7 +2,7 @@ import {recordingAutomationLane} from './automation-recording-lane.js';
 import {z} from 'zod';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 const sample=z.object({time:z.number().finite().min(0).max(86400),value:z.number().finite()}).strict();
-const options=z.object({parameter:z.enum(['gainDb','pan']),busId:z.string().min(1).max(100).optional(),samples:z.string().max(160000),returnSeconds:z.number().finite().min(0).max(10).default(.1)}).strict();
+const options=z.object({parameter:z.string().min(1).max(50),busId:z.string().min(1).max(100).optional(),samples:z.string().max(160000),returnSeconds:z.number().finite().min(0).max(10).default(.1)}).strict();
 // Touch-style replacement, including a return ramp. The scheduler cannot store
 // two values at one time; a <=1us guard preserves the incoming curve at the seam.
 export function automationGesturePlan(session,target,values){

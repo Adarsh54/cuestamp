@@ -3,13 +3,13 @@ import {z} from 'zod';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 import {automationGesturePlan} from './automation-gesture.js';
 const sample=z.object({time:z.number().finite().min(0).max(86400),value:z.number().finite()}).strict();
-const options=z.object({parameter:z.enum(['gainDb','pan']),busId:z.string().min(1).max(100).optional(),samples:z.string().max(160000),returnSeconds:z.number().finite().min(0).max(10).default(.1)}).strict();
+const options=z.object({parameter:z.string().min(1).max(50),busId:z.string().min(1).max(100).optional(),samples:z.string().max(160000),returnSeconds:z.number().finite().min(0).max(10).default(.1)}).strict();
 // Compose a linear offset gesture with the rendered original curve, including
 // its breakpoints. The stored result is absolute automation, not a second layer.
 export function automationTrimGesturePlan(session,target,values){
  const v=options.parse(values),offsets=z.array(sample).min(2).max(2000).parse(JSON.parse(v.samples));
- const {points,fallback}=recordingAutomationLane(session,target,v.parameter,v.busId);
- const limit=v.parameter==='gainDb'?108:2;
+ const {points,fallback,min,max}=recordingAutomationLane(session,target,v.parameter,v.busId);
+ const limit=max-min;
  if(offsets.some((p,i)=>Math.abs(p.value)>limit||(i&&p.time<=offsets[i-1].time)))throw Error('Trim offsets need increasing times and values within the parameter span.');
  const start=offsets[0].time,end=offsets.at(-1).time,restore=end+Math.max(1e-6,v.returnSeconds);
  if(restore+1e-6>86400)throw Error('Trim return exceeds the 24-hour timeline.');
