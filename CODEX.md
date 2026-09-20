@@ -2904,3 +2904,22 @@ curve progression, validation and command undo. The browser script
 keyboard movement, snapped/free point entry and ramp submission. Tempo maps
 remain internal pending the remaining piano-roll, transformation, effects and
 arrangement-time integrations.
+
+### Experimental DAW: mapped arpeggiation
+
+`arpeggioPlan` accepts either numeric BPM (legacy callers) or session timing. The
+shared `notes.arpeggiate` command and UI preview now pass the session. For mapped
+timing, each chord's onset/end are measured in local beats, and each generated
+note onset and gated end are independently converted back to seconds. This keeps
+triplets, rate and gate musical across tempo changes. Chords still restart at
+their onset, stop at the next chosen chord/longest note/region end, and run
+independently per MIDI channel. The flat-tempo path retains its existing exact
+arithmetic. Generated patterns remain bounded by the 20,000-note region limit;
+collapsed or non-finite timing rejects the edit before applying it.
+
+Verification: `experimental-musical-arpeggio.test.js` covers tempo crossings,
+off-beat triplets, gate, chord restarts, channels, legacy compatibility and
+capacity. The region-beats browser check verifies actual form preview counts,
+chart notes and command submission. Existing arpeggio command, MIDI roundtrip,
+agent and undo tests remain applicable. Project tempo-map controls remain
+pending the remaining integrations.
