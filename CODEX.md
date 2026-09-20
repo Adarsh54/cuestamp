@@ -2882,3 +2882,25 @@ Tests: `experimental-musical-transfer.test.js`, the expanded command/history tes
 in `experimental-note-transfer.test.js`, and both timing options through actual
 DOM forms in `browser-experimental-region-beats-check.cjs`. Saved project tempo
 maps remain pending the remaining timing integrations.
+
+### Experimental DAW: musical MIDI controller lane
+
+Controller lane beat labels, point snapping and horizontal keyboard movement now
+use region-local musical timing. Shift bypasses pointer snapping. The plot still
+uses seconds horizontally to align with the piano-roll note display.
+
+`event.ramp` accepts `timing: "seconds" | "beats"` (default seconds). Start, end
+and maximum spacing all use the chosen unit. In beat mode, curve progression and
+spacing are measured in beats, then each generated point is converted separately
+to region-local seconds. The lane form emits beat-mode commands. Existing
+seconds-based commands remain compatible. The shared command engine supplies
+session timing and retains validation, protection and undo. Ramps retain exact
+endpoints, preserve unrelated events and reject excessive point counts or
+collapsed point times. The agent prompt documents both timing modes.
+
+Verification: `experimental-musical-controller.test.js` covers tempo crossings,
+curve progression, validation and command undo. The browser script
+`browser-experimental-musical-controller-check.cjs` checks actual DOM labels,
+keyboard movement, snapped/free point entry and ramp submission. Tempo maps
+remain internal pending the remaining piano-roll, transformation, effects and
+arrangement-time integrations.

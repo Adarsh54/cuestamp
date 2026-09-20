@@ -133,7 +133,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'region.split':{
     need(r,'Region');pick(v,['time']);const {left,right}=splitRegion(r,v.time,owner.kind);Object.assign(r,left);owner.regions.push(right);splitCompReferences(owner,r.id,v.time,right.id);break;
    }
-   case 'event.ramp':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');r.events=controllerRamp(r,v);break;
+   case 'event.ramp':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');r.events=controllerRamp(r,v,session);break;
    case 'event.add':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');r.events.push(midiEventSchema.parse({id:crypto.randomUUID(),...pick(v,['id','type','start','channel','parameter','value'])}));break;
    case 'event.set':{const event=session.tracks.flatMap(t=>t.regions).flatMap(r=>r.events).find(e=>e.id===target);need(event,'MIDI event');Object.assign(event,midiEventSchema.parse({...event,...pick(v,['type','start','channel','parameter','value'])}));break;}
    case 'event.delete':{const owner=session.tracks.flatMap(t=>t.regions).find(r=>r.events.some(e=>e.id===target));need(owner,'MIDI event');owner.events=owner.events.filter(e=>e.id!==target);break;}
