@@ -26,22 +26,29 @@ export function bindMixer(root,{session,selected,select,execute,guard,duration,t
   const trimMode=touchMode.startsWith('trim');
   if(trimMode){input.dataset.trimOffset='true';input.min=spec?String(-(spec.max-spec.min)):parameter==='gainDb'?'-12':'-1';input.max=spec?String(spec.max-spec.min):parameter==='gainDb'?'12':'1';input.setAttribute('aria-label',(input.getAttribute('aria-label')||'Master '+parameter)+' trim offset');}
   if(busId!==undefined){input.dataset.sendSource=target;input.setAttribute('aria-label',trimMode?'Send trim offset':'Send volume');if(trimMode)input.parentElement.firstChild.textContent='Send trim ';}
-  let recording=false;
+  let recording=false,lastAccepted=input.value;
+  const readValue=()=>{
+   if(!input.value.trim()||input.validity?.badInput)return null;
+   const value=Number(input.value);
+   if(!Number.isFinite(value)||(input.min!==''&&value<Number(input.min))||(input.max!==''&&value>Number(input.max)))return null;
+   return value;
+  };
   input.onpointerdown=()=>{input.dataset.mixerEditing='true';};
   input.onpointerup=()=>{delete input.dataset.mixerEditing;};
   input.onlostpointercapture=()=>{delete input.dataset.mixerEditing;};
   input.oninput=guard(()=>{
    input.dataset.mixerEditing='true';
+   const value=readValue();if(value===null)return;
    if(trimMode&&!isPlaying())throw Error('Start playback before recording a trim offset.');
    const output=input.parentElement.querySelector('output');if(output)output.textContent=input.value+(parameter==='gainDb'?' dB':'');
    if(touchMode!=='static'&&isPlaying()){
     if(blocked())throw Error('Finish the current operation before recording automation.');
-    touch.input(target,parameter,Number(input.value),busId);recording=true;
+    touch.input(target,parameter,value,busId);recording=true;lastAccepted=input.value;
    }
   });
   const finish=()=>{if(!recording)return false;recording=false;touch.release(target,parameter,busId);afterTouch();return true;};
-  input.onchange=guard(()=>{delete input.dataset.mixerEditing;if(!finish()){if(trimMode){afterTouch();return;}execute([staticCommand(Number(input.value))],'Updated mixer');}});
-  input.onblur=guard(()=>{delete input.dataset.mixerEditing;return finish();});
+  input.onchange=guard(()=>{delete input.dataset.mixerEditing;const value=readValue();if(value===null){input.value=lastAccepted;finish();return;}if(!finish()){if(trimMode){afterTouch();return;}execute([staticCommand(value)],'Updated mixer');lastAccepted=input.value;}});
+  input.onblur=guard(()=>{delete input.dataset.mixerEditing;if(readValue()===null)input.value=lastAccepted;return finish();});
   input.onpointercancel=()=>{delete input.dataset.mixerEditing;if(recording){recording=false;touch.cancel();afterTouch();}};
   input.onkeydown=guard(e=>{if(e.key==='Escape'&&(recording||touch?.active)){e.preventDefault();e.stopPropagation();delete input.dataset.mixerEditing;recording=false;touch.cancel();afterTouch();}});
  }
