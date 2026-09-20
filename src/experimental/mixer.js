@@ -10,7 +10,7 @@ function effectChainView(track,esc,master=false){return `<section><div class="da
 const masterChannel=session=>({id:session.id,name:'Master',gainDb:session.masterDb,pan:session.masterPan||0,effects:session.masterEffects||[],automation:session.masterAutomation||[],automationMode:session.masterAutomationMode,automationMuted:session.masterAutomationMuted});
 export function mixerView(session,selected,esc,{touchMode='static',touchCount=0,liveValue=()=>undefined}={}){
  const rows=trackHierarchy(session).filter(r=>r.track.kind!=='video'),tracks=rows.map(r=>r.track),track=session.tracks.find(t=>t.id===selected)||tracks[0],masterSelected=selected===session.id,master=masterChannel(session);
- const strip=({track:t,depth,children})=>`<div class="daw-channel ${!masterSelected&&track?.id===t.id?'selected':''}">${groupFoldButton(t,children.length,esc)}<button data-mix-select="${t.id}" style="padding-left:${Math.min(depth,4)*8}px">${esc(t.name)}</button>${meterView(t.id,t.name,esc)}<label>Volume <output>${(liveValue(t.id,'gainDb')??t.gainDb).toFixed(1)} dB</output><input type="range" data-mix-gain="${t.id}" min="-60" max="12" step=".5" value="${liveValue(t.id,'gainDb')??t.gainDb}" aria-label="${esc(t.name)} volume"></label><label>Pan <output>${(liveValue(t.id,'pan')??t.pan).toFixed(2)}</output><input type="range" data-mix-pan="${t.id}" min="-1" max="1" step=".05" value="${liveValue(t.id,'pan')??t.pan}" aria-label="${esc(t.name)} pan"></label><span class="muted">${t.effects?.length||0} effects · ${t.automation?.length||0} automation points</span></div>`;
+ const strip=({track:t,depth,children})=>`<div class="daw-channel ${!masterSelected&&track?.id===t.id?'selected':''}">${groupFoldButton(t,children.length,esc)}<button data-mix-select="${t.id}" style="padding-left:${Math.min(depth,4)*8}px">${esc(t.name)}</button>${meterView(t.id,t.name,esc)}<label>Volume <output>${(liveValue(t.id,'gainDb')??t.gainDb).toFixed(1)} dB</output><input type="range" data-mix-gain="${t.id}" min="-96" max="12" step=".5" value="${liveValue(t.id,'gainDb')??t.gainDb}" aria-label="${esc(t.name)} volume"></label><label>Pan <output>${(liveValue(t.id,'pan')??t.pan).toFixed(2)}</output><input type="range" data-mix-pan="${t.id}" min="-1" max="1" step=".05" value="${liveValue(t.id,'pan')??t.pan}" aria-label="${esc(t.name)} pan"></label><span class="muted">${t.effects?.length||0} effects · ${t.automation?.length||0} automation points</span></div>`;
  return `<section class="daw-mixer"><div class="section-title"><h3>Mixer</h3><label>Fader mode<select data-touch-mode><option value="static" ${touchMode==='static'?'selected':''}>Static</option><option value="touch" ${touchMode==='touch'?'selected':''}>Touch recording</option><option value="latch" ${touchMode==='latch'?'selected':''}>Latch recording</option></select></label><span data-touch-status aria-live="polite">${touchCount?`${touchCount} automation lane${touchCount===1?'':'s'} recording`: ''}</span>${touchCount?'<button type="button" data-touch-cancel>Discard automation pass</button>':''}<button data-mix-select="${session.id}" aria-pressed="${masterSelected}">Master channel · ${(session.masterEffects||[]).length} effects</button><label>Master · dB<input type="number" data-master-gain min="-96" max="12" step=".5" value="${liveValue(session.id,'gainDb')??session.masterDb}"></label><label>Master · pan<input type="number" data-master-pan min="-1" max="1" step=".05" value="${liveValue(session.id,'pan')??session.masterPan??0}"></label></div>${meterView(session.id,'Master',esc)}<small class="muted">Touch returns to the saved curve on release. Latch holds every moved fader until Stop. Both record volume and pan with Cycle off; Stop saves, Escape or Discard cancels the active pass. Live sample peaks after volume and pan. Cycle shows the combined master output only. Peaks reset on playback restart.</small>${summingGroupView(session,esc)}<div class="daw-channels">${rows.map(strip).join('')||'<p class="muted">Add audio or instrument tracks to mix.</p>'}</div>${masterSelected?`<div class="daw-mix-detail">${effectChainView(master,esc,true)}${automationView(master,esc)}</div><p class="muted daw-master-description">Processes the complete mix before master volume. Master effects also process each stem individually; compression can make the summed stems differ from the full mix. Volume and pan curves override the master controls.</p>`:track?`${groupMembersView(session,track,esc)}${channelSettingsView(session,track,esc)}${routingView(session,track,esc)}<div class="daw-mix-detail">${effectChainView(track,esc)}${automationView(track,esc)}</div>`:''}</section>`;
 }
 const effectParameterSelections=new Map();
@@ -22,7 +22,11 @@ export function bindMixer(root,{session,selected,select,execute,guard,duration,t
  root.querySelector('[data-touch-cancel]')?.addEventListener('click',cancelTouch);
  function bindFader(input,target,parameter,staticCommand){
   let recording=false;
+  input.onpointerdown=()=>{input.dataset.mixerEditing='true';};
+  input.onpointerup=()=>{delete input.dataset.mixerEditing;};
+  input.onlostpointercapture=()=>{delete input.dataset.mixerEditing;};
   input.oninput=guard(()=>{
+   input.dataset.mixerEditing='true';
    const output=input.parentElement.querySelector('output');if(output)output.textContent=input.value+(parameter==='gainDb'?' dB':'');
    if(touchMode!=='static'&&isPlaying()){
     if(blocked())throw Error('Finish the current operation before recording automation.');
@@ -30,10 +34,10 @@ export function bindMixer(root,{session,selected,select,execute,guard,duration,t
    }
   });
   const finish=()=>{if(!recording)return false;recording=false;touch.release(target,parameter);afterTouch();return true;};
-  input.onchange=guard(()=>{if(!finish())execute([staticCommand(Number(input.value))],'Updated mixer');});
-  input.onblur=guard(finish);
-  input.onpointercancel=()=>{if(recording){recording=false;touch.cancel();afterTouch();}};
-  input.onkeydown=guard(e=>{if(e.key==='Escape'&&(recording||touch?.active)){e.preventDefault();e.stopPropagation();recording=false;touch.cancel();afterTouch();}});
+  input.onchange=guard(()=>{delete input.dataset.mixerEditing;if(!finish())execute([staticCommand(Number(input.value))],'Updated mixer');});
+  input.onblur=guard(()=>{delete input.dataset.mixerEditing;return finish();});
+  input.onpointercancel=()=>{delete input.dataset.mixerEditing;if(recording){recording=false;touch.cancel();afterTouch();}};
+  input.onkeydown=guard(e=>{if(e.key==='Escape'&&(recording||touch?.active)){e.preventDefault();e.stopPropagation();delete input.dataset.mixerEditing;recording=false;touch.cancel();afterTouch();}});
  }
  for(const [attr,parameter]of [['gain','gainDb'],['pan','pan']])root.querySelectorAll(`[data-mix-${attr}]`).forEach(input=>{
   const target=input.dataset[attr==='gain'?'mixGain':'mixPan'];bindFader(input,target,parameter,value=>({op:'track.set',target,values:{[parameter]:value}}));

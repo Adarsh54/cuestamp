@@ -25,6 +25,17 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
  await page.evaluate(()=>window.testAudioTime=12);await page.locator('[data-action=stop]').click();assert.equal((await session()).revision,latchRevision+1);assert.ok((await session()).tracks[0].automation.some(p=>p.parameter==='pan'&&p.time>5&&p.value===.5));
  await page.locator('[data-action=undo]').click();assert.equal((await session()).tracks[0].automation.some(p=>p.parameter==='pan'),false);
  await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();await input(13,-5);await page.locator('[data-mix-gain="t"]').dispatchEvent('change');const discardRevision=(await session()).revision;await page.locator('[data-touch-cancel]').click();await page.locator('[data-action=stop]').click();assert.equal((await session()).revision,discardRevision);
+ // Automated controls follow transport, without overwriting an in-progress drag.
+ await page.locator('[data-touch-mode]').selectOption('static');
+ await page.locator('#daw-json').evaluate(el=>el.closest('details').open=true);
+ await page.locator('#daw-json').fill(JSON.stringify([{op:'automation.clear',target:'t',values:{parameter:'gainDb'}},{op:'automation.point',target:'t',values:{parameter:'gainDb',time:0,value:-24}},{op:'automation.point',target:'t',values:{parameter:'gainDb',time:10,value:0}},{op:'marker.add',values:{id:'seek-test',name:'Seek test',time:5}}]));await page.locator('[data-action=json]').click();
+ await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();await page.evaluate(()=>window.testAudioTime=18.025);
+ await page.waitForFunction(()=>Math.abs(Number(document.querySelector('[data-mix-gain="t"]').value)+12)<.01);
+ await page.locator('[data-mix-gain="t"]').dispatchEvent('pointerdown');const clock=await page.locator('[data-clock]').textContent();await page.evaluate(()=>{document.querySelector('[data-mix-gain="t"]').value='-7';window.testAudioTime=20.025;});
+ // Wait for a confirmed timer tick, then ensure it respected the held control.
+ await page.waitForFunction(old=>document.querySelector('[data-clock]').textContent!==old,clock);assert.equal(await page.locator('[data-mix-gain="t"]').inputValue(),'-7');
+ await page.locator('[data-mix-gain="t"]').dispatchEvent('pointerup');await page.waitForFunction(()=>document.querySelector('[data-mix-gain="t"]').parentElement.querySelector('output').textContent==='-7.2 dB');
+ await page.locator('[data-marker-jump="seek-test"]').first().click();assert.equal(await page.locator('[data-mix-gain="t"]').inputValue(),'-12');
  // Verify actual rendered audio separately from the UI's controllable clock.
  const rendered=await page.evaluate(async()=>{
   const {scheduleSession}=await import('/src/experimental/audio-engine.js'),{newSession,SessionHistory}=await import('/src/experimental/session.js');
@@ -36,5 +47,5 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   return [.1,.4,.8].map(t=>d[Math.floor(t*48000)]);
  });
  assert.ok(Math.abs(rendered[1]/rendered[0]-.1)<.001);assert.ok(Math.abs(rendered[2]/rendered[0]-1)<.001);assert.deepEqual(errors,[]);
- console.log('PASS Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
+ console.log('PASS automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
