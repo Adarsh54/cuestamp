@@ -6,7 +6,7 @@ export function analyzeChord(notes,keySignature=null){
  const pitches=[...new Set(notes.map(n=>n.pitch))].sort((a,b)=>a-b),classes=[...new Set(pitches.map(p=>p%12))].sort((a,b)=>a-b),bass=pitches.length?pitches[0]%12:null,names=keySignature?.sharps<0?flat:sharp,candidates=[];
  if(classes.length>=2)for(let root=0;root<12;root++)for(const [quality,label,intervals] of chordQualities){
   if(intervals.length!==classes.length||!intervals.every(i=>classes.includes((root+i)%12)))continue;
-  const inversion=intervals.indexOf((bass-root+12)%12);candidates.push({root,quality,bass,inversion,label:`${names[root]} ${label.toLowerCase()}${bass===root?'':` / ${names[bass]}`}`});
+  const inversion=intervals.findIndex(interval=>interval%12===(bass-root+12)%12);candidates.push({root,quality,bass,inversion,label:`${names[root]} ${label.toLowerCase()}${bass===root?'':` / ${names[bass]}`}`});
  }
  candidates.sort((a,b)=>(a.inversion===0?0:1)-(b.inversion===0?0:1)||a.root-b.root||a.quality.localeCompare(b.quality));
  const timed=notes.length>0&&notes.every(n=>Number.isFinite(n.start)&&Number.isFinite(n.duration)&&n.duration>0);
