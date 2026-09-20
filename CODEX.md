@@ -2840,3 +2840,23 @@ uses actual DOM forms with an internal mapped fixture to check emitted chord,
 event, drum and split commands. Full project tempo-map controls are still not
 exposed: piano-roll gestures, multi-note transformations, controller ramps,
 filters, tempo-synced effects and arrangement-time operations need integration.
+
+### Experimental DAW: musical note conditions and transfer fields
+
+The note-selection form compares timing conditions in region-local beats via
+`matchingMidiNotesInBeats`. Each note's duration is converted at its own onset,
+so equally long musical notes can match across different BPMs even when their
+lengths in seconds differ. Position ranges remain half-open; other conditions
+still combine with AND. Returned notes are original references and selection
+does not mutate the document. Musical limits support up to 432,000 quarter-note
+beats. Command JSON filters continue using seconds and their existing limits.
+
+Transfer destination position and length feedback now use the destination
+region's beat/time conversion. The existing transfer operation preserves phrase
+spacing and lengths in seconds; its explanatory text states that explicitly.
+A future musical-time transfer mode must remap individual note endpoints, not
+just the destination offset. It is not implied by these form conversions.
+
+Coverage includes `test/experimental-musical-note-filter.test.js` and expanded
+actual-DOM checks in `scripts/browser-experimental-region-beats-check.cjs`.
+Tempo maps remain internal until all required consumers are integrated.

@@ -27,7 +27,7 @@ export function pianoView(region,tempo,selected,esc,settings=defaultNoteTools,se
 }
 export function bindPiano(root,{session,region,tempo,getPosition,selected,select,execute,guard,settings={...defaultNoteTools}}){
  if(!region)return;const ids=pianoSelection(region,selected,settings),selectedSet=new Set(ids),choose=(id,repaint=true)=>{settings.selectedIds=id?[id]:[];select(id,repaint);};bindNoteTools(root,{region,tempo,selected,settings,execute,guard});bindMidiEvents(root,{region,tempo,session,execute,guard});const beat=60/tempo;
- bindNoteFilter(root,{region,tempo,settings,select,guard});
+ bindNoteFilter(root,{region,tempo,session,settings,select,guard});
  bindArpeggio(root,{region,tempo,settings,execute,guard});
  bindChords(root,{region,tempo,session,execute,guard});
  bindVelocityRamp(root,{region,settings,execute,guard});
