@@ -43,3 +43,6 @@ test('automation before its first point and after its final point retains the pr
  const points=[{id:'a',parameter:'pan',time:2,value:-1,shape:'linear'},{id:'b',parameter:'pan',time:4,value:1,shape:'hold'}];
  for(const [start,end] of [[0,1],[1,3],[1,5],[2,4],[3,5]]){const out=deleteAutomationTime(points,start,end);for(const time of [0,.3,.8,1,1.5,2,3,5]){const expected=curveAutomationValue(points,'pan',time<start?time:time+end-start,0);assert.ok(Math.abs(curveAutomationValue(out,'pan',time,0)-expected)<1e-9);}}
 });
+test('the exact deletion end maps to its start without a floating-point remnant',()=>{
+ const s=fixture(),start=.034,end=.367;s.sections=[{id:'section',name:'Removed',start,end}];s.loopStart=start;s.loopEnd=end;s.loopEnabled=true;s.markers=[{id:'boundary',name:'Right boundary',time:end}];const out=applyCommands(s,[cut(start,end)]);assert.deepEqual(out.sections,[]);assert.deepEqual([out.loopStart,out.loopEnd,out.loopEnabled],[start,start+1,false]);assert.equal(out.markers[0].time,start);
+});

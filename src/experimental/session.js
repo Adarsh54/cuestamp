@@ -1,3 +1,4 @@
+import {swapProjectSections,replaceProjectSection} from './section-exchange.js';
 import {arrangementSectionSchema,arrangementSectionsSchema} from './arrangement-sections.js';
 import {transferProjectSection} from './section-transfer.js';
 import {repeatProjectSection} from './repeat-section.js';
@@ -75,7 +76,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'section.add':session.sections.push(arrangementSectionSchema.parse({id:crypto.randomUUID(),...pick(v,['id','name','start','end'])}));break;
    case 'section.set':{const section=need(session.sections.find(s=>s.id===target),'Arrangement section');Object.assign(section,arrangementSectionSchema.parse({...section,...pick(v,['name','start','end'])}));break;}
    case 'section.delete':need(session.sections.find(s=>s.id===target),'Arrangement section');pick(v,[]);session.sections=session.sections.filter(s=>s.id!==target);break;
-   case 'section.editContent':{const section=need(session.sections.find(s=>s.id===target),'Arrangement section'),{start,end}=section;pick(v,v.action==='repeat'?['action','count']:['copy','move'].includes(v.action)?['action','position']:['action']);if(v.action==='repeat')repeatProjectSection(session,{start,end,count:v.count});else if(v.action==='remove')deleteProjectTime(session,{start,end});else if(['copy','move'].includes(v.action))transferProjectSection(session,{mode:v.action,start,end,position:v.position});else throw Error('Choose Repeat, Copy, Move or Remove section contents.');break;}
+   case 'section.editContent':{const section=need(session.sections.find(s=>s.id===target),'Arrangement section'),{start,end}=section;pick(v,v.action==='repeat'?['action','count']:['copy','move'].includes(v.action)?['action','position']:['swap','replace'].includes(v.action)?['action','otherId']:['action']);if(v.action==='repeat')repeatProjectSection(session,{start,end,count:v.count});else if(v.action==='remove')deleteProjectTime(session,{start,end});else if(['copy','move'].includes(v.action))transferProjectSection(session,{mode:v.action,start,end,position:v.position});else if(v.action==='swap')swapProjectSections(session,target,v.otherId);else if(v.action==='replace')replaceProjectSection(session,target,v.otherId);else throw Error('Choose Repeat, Copy, Move, Swap, Replace or Remove section contents.');break;}
    case 'session.transferSection':pick(v,['mode','start','end','position']);transferProjectSection(session,v);break;
    case 'session.repeatSection':pick(v,['start','end','count']);repeatProjectSection(session,v);break;
    case 'session.deleteTime':pick(v,['start','end']);deleteProjectTime(session,v);break;

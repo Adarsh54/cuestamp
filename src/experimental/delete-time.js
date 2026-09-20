@@ -21,7 +21,7 @@ export function deleteAutomationTime(points,start,end){
 }
 export function deleteProjectTime(session,{start,end}){
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>86400||end<=start)throw Error('Choose a positive deletion range within 24 hours.');
- const duration=end-start,shift=t=>t<=start?t:t<end?start:t-duration;
+ const duration=end-start,shift=t=>t<=start?t:t<=end?start:t-duration;
  const automate=owner=>{owner.automation=deleteAutomationTime(owner.automation||[],start,end);};
  for(const track of session.tracks){
   const rightIds=new Map();
