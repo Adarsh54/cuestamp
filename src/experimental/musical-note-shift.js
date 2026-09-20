@@ -6,7 +6,7 @@ export function musicalNoteShift(region,session,notes,beats,{resize=false,semito
  return notes.map(note=>{
   const start=resize?note.start:mapped?clock.timeAtBeat(clock.beatAtTime(note.start)+beats):note.start+seconds;
   const end=mapped?clock.timeAtBeat(clock.beatAtTime(note.start+note.duration)+beats):start+note.duration+(resize?seconds:0),duration=end-start,pitch=note.pitch+semitones;
-  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>region.duration+1e-9||duration<=0||end<=start||pitch<0||pitch>127)throw Error('The musical edit would move notes outside the region or create invalid notes.');
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>region.duration+1e-9||duration<=0||duration>3600||end<=start||pitch<0||pitch>127)throw Error('The musical edit would move notes outside the region or create invalid notes.');
   return {...note,start,duration:mapped?duration:note.duration+(resize?seconds:0),pitch};
  });
 }

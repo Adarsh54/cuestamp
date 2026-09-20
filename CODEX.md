@@ -3000,3 +3000,25 @@ round trips, resize, rejected edits, command undo, copies and protection. The
 musical piano browser check now submits both group timing forms. Pointer group
 drag/resize still uses seconds and is the next piano-roll integration needed
 before saved project tempo maps can be enabled.
+
+### Experimental DAW: musical piano group gestures
+
+Mapped sessions now use `musicalNoteDrag` for pointer move/resize previews. The
+pointer's time displacement is converted at the grabbed onset (move) or end
+(resize), snapped as a relative beat shift, and constrained for the entire group.
+Pitch changes clamp as a group too. Shift bypasses snap while retaining musical
+spacing and note lengths. Resize moves each end by the same beat amount and
+keeps starts fixed. The committed beat command uses the same shift planner as
+the preview, including each note's changed width after moving across tempo.
+Constant-tempo pointer editing retains its existing path.
+
+Unrepresentable previews retain the last valid position. Command validation,
+protection and undo still apply on release. Musical shift planning rejects note
+lengths over the schema's one-hour limit before preview/commit.
+
+`experimental-musical-note-drag.test.js` covers preview/command agreement,
+resize anchoring, snap bypass and group bounds. The real-mouse browser script
+`browser-experimental-musical-drag-check.cjs` drags and resizes two notes through
+a tempo change, checks their preview geometry and emitted commands, then applies
+the shared planner to its isolated fixture. Saved project maps still require
+remaining recording, effects and arrangement-time integration.
