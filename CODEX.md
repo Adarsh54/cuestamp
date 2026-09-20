@@ -3194,3 +3194,9 @@ Tempo-only standard MIDI files are supported with **Use file tempo** (`midi.impo
 MIDI export now writes the current quarter-note meter into the conductor track (for example, session meter 7 exports 7/4), with 24 MIDI clocks per click and 8 notated 32nd notes per quarter. The decoder returns `timeSignatures` with numerator, denominator, click/notational fields, beat and seconds; same-tick events resolve to the last one. Malformed signatures reject. Imported signatures are decoded but are not yet applied to the session: variable signatures and non-quarter denominators still require ruler/metronome/session integration. Verify the real download with `scripts/browser-experimental-midi-meter-export-check.cjs` and format cases with `test/experimental-midi-signature.test.js`.
 
 Format reference: [Standard MIDI File specification](https://www.cs.cmu.edu/~music/cmsip/readings/Standard-MIDI-file-format-updated.pdf), time-signature meta-event FF 58.
+
+### Changing-signature groundwork
+
+`meter-map.js` compiles time signatures independently of tempo. It accepts a base `meter` numerator and `meterDenominator` (default 4), plus up to 256 `meterChanges: [{id?, bar, numerator, denominator}]` anchored to one-based whole bars from 2. Supported numerators are 1–32; denominators are 1, 2, 4, 8, 16, 32 or 64. Points expose quarter-note beat positions. Bar/beat conversion uses notated beats; position text uses 960 ticks per notated beat.
+
+This is groundwork, not enabled session editing: session persistence, ruler tick placement, snapping, click/count-in scheduling, project-time operations and MIDI signature adoption must be integrated before exposing changing signatures. Musical position parsing/formatting now uses the shared model and retains existing constant-quarter-meter behavior. Tests in `test/experimental-meter-map.test.js` cover changing signatures, compound denominators, tempo interactions, round trips and invalid maps.

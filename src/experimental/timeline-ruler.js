@@ -1,17 +1,19 @@
+import {compileMeterMap} from './meter-map.js';
 import {compileTempoMap} from './tempo-map.js';
 import {formatTimecode,parseTimecode,exactFrameRate} from './timecode.js';
 export const rulerModes=[['seconds','Seconds'],['musical','Bars / beats'],['timecode','Timecode · non-drop']];
 const ticksPerBeat=960;
 export function formatMusicalPosition(seconds,session){
- const ticks=Math.max(0,Math.floor(compileTempoMap(session).beatAtTime(seconds)*ticksPerBeat+1e-7)),beat=Math.floor(ticks/ticksPerBeat),meter=session.meter||4;
- return `${Math.floor(beat/meter)+1}:${beat%meter+1}:${String(ticks%ticksPerBeat).padStart(3,'0')}`;
+ const map=compileMeterMap(session),quarterBeat=Math.max(0,compileTempoMap(session).beatAtTime(seconds)),signature=map.signatureAtBeat(quarterBeat),unit=signature.denominator/4;
+ const quantized=Math.floor(quarterBeat*unit*ticksPerBeat+1e-7)/(unit*ticksPerBeat),position=map.positionAtBeat(quantized),ticks=Math.floor(position.fraction*ticksPerBeat+1e-7);
+ return `${position.bar}:${position.beat}:${String(ticks).padStart(3,'0')}`;
 }
 export function parseMusicalPosition(text,session){
  const match=/^(\d{1,7}):(\d{1,2})(?::(\d{1,3}))?$/.exec(text.trim());
  if(!match)throw Error('Enter bar:beat:tick, for example 2:1:000. Bars and beats start at 1.');
- const bar=Number(match[1]),beat=Number(match[2]),tick=Number(match[3]||0),meter=session.meter||4;
- if(bar<1||beat<1||beat>meter||tick<0||tick>=ticksPerBeat)throw Error(`Use bars from 1, beats 1–${meter}, and ticks 0–959.`);
- const time=compileTempoMap(session).timeAtBeat((bar-1)*meter+beat-1+tick/ticksPerBeat);
+ const bar=Number(match[1]),beat=Number(match[2]),tick=Number(match[3]||0),map=compileMeterMap(session);
+ if(tick<0||tick>=ticksPerBeat)throw Error('Use ticks 0–959.');
+ const time=compileTempoMap(session).timeAtBeat(map.beatAtPosition(bar,beat,tick/ticksPerBeat));
  if(!Number.isFinite(time)||time>86400)throw Error('Choose a position within 24 hours.');return time;
 }
 export function timelinePosition(time,session,mode){return mode==='musical'?formatMusicalPosition(time,session):mode==='timecode'?formatTimecode(time,session.frameRate):time.toFixed(2)+' s';}
