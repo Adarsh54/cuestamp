@@ -2854,9 +2854,31 @@ beats. Command JSON filters continue using seconds and their existing limits.
 Transfer destination position and length feedback now use the destination
 region's beat/time conversion. The existing transfer operation preserves phrase
 spacing and lengths in seconds; its explanatory text states that explicitly.
-A future musical-time transfer mode must remap individual note endpoints, not
-just the destination offset. It is not implied by these form conversions.
+The musical transfer mode described below additionally remaps individual note
+endpoints; destination offset conversion alone does not preserve rhythm.
 
 Coverage includes `test/experimental-musical-note-filter.test.js` and expanded
 actual-DOM checks in `scripts/browser-experimental-region-beats-check.cjs`.
 Tempo maps remain internal until all required consumers are integrated.
+
+
+### Experimental DAW: preserve beats when transferring phrases
+
+`notes.transfer` accepts `timing: "seconds" | "beats"`, defaulting to seconds for
+existing commands. The transfer form exposes both modes. Beat mode measures each
+note onset and end relative to the earliest selected onset in source musical
+time, then converts those distances at the destination. It handles notes spanning
+tempo changes and off-beat destination offsets. The command's `position` remains
+seconds relative to the destination region in both modes; UI fields use beats.
+
+Pitch, velocity, channel and mute remain intact. Copies get fresh IDs; moves
+retain IDs. Source controller events stay in place, and destination controllers
+apply. Extension remains explicit, invalid plans do not remove source notes,
+and the shared command engine retains protection, revision and undo validation.
+Constant-tempo sessions retain the existing arithmetic. The agent prompt documents
+both modes; no extra provider tool or bypass of command validation is introduced.
+
+Tests: `experimental-musical-transfer.test.js`, the expanded command/history tests
+in `experimental-note-transfer.test.js`, and both timing options through actual
+DOM forms in `browser-experimental-region-beats-check.cjs`. Saved project tempo
+maps remain pending the remaining timing integrations.
