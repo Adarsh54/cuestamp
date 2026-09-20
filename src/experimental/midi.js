@@ -1,3 +1,4 @@
+import {needsBendInitialization,regionBendInitialization} from './midi-bend-export.js';
 import {compileKeyMap,validateKeySignature} from './key-map.js';
 import {compileMeterMap} from './meter-map.js';
 import {compileTempoMap} from './tempo-map.js';
@@ -32,6 +33,7 @@ export function readMidi(buffer){
  return {keySignatures,timeSignatures,hasTempoEvents:tempos.length>1,tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
 }
 export function writeMidi(session,{includeMuted=false}={}){
+ const initializeBends=needsBendInitialization(session.tracks,includeMuted);
  const ppq=480,map=compileTempoMap(session),signatures=compileMeterMap(session),chunks=[];
  const tickAt=time=>Math.round(map.beatAtTime(time)*ppq);
  const int=(n,bytes)=>Array.from({length:bytes},(_,i)=>(n>>>((bytes-1-i)*8))&255),str=s=>[...new TextEncoder().encode(s)];
@@ -44,7 +46,7 @@ export function writeMidi(session,{includeMuted=false}={}){
  conductorEvents.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);const conductor=[];let previousTick=0;
  for(const event of conductorEvents){conductor.push(...vlq(event.tick-previousTick),...event.data);previousTick=event.tick;}
  conductor.push(0,255,47,0);chunks.push(chunk(conductor));
- for(const track of session.tracks.filter(t=>t.kind==='midi'&&(includeMuted||!t.mute))){const events=[];for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const e of r.events||[])events.push({tick:tickAt(r.start+e.start),priority:0,data:eventBytes(e)});for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const n of r.notes){if(n.velocity===0||(!includeMuted&&n.mute))continue;const start=tickAt(r.start+n.start),end=Math.max(start+1,tickAt(r.start+n.start+n.duration));events.push({tick:start,priority:2,data:[144|(n.channel||0),n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,priority:1,data:[128|(n.channel||0),n.pitch,0]});}events.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);let previous=0;const name=str(track.name),data=[0,255,3,...vlq(name.length),...name];for(const e of events){data.push(...vlq(e.tick-previous),...e.data);previous=e.tick;}data.push(0,255,47,0);chunks.push(chunk(data));}
+ for(const track of session.tracks.filter(t=>t.kind==='midi'&&(includeMuted||!t.mute))){const events=[];if(initializeBends)for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const e of regionBendInitialization(track,r,includeMuted))events.push({tick:tickAt(r.start),priority:-1,data:eventBytes(e)});for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const e of r.events||[])events.push({tick:tickAt(r.start+e.start),priority:0,data:eventBytes(e)});for(const r of track.regions.filter(r=>includeMuted||!r.mute))for(const n of r.notes){if(n.velocity===0||(!includeMuted&&n.mute))continue;const start=tickAt(r.start+n.start),end=Math.max(start+1,tickAt(r.start+n.start+n.duration));events.push({tick:start,priority:2,data:[144|(n.channel||0),n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,priority:1,data:[128|(n.channel||0),n.pitch,0]});}events.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);let previous=0;const name=str(track.name),data=[0,255,3,...vlq(name.length),...name];for(const e of events){data.push(...vlq(e.tick-previous),...e.data);previous=e.tick;}data.push(0,255,47,0);chunks.push(chunk(data));}
  return new Uint8Array([...str('MThd'),0,0,0,6,0,1,...int(chunks.length,2),...int(ppq,2),...chunks.flat()]);
 }
 

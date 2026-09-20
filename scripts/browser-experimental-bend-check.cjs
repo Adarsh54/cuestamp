@@ -11,6 +11,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
    if(range===24)h.execute([...[101,100,6].map((parameter,i)=>({op:'event.add',target:'r',values:{type:'controlChange',parameter,value:i===2?12:0,start:0}}))]);
    scheduleSession(ctx,h.session,new Map([['sample',sample]]),.2,{baseTime:0});results.push({instrument,range:range===24?12:range,frequency:frequency(await ctx.startRendering())});
   }
+  {
+   const {writeMidi,encodeMidiImport}=await import('/src/experimental/midi.js');
+   const source=new SessionHistory(newSession());source.execute([{op:'track.add',values:{id:'export-track',kind:'midi',pitchBendRange:12}},{op:'region.add',target:'export-track',values:{id:'export-region',duration:1}},{op:'note.add',target:'export-region',values:{pitch:69,start:0,duration:1,velocity:1}},{op:'event.add',target:'export-region',values:{type:'pitchBend',start:0,value:16383}}]);
+   const imported=new SessionHistory(newSession());imported.execute([{op:'midi.import',values:{data:encodeMidiImport(writeMidi(source.session).buffer)}}]);imported.execute([{op:'track.set',target:imported.session.tracks[0].id,values:{instrument:'sine'}}]);
+   const ctx=new OfflineAudioContext(2,24000,48000);scheduleSession(ctx,imported.session,new Map(),0,{baseTime:0});results.push({instrument:'MIDI export/import',range:12,frequency:frequency(await ctx.startRendering())});
+  }
   for(const range of [0,12,24]){
    const ctx=new OfflineAudioContext(2,24000,48000),monitor=createLiveMidiMonitor(ctx,{instrument:'sine',pitchBendRange:range});monitor.push([0xe0,127,127]);if(range===24){monitor.push([0xb0,101,0]);monitor.push([0xb0,100,0]);monitor.push([0xb0,6,12]);}monitor.push([0x90,69,127]);results.push({instrument:'monitor',range:range===24?12:range,frequency:frequency(await ctx.startRendering())});
   }
