@@ -8,7 +8,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   const results=[];
   for(const instrument of ['sine','sampler','roundtrip']){
    const ctx=new OfflineAudioContext(2,24000,48000),sample=ctx.createBuffer(1,96000,48000);for(let i=0;i<sample.length;i++)sample.getChannelData(0)[i]=Math.sin(2*Math.PI*440*i/48000)*.2;
-   let h=new SessionHistory(newSession());h.execute([{op:'track.add',values:{id:'t',kind:'midi',instrument:instrument==='sampler'?'sampler':'sine',sampleRoot:69,sampleAssetId:'sample'}},{op:'region.add',target:'t',values:{id:'r',duration:1}},{op:'note.add',target:'r',values:{pitch:69,start:0,duration:1,velocity:1}},...messages.map(([parameter,value])=>({op:'event.add',target:'r',values:{type:'controlChange',parameter,value,start:.05}}))]);
+   let h=new SessionHistory(newSession());h.execute([{op:'track.add',values:{id:'t',kind:'midi',instrument:instrument==='sampler'?'sampler':'sine',sampleRoot:69,sampleAssetId:'sample'}},{op:'region.add',target:'t',values:{id:'r',duration:1}},{op:'note.add',target:'r',values:{pitch:69,start:0,duration:1,velocity:1}},{op:'midi.tuning',target:'r',values:{start:.05,semitones:12,cents:50}}]);
    if(instrument==='roundtrip'){const data=encodeMidiImport(writeMidi(h.session).buffer);h=new SessionHistory(newSession());h.execute([{op:'midi.import',values:{data}}]);h.execute([{op:'track.set',target:h.session.tracks[0].id,values:{instrument:'sine'}}]);}
    scheduleSession(ctx,h.session,new Map([['sample',sample]]),.2,{baseTime:0});results.push({instrument,frequency:frequency(await ctx.startRendering())});
   }

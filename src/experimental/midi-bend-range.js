@@ -1,14 +1,9 @@
 import {z} from 'zod';
-import {createPitchBendState} from './pitch-bend-state.js';
+import {midiParameterState} from './midi-parameter-state.js';
 const options=z.object({start:z.number().finite().min(0),channel:z.number().int().min(0).max(15).default(0),range:z.number().finite().min(0).max(96)}).strict();
 export function midiBendRangePlan(region,values,defaultRange=2){
  const v=options.parse(values);if(v.start>=region.duration)throw Error('Place the range change before the region ends.');
- const state=createPitchBendState(defaultRange),rpn=[127,127],nrpn=[127,127];let registered=true;
- for(const e of [...region.events].filter(e=>e.channel===v.channel&&e.start<=v.start).sort((a,b)=>a.start-b.start)){
-  state.push(e);if(e.type!=='controlChange')continue;
-  const p=e.parameter;if(p===101||p===100){rpn[p===101?0:1]=e.value;registered=true;}if(p===99||p===98){nrpn[p===99?0:1]=e.value;registered=false;}if(p===121){rpn[0]=rpn[1]=127;registered=true;}
- }
- const cents=Math.round(v.range*100),restore=registered?[[101,rpn[0]],[100,rpn[1]]]:[[99,nrpn[0]],[98,nrpn[1]]];
+ const {state,restore}=midiParameterState(region,v.start,v.channel,defaultRange),cents=Math.round(v.range*100);
  const messages=[[101,0],[100,0],[6,Math.floor(cents/100)],[38,cents%100],...restore];
  return {before:state.range,range:cents/100,events:messages.map(([parameter,value])=>({type:'controlChange',parameter,value,start:v.start,channel:v.channel}))};
 }
