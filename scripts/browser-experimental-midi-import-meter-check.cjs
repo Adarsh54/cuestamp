@@ -1,0 +1,10 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_EXECUTABLE,headless:true});try{
+ const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/auth?*',r=>r.fulfill({json:{configured:true,user:{id:'import-meter',email:'test@example.com'},profile:{name:'Test',occupation:'Composer',complete:true}}}));await page.route('**/api/projects*',r=>r.fulfill({json:{projects:[]}}));await page.route('**/api/daw',r=>r.fulfill({json:{configured:false}}));await page.goto('http://127.0.0.1:5190/#/experimental');
+ const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:import-meter')));
+ const bytes=await page.evaluate(async()=>{const {newSession}=await import('/src/experimental/session.js'),{writeMidi}=await import('/src/experimental/midi.js');return [...writeMidi({...newSession(),tempo:60,meter:6,meterDenominator:8,meterChanges:[{id:'seven',bar:3,numerator:7,denominator:4}]})];});
+ await page.getByText('MIDI signature import',{exact:true}).click();await page.locator('[data-midi-import-meter]').selectOption('adopt');await page.getByText('MIDI import timing',{exact:true}).click();await page.locator('[data-midi-import-tempo]').selectOption('follow');await page.locator('#daw-files').setInputFiles({name:'signatures.mid',mimeType:'audio/midi',buffer:Buffer.from(bytes)});
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:import-meter'))?.meter===6);let s=await read();assert.equal(s.tracks.length,0);assert.equal(s.meterChanges[0].bar,3);assert.equal(s.tempo,120);
+ await page.reload();await page.locator('[data-meter-panel]').waitFor();assert.equal((await read()).meterChanges[0].numerator,7);assert.deepEqual(errors,[]);console.log('PASS MIDI signature file import controls, conductor-only adoption, destination tempo and reload.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

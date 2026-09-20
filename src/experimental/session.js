@@ -1,3 +1,4 @@
+import {applyMidiImportMeter} from './midi-import-meter.js';
 import {compileMeterMap} from './meter-map.js';
 import {repeatNotesPlan} from './note-repeat.js';
 import {applyMidiImportTiming} from './midi-import-timing.js';
@@ -100,8 +101,8 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'session.deleteTime':pick(v,['start','end']);deleteProjectTime(session,v);break;
    case 'session.insertTime':pick(v,['position','duration']);insertProjectTime(session,v);break;
    case 'midi.import':{
-    pick(v,['data','start','trackId','minimumDuration','tempoMode']);const destination=v.trackId===undefined?null:need(session.tracks.find(t=>t.id===v.trackId),'Destination track');if(destination&&destination.kind!=='midi')throw Error('MIDI takes require an instrument track.');const start=time.parse(v.start??0),midi=readMidi(decodeMidiImport(v.data));
-    if(!midi.tracks.length&&!midi.markers.length&&!(v.tempoMode==='adopt'&&midi.hasTempoEvents))throw Error(midi.hasTempoEvents?'This file contains only tempo information. Choose Use file tempo to import its tempo map.':'This MIDI file has no notes, channel events, markers or tempo information to import.');
+    pick(v,['data','start','trackId','minimumDuration','tempoMode','meterMode']);const destination=v.trackId===undefined?null:need(session.tracks.find(t=>t.id===v.trackId),'Destination track');if(destination&&destination.kind!=='midi')throw Error('MIDI takes require an instrument track.');const start=time.parse(v.start??0),midi=readMidi(decodeMidiImport(v.data));
+    if(!midi.tracks.length&&!midi.markers.length&&!(v.tempoMode==='adopt'&&midi.hasTempoEvents)&&!(v.meterMode==='adopt'&&midi.timeSignatures.length))throw Error(midi.hasTempoEvents?'This file contains only tempo information. Choose Use file tempo to import its tempo map.':'This MIDI file has no notes, channel events, markers or tempo information to import.');
     if(session.markers.length+midi.markers.length>1000)throw Error('Import would exceed the 1,000-marker session limit.');
     if(!destination&&session.tracks.length+midi.tracks.length>128)throw Error('Import would exceed the 128-track session limit.');
     if(destination&&destination.regions.length+midi.tracks.length>1000)throw Error('Import would exceed the 1,000-region track limit.');
@@ -113,6 +114,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
      });
     });
     const markers=applyMidiImportTiming(session,midi,imported,start,v.tempoMode);
+    applyMidiImportMeter(session,midi,start,v.tempoMode,v.meterMode);
     if(destination)destination.regions.push(...imported.flatMap(t=>t.regions));else session.tracks.push(...imported);session.markers.push(...markers.map(m=>({id:crypto.randomUUID(),...m})));break;
    }
    case 'master.gain.offset':if(target!==undefined&&target!==session.id)throw Error('Target the current session for a master gain adjustment.');pick(v,['deltaDb']);Object.assign(session,offsetMasterGain(session,v.deltaDb));break;
