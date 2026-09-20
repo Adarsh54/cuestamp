@@ -1,3 +1,4 @@
+import {bindSectionGestures} from './section-gestures.js';
 import {arrangementStripView,arrangementSectionsView,bindArrangementSections} from './arrangement-sections.js';
 import {sectionTransferView,bindSectionTransfer} from './section-transfer.js';
 import {repeatSectionView,bindRepeatSection} from './repeat-section.js';
@@ -240,7 +241,9 @@ export function createExperimentalWorkspace({account,esc}){
   root.querySelectorAll('[data-peak-reset]').forEach(button=>button.onclick=()=>{playback?.meters?.reset(button.dataset.peakReset);meterObservation=undefined;updateMeters(root,playback?.meters?.read());});
   bindTrackOrder(root,{session:session(),execute,guard});
   bindCycleStrip(root,{session:session(),zoom,mode:rulerMode,settings:arrangementSnap,execute,guard,blocked:()=>busy||agentBusy||Boolean(recordAbort)||midiInput.active});
+
   bindArrangementSections(root,{session:session(),select:id=>{arrangementSelection=id;paint();root.querySelector('[data-sections-panel]').open=true;},seek:time=>{stop();position=time;paint();},execute,guard});bindSectionTransfer(root,{session:session(),execute,guard});bindRepeatSection(root,{session:session(),execute,guard});bindDeleteTime(root,{session:session(),execute,guard});bindInsertTime(root,{execute,guard});bindMarkers(root,{session:session(),position,getPosition:()=>playback?transportPosition(playback,context.currentTime):position,execute,guard,seek:time=>{stop();position=time;paint();const scroll=root.querySelector('.daw-scroll');if(scroll)scroll.scrollLeft=Math.max(0,time*zoom-scroll.clientWidth/2);}});
+  bindSectionGestures(root,{session:session(),zoom,mode:rulerMode,settings:arrangementSnap,select:id=>{arrangementSelection=id;paint();root.querySelector('[data-sections-panel]').open=true;},selectForEdit:id=>{arrangementSelection=id;},execute,guard,blocked:()=>busy||agentBusy||Boolean(recordAbort)||midiInput.active});
   bindMetronome(root,{execute,guard});
   midiInput.bind(root);
   bindBounceSettings(root,bounceSettings);
