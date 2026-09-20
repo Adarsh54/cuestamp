@@ -1,3 +1,4 @@
+import {insertMeterTime} from './meter-time-edit.js';
 import {insertTempoTime} from './tempo-time-edit.js';
 import {insertArrangementSections} from './arrangement-sections.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
@@ -23,9 +24,10 @@ export function insertAutomationTime(points,position,duration){
  }
  return result.sort((a,b)=>a.time-b.time);
 }
-export function insertProjectTime(session,{position,duration}){
+export function insertProjectTime(session,{position,duration},{skipMeter=false}={}){
  if(!Number.isFinite(position)||position<0||!Number.isFinite(duration)||duration<=0||position+duration>86400)throw Error('Enter an insertion position and positive duration within 24 hours.');
  const tempoTiming=insertTempoTime(session,position,duration);
+ const meterTiming=skipMeter?null:insertMeterTime(session,position,duration,tempoTiming??session);
  const shift=t=>{if(t<position)return t;const next=t+duration;if(next>86400||next<=t)throw Error('Insertion exceeds the timeline limit or is too small to represent.');return next;};
  shift(position);
  const automate=owner=>{owner.automation=insertAutomationTime(owner.automation||[],position,duration);};
@@ -57,6 +59,7 @@ export function insertProjectTime(session,{position,duration}){
   else if(session[end]>position)session[end]+=duration;
  }
  if(tempoTiming)Object.assign(session,tempoTiming);
+ if(meterTiming)Object.assign(session,meterTiming);
 }
 export function insertTimeView(position){return `<details class="daw-markers"><summary>Insert time</summary><form data-insert-time><label>At · seconds<input name="position" type="number" min="0" max="86400" step="any" value="${position}" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" max="86400" step="any" value="4" required></label><button>Insert time across project</button></form><p class="muted">Splits crossing regions and moves later regions, automation, markers and saved comp selections together. Effect tails may continue into the gap. Undo restores the whole edit.</p></details>`;}
 export function bindInsertTime(root,{execute,guard}){root.querySelector('[data-insert-time]').onsubmit=guard(e=>{e.preventDefault();const form=e.currentTarget;execute([{op:'session.insertTime',values:{position:Number(form.elements.position.value),duration:Number(form.elements.duration.value)}}],'Inserted time across project');});}
