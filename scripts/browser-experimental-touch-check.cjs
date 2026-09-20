@@ -42,6 +42,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
  assert.ok(afterWrite.tracks[0].automation.some(p=>p.parameter==='gainDb'&&p.time>6&&p.value===-12));assert.ok(afterWrite.tracks[0].automation.some(p=>p.parameter==='pan'&&p.time>6));await page.locator('[data-action=undo]').click();assert.deepEqual((await session()).tracks,beforeWrite.tracks);
  // Discarding an active Write pass leaves playback running in Touch.
  await page.locator('[data-touch-mode]').selectOption('write');await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();await page.locator('[data-touch-cancel]').click();assert.equal(await page.locator('[data-touch-mode]').inputValue(),'touch');await page.locator('[data-action=stop]').click();assert.deepEqual((await session()).tracks,beforeWrite.tracks);
+ // Range Trim changes the curve only within the requested passage.
+ await page.getByText('Trim curve over a time range',{exact:true}).click();const trimForm=page.locator('[data-auto-trim]'),beforeTrim=await session();await trimForm.locator('[name=start]').fill('2');await trimForm.locator('[name=end]').fill('8');await trimForm.locator('[name=amount]').fill('3');await trimForm.getByRole('button',{name:'Apply trim',exact:true}).click();
+ const trimValues=await page.evaluate(async()=>{const {curveAutomationValue}=await import('/src/experimental/automation-curves.js');const s=JSON.parse(localStorage.getItem('cuestamp-experimental:touch-test'));return [1,5,9].map(t=>curveAutomationValue(s.tracks[0].automation,'gainDb',t,0));});for(const [i,v]of [-21.6,-9,-2.4].entries())assert.ok(Math.abs(trimValues[i]-v)<1e-8,JSON.stringify({trimValues,expected:[-21.6,-9,-2.4],before:beforeTrim.tracks[0].automation,after:(await session()).tracks[0].automation}));await page.locator('[data-action=undo]').click();assert.deepEqual((await session()).tracks,beforeTrim.tracks);
  // Verify actual rendered audio separately from the UI's controllable clock.
  const rendered=await page.evaluate(async()=>{
   const {scheduleSession}=await import('/src/experimental/audio-engine.js'),{newSession,SessionHistory}=await import('/src/experimental/session.js');
@@ -53,5 +56,5 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   return [.1,.4,.8].map(t=>d[Math.floor(t*48000)]);
  });
  assert.ok(Math.abs(rendered[1]/rendered[0]-.1)<.001);assert.ok(Math.abs(rendered[2]/rendered[0]-1)<.001);assert.deepEqual(errors,[]);
- console.log('PASS Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
+ console.log('PASS range Trim UI/undo; Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

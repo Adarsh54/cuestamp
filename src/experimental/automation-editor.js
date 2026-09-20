@@ -1,3 +1,4 @@
+import {automationTrimView,bindAutomationTrim} from './automation-trim.js';
 import {automationRangeView,bindAutomationRange} from './automation-range.js';
 import {automationSegments,curveShapeOptions} from './automation-curves.js';
 import {automationValue} from './effects.js';
@@ -21,7 +22,7 @@ export function bindAutomation(root,{track,session,rangeTarget=track.id,rangeBus
  const host=root.closest('#experimental-root')||root;
  const graph=root.querySelector('[data-auto-graph]'),pointsRoot=root.querySelector('[data-auto-points]'),form=root.querySelector('[data-auto-form]');
  function draw(){
-  const rangeHost=root.querySelector('[data-auto-range-host]');rangeHost.innerHTML=automationRangeView();bindAutomationRange(rangeHost,{session,target:rangeTarget,busId:rangeBusId,parameter:parameter.value,execute,guard,duration});
+  const rangeHost=root.querySelector('[data-auto-range-host]');rangeHost.innerHTML=automationRangeView()+automationTrimView();bindAutomationTrim(rangeHost,{session,target:rangeTarget,busId:rangeBusId,parameter:parameter.value,execute,guard,duration});bindAutomationRange(rangeHost,{session,target:rangeTarget,busId:rangeBusId,parameter:parameter.value,execute,guard,duration});
   const key=parameter.value,{min,max,step}=parameters[key],muted=(track.automationMuted||[]).includes(key),inheritedOff=graph.dataset.parentAutomationOff==='true'||track.automationMode==='off';
   root.querySelector('[data-auto-curve-mode]').value=muted?'off':'on';graph.dataset.automationOff=String(muted||inheritedOff);root.querySelector('[data-auto-curve-status]').textContent=muted?'This curve is Off; its points are retained.':inheritedOff?'This curve is On, but its channel or parent automation is Off.':'This curve is On.';
   const points=(track.automation||[]).filter(p=>p.parameter===key).sort((a,b)=>a.time-b.time),end=Math.min(86400,Math.max(1,duration,...points.map(p=>p.time)));
