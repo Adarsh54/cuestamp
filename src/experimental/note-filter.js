@@ -16,7 +16,7 @@ export function matchingMidiNotesInBeats(region,filter,timing){
 export function combineNoteSelection(region,current,matches,mode='replace'){
  if(!['replace','add','subtract','intersect'].includes(mode))throw Error('Choose a valid selection mode.');const old=new Set(current),found=new Set(matches);return region.notes.filter(n=>mode==='replace'?found.has(n.id):mode==='add'?old.has(n.id)||found.has(n.id):mode==='subtract'?old.has(n.id)&&!found.has(n.id):old.has(n.id)&&found.has(n.id)).map(n=>n.id);
 }
-export const filterableNoteOperations=['notes.mute','notes.move','notes.resize','notes.delete','notes.duplicate','notes.quantize','notes.transpose','notes.join'];
+export const filterableNoteOperations=['notes.repeat','notes.mute','notes.move','notes.resize','notes.delete','notes.duplicate','notes.quantize','notes.transpose','notes.join'];
 export function resolveNoteFilter(region,op,values){
  if(values.filter===undefined)return values;
  if(!filterableNoteOperations.includes(op))throw Error('This operation does not support a note filter.');
