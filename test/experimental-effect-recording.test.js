@@ -20,3 +20,14 @@ test('effect capture retains bypass and automation playback settings',()=>{
 test('agent effect recording is validated through the shared engine',async()=>{
  const {planDawEdit}=await import('../server/daw-agent.js');const h=setup('eq'),before=structuredClone(h.session);const plan=await planDawEdit({session:h.session,instruction:'Sweep the EQ frequency from 500 to 2000 Hz over this passage'},{provider:'openai',key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'EQ sweep',commands:[cmd('automation.record','frequency',500,2000)]})}]})})});assert.deepEqual(h.session,before);h.execute(plan.commands,plan.revision);assert.equal(curveAutomationValue(h.session.tracks[0].effects[0].automation,'frequency',3,0),1250);
 });
+test('live effect recording uses effect ownership and units in every recording mode',async()=>{
+ const {createTouchRecording}=await import('../src/experimental/automation-touch.js');for(const mode of ['touch','latch','trimTouch','trimLatch']){
+  const h=setup('eq',true),before=structuredClone(h.session),calls=[],state={position:1,epoch:1,playback:{automation:Object.fromEntries(['set','trim','replace','resume','release','cancel'].map(name=>[name,(...args)=>calls.push([name,...args])]))}},recorder=createTouchRecording({getMode:()=>mode,getState:()=>({...state,session:h.session}),commit:(commands,revision)=>h.execute(commands,revision)});
+  recorder.input('effect','frequency',mode.startsWith('trim')?500:1500);state.position=3;recorder.release('effect','frequency');if(mode.toLowerCase().endsWith('latch')){recorder.beforePaint();state.position=4;recorder.finish();}assert.equal(curveAutomationValue(h.session.masterEffects[0].automation,'frequency',2,0),1500);assert.equal(calls[0][1],'effect');h.undo();assert.deepEqual(h.session.masterEffects,before.masterEffects);
+ }
+});
+test('live effects reject bypass, disabled Master automation and synced free rate',async()=>{
+ const {createTouchRecording}=await import('../src/experimental/automation-touch.js');for(const [kind,values,masterOff,parameter]of [['eq',{enabled:false},false,'frequency'],['eq',{},true,'frequency'],['tremolo',{sync:true},false,'rate']]){
+  const h=setup(kind,true);h.execute([{op:'effect.set',target:'effect',values},...(masterOff?[{op:'session.set',values:{masterAutomationMode:'off'}}]:[])]);const recorder=createTouchRecording({getState:()=>({session:h.session,position:1,epoch:1,playback:{automation:{set(){throw Error('Must not schedule');}}}}),commit:()=>{}});assert.throws(()=>recorder.input('effect',parameter,100),/Enable|sync/);assert.equal(recorder.active,false);
+ }
+});

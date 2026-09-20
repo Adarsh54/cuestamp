@@ -56,14 +56,16 @@ export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
     if(!['touch','latch','write','trimTouch','trimLatch'].includes(mode))throw Error('Choose Touch, Latch or Write recording.');
     if(!state.playback||state.playback.loop||state.playback.compPreview||!state.playback.automation)throw Error('Automation recording needs normal playback with Cycle off.');
     const lane=recordingAutomationLane(state.session,target,parameter,busId),channel=lane.track;
-    const owner=busId!==undefined?lane.owner:target===state.session.id?{automationMode:state.session.masterAutomationMode,automationMuted:state.session.masterAutomationMuted}:channel;
+    const owner=busId!==undefined?lane.owner:target===state.session.id?{automationMode:state.session.masterAutomationMode,automationMuted:state.session.masterAutomationMuted}:lane.owner;
+    if(lane.effect&&(!owner.enabled||(owner.kind==='tremolo'&&owner.sync&&parameter==='rate')))throw Error('Enable this effect and disable tempo sync before recording its free rate.');
+    if(lane.effect&&!channel&&state.session.masterAutomationMode==='off')throw Error('Enable Master Read before recording effect automation.');
     if(channel?.mute||channel?.protected)throw Error('Choose an unmuted, unprotected mixer channel.');
     if(channel?.automationMode==='off'||owner.automationMode==='off'||owner.automationMuted?.includes(parameter))throw Error('Enable Read for this automation lane and its parent before recording.');
     for(const g of active.values())verify(g,state);
     let g=active.get(id);
     if(!g){
      if(active.size>=100)throw Error('Stop this automation pass before recording more than 100 lanes.');
-     const capture=createAutomationCapture({start:state.position,value,min:mode.startsWith('trim')?(parameter==='pan'?-2:-108):(parameter==='pan'?-1:-96),max:mode.startsWith('trim')?(parameter==='pan'?2:108):(parameter==='pan'?1:12)});
+     const capture=createAutomationCapture({start:state.position,value,min:mode.startsWith('trim')?-(lane.max-lane.min):lane.min,max:mode.startsWith('trim')?lane.max-lane.min:lane.max});
      g={target,parameter,busId,liveTarget:busId===undefined?target:sendAutomationTarget(target,busId),capture,value,mode,released:false,start:state.position,playback:state.playback,epoch:state.epoch,sessionId:state.session.id,revision:state.session.revision};active.set(id,g);
     }else{
      // Holding after release must not become a long slope toward the next move.
