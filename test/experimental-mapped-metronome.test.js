@@ -7,3 +7,14 @@ test('tempo segments share two pulse buffers and retain bar accents',()=>{const 
 test('seek into a click retains its tail without starting a duplicate beat',()=>{const c=context();scheduleMetronome(c,fixture(),{position:4.01,baseTime:2,duration:1});const tails=c.sources.filter(s=>!s.loop);assert.equal(tails.length,2);for(const tail of tails){assert.equal(tail.started[0],2);assert.ok(Math.abs(tail.started[1]-.01)<1e-10);}assert.equal(c.sources.filter(s=>s.loop).length,1);assert.ok(Math.abs(c.sources.at(-1).started[0]-2.99)<1e-10);});
 test('long mapped playback schedules by tempo segment rather than by beat',()=>{const c=context(),s={...fixture(),tempoChanges:Array.from({length:256},(_,i)=>({beat:(i+1)*8,bpm:60+i%180}))};scheduleMetronome(c,s,{baseTime:0,duration:86400});assert.equal(c.buffers.length,2);assert.ok(c.sources.length<=514);assert.ok(c.buffers.reduce((n,b)=>n+b.length,0)<=8000*5);});
 test('count-in walks backward in beats from recording position across tempo changes',()=>{const s={...fixture(),countInBars:1};assert.equal(recordingTiming(s,0,48000,5).countInSeconds,2.5);assert.equal(recordingTiming(s,0,48000,1).countInSeconds,2);const timing=recordingTiming(s,0,48000,5),c=context();scheduleRecordingClick(c,s,5,timing);assert.ok(c.sources.every(source=>source.stopped<=timing.captureTime));assert.equal(c.sources[0].started[0],timing.clickTime);});
+test('signature changes schedule denominator beats and bar accents on their own origins',()=>{
+ const c=context(),s={tempo:120,meter:4,metronomeEnabled:true,tempoChanges:[{beat:8,bpm:60}],meterChanges:[{bar:3,numerator:6,denominator:8},{bar:5,numerator:7,denominator:4}]};
+ scheduleMetronome(c,s,{baseTime:0,duration:13});assert.deepEqual(c.sources.map(s=>s.started[0]),[0,0,4,4,10,10]);assert.deepEqual(c.sources.map(s=>s.loopEnd),[.5,2,.5,3,1,7]);
+ assert.equal(recordingTiming({...s,countInBars:1},0,48000,10).countInSeconds,3);assert.equal(recordingTiming({...s,countInBars:1},0,48000,4).countInSeconds,2);
+ const compound={tempo:120,meter:6,meterDenominator:8,countInBars:2};assert.equal(recordingTiming(compound,0,48000,0).countInSeconds,3);
+});
+test('extreme long bars use bounded low-rate pulse buffers and dense beats shorten pulse envelopes',()=>{
+ const c=context();scheduleMetronome(c,{tempo:20,meter:32,meterDenominator:1,metronomeEnabled:true},{baseTime:0,duration:86400});
+ assert.equal(c.buffers.length,2);assert.ok(c.buffers.every(b=>b.length<=384*8000));
+ const fast=context();scheduleMetronome(fast,{tempo:300,meter:4,meterDenominator:64,metronomeEnabled:true},{baseTime:0,duration:1});assert.equal(fast.sources[0].loopEnd,.0125);
+});

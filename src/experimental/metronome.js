@@ -1,8 +1,9 @@
+import {compileMeterMap} from './meter-map.js';
 import {compileTempoMap} from './tempo-map.js';
 // One reusable bar keeps playback bounded even in long sessions. Correct the
 // playback rate for frame rounding so the repeated bar never accumulates drift.
 export function clickBar(tempo,meter,sampleRate){
- if(!Number.isFinite(tempo)||tempo<20||tempo>300||!Number.isInteger(meter)||meter<1||meter>16||!Number.isFinite(sampleRate)||sampleRate<8000||sampleRate>192000)throw Error('Invalid metronome timing.');
+ if(!Number.isFinite(tempo)||tempo<20||tempo>300||!Number.isInteger(meter)||meter<1||meter>32||!Number.isFinite(sampleRate)||sampleRate<8000||sampleRate>192000)throw Error('Invalid metronome timing.');
  const duration=60/tempo*meter,frames=Math.round(duration*sampleRate),samples=new Float32Array(frames);
  for(let beat=0;beat<meter;beat++){
   const start=Math.round(beat*frames/meter),length=Math.min(Math.round(.04*sampleRate),frames-start),accent=beat===0;
@@ -12,7 +13,7 @@ export function clickBar(tempo,meter,sampleRate){
 }
 export function scheduleMetronome(context,session,{position=0,baseTime=context.currentTime+.025,duration=Infinity}={}){
  if(!session.metronomeEnabled||duration<=0)return {stop(){}};
- if(session.tempoChanges?.length)return scheduleMappedMetronome(context,session,{position,baseTime,duration});
+ if(session.tempoChanges?.length||session.meterChanges?.length||(session.meterDenominator??4)!==4)return scheduleMappedMetronome(context,session,{position,baseTime,duration});
  const bar=clickBar(session.tempo,session.meter,context.sampleRate),buffer=context.createBuffer(1,bar.samples.length,context.sampleRate);
  buffer.copyToChannel(bar.samples,0);
  const source=context.createBufferSource(),gain=context.createGain(),rate=buffer.duration/bar.duration;
@@ -27,22 +28,23 @@ export function scheduleMetronome(context,session,{position=0,baseTime=context.c
 // Two padded pulse buffers are shared by every tempo segment. Loops use their
 // own period, avoiding a node per beat or a full bar allocation per tempo point.
 export function scheduleMappedMetronome(context,session,{position=0,baseTime=context.currentTime+.025,duration=Infinity}={}){
- const map=compileTempoMap(session),meter=session.meter,rate=context.sampleRate;
- if(!Number.isInteger(meter)||meter<1||meter>16||!Number.isFinite(position)||!Number.isFinite(baseTime)||!(duration>0)||!Number.isFinite(rate)||rate<8000||rate>192000)throw Error('Invalid metronome timing.');
- const end=position+duration,slowest=Math.min(...map.points.map(p=>p.bpm)),length=Math.round(.04*rate),gain=context.createGain(),sources=[];
+ const map=compileTempoMap(session),signatures=compileMeterMap(session),meter=session.meter,rate=context.sampleRate;
+ if(!Number.isInteger(meter)||meter<1||meter>32||!Number.isFinite(position)||!Number.isFinite(baseTime)||!(duration>0)||!Number.isFinite(rate)||rate<8000||rate>192000)throw Error('Invalid metronome timing.');
+ const points=[...new Set([...map.points.map(p=>p.beat),...signatures.points.map(p=>p.beat)])].sort((a,b)=>a-b).map(beat=>{const signature=signatures.signatureAtBeat(beat),unit=4/signature.denominator;return {beat,time:map.timeAtBeat(beat),bpm:map.tempoAtBeat(beat),origin:signature.beat,strides:[unit,unit*signature.numerator]};});
+ const end=position+duration,slowest=Math.min(...map.points.map(p=>p.bpm)),strides=[Math.max(...points.map(p=>p.strides[0])),Math.max(...points.map(p=>p.strides[1]))],pulse=Math.min(.04,...points.map(p=>60/p.bpm*p.strides[0])),bufferRate=60/slowest*strides[1]>48?8000:rate,length=Math.round(pulse*bufferRate),gain=context.createGain(),sources=[];
  gain.gain.value=10**((session.metronomeDb??-18)/20);gain.connect(context.destination);
- const buffers=[1,meter].map((stride,index)=>{const buffer=context.createBuffer(1,Math.ceil(60/slowest*stride*rate),rate),samples=buffer.getChannelData(0);for(let i=0;i<length;i++){const t=i/rate,envelope=Math.min(1,t/.001)*Math.max(0,1-i/length)**3,normal=Math.sin(2*Math.PI*880*t)*envelope*.6;samples[i]=index?Math.sin(2*Math.PI*1320*t)*envelope-normal:normal;}return buffer;});
- const add=(buffer,start,offset,stop,period)=>{const source=context.createBufferSource();source.buffer=buffer;if(period){source.loop=true;source.loopEnd=Math.round(period*rate)/rate;source.playbackRate.value=source.loopEnd/period;}source.connect(gain);sources.push(source);source.start(baseTime+(start-position),offset);if(Number.isFinite(stop))source.stop(baseTime+(stop-position));};
+ const buffers=strides.map((stride,index)=>{const buffer=context.createBuffer(1,Math.ceil(60/slowest*stride*bufferRate),bufferRate),samples=buffer.getChannelData(0);for(let i=0;i<length;i++){const t=i/bufferRate,envelope=Math.min(1,t/.001)*Math.max(0,1-i/length)**3,normal=Math.sin(2*Math.PI*880*t)*envelope*.6;samples[i]=index?Math.sin(2*Math.PI*1320*t)*envelope-normal:normal;}return buffer;});
+ const add=(buffer,start,offset,stop,period)=>{const source=context.createBufferSource();source.buffer=buffer;if(period){source.loop=true;source.loopEnd=Math.round(period*bufferRate)/bufferRate;source.playbackRate.value=source.loopEnd/period;}source.connect(gain);sources.push(source);source.start(baseTime+(start-position),offset);if(Number.isFinite(stop))source.stop(baseTime+(stop-position));};
  try{
   // Preserve the tail of a click when seeking into it, even across a tempo point.
-  const beat=map.beatAtTime(position),previousBeat=Math.floor(beat+1e-10),previousTime=map.timeAtBeat(previousBeat),offset=position-previousTime;
-  if(offset>1e-10&&offset<.04){add(buffers[0],position,offset,Math.min(end,previousTime+.04));if(previousBeat%meter===0)add(buffers[1],position,offset,Math.min(end,previousTime+.04));}
-  for(let i=0;i<map.points.length;i++){
-   const point=map.points[i],start=Math.max(position,i?point.time:-Infinity),finish=Math.min(end,map.points[i+1]?.time??Infinity);if(finish<=start)continue;
-   for(const [index,stride] of [1,meter].entries()){
-    const firstBeat=Math.ceil(map.beatAtTime(start)/stride-1e-10)*stride,firstTime=map.timeAtBeat(firstBeat);if(firstTime>=finish-1e-10)continue;
-    const lastBeat=Number.isFinite(finish)?(Math.ceil(map.beatAtTime(finish)/stride-1e-10)-1)*stride:Infinity;
-    const stop=Number.isFinite(lastBeat)?Math.min(end,map.timeAtBeat(lastBeat)+.04):Infinity;
+  const beat=map.beatAtTime(position),signature=signatures.signatureAtBeat(beat),unit=4/signature.denominator,index=Math.floor((beat-signature.beat)/unit+1e-10),previousBeat=signature.beat+index*unit,previousTime=map.timeAtBeat(previousBeat),offset=position-previousTime;
+  if(offset>1e-10&&offset<pulse){add(buffers[0],position,offset,Math.min(end,previousTime+pulse));if(index%signature.numerator===0)add(buffers[1],position,offset,Math.min(end,previousTime+pulse));}
+  for(let i=0;i<points.length;i++){
+   const point=points[i],start=Math.max(position,i?point.time:-Infinity),finish=Math.min(end,points[i+1]?.time??Infinity);if(finish<=start)continue;
+   for(const [index,stride] of point.strides.entries()){
+    const firstBeat=point.origin+Math.ceil((map.beatAtTime(start)-point.origin)/stride-1e-10)*stride,firstTime=map.timeAtBeat(firstBeat);if(firstTime>=finish-1e-10)continue;
+    const lastBeat=Number.isFinite(finish)?point.origin+(Math.ceil((map.beatAtTime(finish)-point.origin)/stride-1e-10)-1)*stride:Infinity;
+    const stop=Number.isFinite(lastBeat)?Math.min(end,map.timeAtBeat(lastBeat)+pulse):Infinity;
     add(buffers[index],firstTime,0,stop,60/point.bpm*stride);
    }
   }
