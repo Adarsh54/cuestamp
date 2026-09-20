@@ -4,6 +4,7 @@ export function mediaDestination(session,trackId,kind='audio'){
  if(trackId===undefined){if(session.tracks.length>=128)throw Error('The session already has 128 tracks.');return null;}
  const destination=session.tracks.find(t=>t.id===trackId);
  if(!destination||destination.kind!==kind)throw Error(`Choose an existing ${kind} track or a new track.`);
+ if(destination.protected)throw Error(`Unprotect ${destination.name} before adding media or recording.`);
  if(destination.regions.length>=1000)throw Error('This track already has 1,000 regions. Choose another track.');
  return destination;
 }
