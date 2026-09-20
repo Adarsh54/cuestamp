@@ -174,7 +174,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
     const value=v.velocity??v.delta;if(!Number.isFinite(value)||(v.velocity!==undefined&&(value<0||value>1))||(v.delta!==undefined&&Math.abs(value)>1))throw Error('Velocity must be 0–1; changes must be between -1 and 1.');
     for(const note of selectedMidiNotes(r,{noteIds:v.noteIds}))note.velocity=v.velocity??Math.max(0,Math.min(1,note.velocity+v.delta));break;
    }
-   case 'notes.quantize':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');quantizeNotes(r,v);break;
+   case 'notes.quantize':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');quantizeNotes(r,v,session);break;
    case 'notes.humanize':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');humanizeNotes(r,v);break;
    case 'notes.transpose':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(transposeNoteEdits(r,v).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
    case 'effect.automation.point':case 'effect.automation.set':case 'effect.automation.delete':case 'effect.automation.clear':effectAutomationCommand(effectChains.flat(),op,target,v);break;

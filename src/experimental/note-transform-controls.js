@@ -11,7 +11,7 @@ export function bindNoteTools(root,{region,tempo,selected,settings,execute,guard
  const scope=()=>{if(settings.scope==='region')return {};const valid=new Set(region.notes.map(n=>n.id)),ids=(settings.selectedIds||[selected]).filter(id=>valid.has(id));if(!ids.length)throw Error('Select a note first, or choose all notes in region.');return ids.length>1?{noteIds:ids.join(',')}:{noteId:ids[0]};};
  root.querySelector('[data-note-quantize]')?.addEventListener('submit',guard(e=>{
   e.preventDefault();const f=e.currentTarget.elements;
-  execute([{op:'notes.quantize',target:region.id,values:{...scope(),grid:Number(f.grid.value)*60/tempo,strength:Number(f.strength.value)/100,swing:Number(f.swing.value)/100}}],'Quantized MIDI notes');
+  execute([{op:'notes.quantize',target:region.id,values:{...scope(),timing:'beats',grid:Number(f.grid.value),strength:Number(f.strength.value)/100,swing:Number(f.swing.value)/100}}],'Quantized MIDI notes');
  }));
  root.querySelector('[data-note-humanize]')?.addEventListener('submit',guard(e=>{
   e.preventDefault();const f=e.currentTarget.elements;

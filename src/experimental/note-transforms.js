@@ -1,8 +1,10 @@
+import {regionBeatTiming} from './tempo-map.js';
 import {selectedMidiNotes} from './note-selection.js';
 import {z} from 'zod';
 
 const noteId=z.string().min(1).max(100).optional();
 const quantizeOptions=z.object({
+ timing:z.enum(['seconds','beats']).default('seconds'),
  grid:z.number().finite().min(.0001).max(60),
  strength:z.number().min(0).max(1).default(1),
  swing:z.number().min(0).max(.75).default(0),noteId,noteIds:z.string().max(2020000).optional(),
@@ -16,13 +18,14 @@ const humanizeOptions=z.object({
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 // A pair contains an on-beat and a delayed off-beat. Search adjacent pairs so
 // the closest swung point is chosen, including at pair boundaries.
-export function quantizeNotes(region,values) {
- const {grid,strength,swing,noteId,noteIds}=quantizeOptions.parse(values);
+export function quantizeNotes(region,values,session) {
+ const {grid,strength,swing,noteId,noteIds,timing}=quantizeOptions.parse(values);
+ if(timing==='beats'&&!session)throw Error('Musical quantization needs session timing.');const clock=timing==='beats'?regionBeatTiming(region,session):null;
  for(const note of selectedMidiNotes(region,{noteId,noteIds})) {
-  const pair=Math.floor(note.start/(2*grid)),points=[];
+  const position=clock?clock.beatAtTime(note.start):note.start,pair=Math.floor(position/(2*grid)),points=[];
   for(let p=Math.max(0,pair-1);p<=pair+1;p++)points.push(p*2*grid,(p*2+1+swing)*grid);
-  const target=points.reduce((best,point)=>Math.abs(point-note.start)<=Math.abs(best-note.start)?point:best);
-  if(strength>0)note.start=clamp(note.start+(target-note.start)*strength,0,Math.max(0,region.duration-note.duration));
+  const target=points.reduce((best,point)=>Math.abs(point-position)<=Math.abs(best-position)?point:best);
+  if(strength>0){const next=position+(target-position)*strength;note.start=clamp(clock?clock.timeAtBeat(next):next,0,Math.max(0,region.duration-note.duration));}
  }
 }
 

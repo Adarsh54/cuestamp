@@ -2923,3 +2923,22 @@ capacity. The region-beats browser check verifies actual form preview counts,
 chart notes and command submission. Existing arpeggio command, MIDI roundtrip,
 agent and undo tests remain applicable. Project tempo-map controls remain
 pending the remaining integrations.
+
+### Experimental DAW: musical quantization
+
+`notes.quantize` accepts `timing: "seconds" | "beats"` (default seconds). Grid
+spacing uses that unit. In beat mode, nearest swung grid points and strength
+interpolation are calculated in region-local beats, then converted to seconds
+through the session map. The UI emits beat mode directly. Existing command
+callers using seconds remain compatible, and the agent prompt documents both.
+
+Quantization continues to change onsets only: durations remain in seconds and
+notes are clamped inside their region. Humanization remains explicitly measured
+in milliseconds/seconds. Selection filters and IDs, protection, atomic batches
+and undo continue through the shared command engine.
+
+`experimental-musical-quantize.test.js` covers tempo crossings, swing, partial
+strength across a boundary, zero strength, selection, limits and command undo.
+The existing note-tools browser check exercises form submission, generated note
+positions and history. Saved project tempo maps are still pending remaining
+piano-roll, effects and arrangement-time integration.
