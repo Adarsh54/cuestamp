@@ -56,5 +56,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   return [.1,.4,.8].map(t=>d[Math.floor(t*48000)]);
  });
  assert.ok(Math.abs(rendered[1]/rendered[0]-.1)<.001);assert.ok(Math.abs(rendered[2]/rendered[0]-1)<.001);assert.deepEqual(errors,[]);
- console.log('PASS range Trim UI/undo; Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
+ const trimRatios=await page.evaluate(async()=>{
+  const {scheduleSession}=await import('/src/experimental/audio-engine.js'),{newSession,SessionHistory}=await import('/src/experimental/session.js');const h=new SessionHistory(newSession());
+  h.execute([{op:'track.add',values:{id:'audio',kind:'audio'}},{op:'region.add',target:'audio',values:{assetId:'signal',start:0,duration:1}},{op:'automation.point',target:'audio',values:{parameter:'gainDb',time:0,value:-24}},{op:'automation.point',target:'audio',values:{parameter:'gainDb',time:1,value:-12}}]);
+  const original=structuredClone(h.session);h.execute([{op:'automation.trimRecord',target:'audio',values:{parameter:'gainDb',samples:JSON.stringify([{time:.2,value:3},{time:.6,value:6}]),returnSeconds:.2}}]);const rendered=[];
+  for(const session of [original,h.session]){const ctx=new OfflineAudioContext(2,48000,48000),buffer=ctx.createBuffer(1,48000,48000);buffer.getChannelData(0).fill(.2);scheduleSession(ctx,session,new Map([['signal',buffer]]),0,{baseTime:0});const output=await ctx.startRendering();rendered.push([.1,.4,.7,.9].map(t=>output.getChannelData(0)[Math.round(t*48000)]));}
+  return rendered[1].map((v,i)=>v/rendered[0][i]);
+ });
+ for(const [i,offset]of [0,4.5,3,0].entries())assert.ok(Math.abs(trimRatios[i]-10**(offset/20))<.001);
+ console.log('PASS range Trim UI/undo; Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return and changing Trim render. Physical/realtime audio not tested.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
