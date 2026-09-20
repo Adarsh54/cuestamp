@@ -21,9 +21,10 @@ export function bindMixer(root,{session,selected,select,execute,guard,duration,t
  root.querySelectorAll('[data-mix-select]').forEach(el=>el.onclick=guard(()=>{const commands=revealTrackCommands(session,el.dataset.mixSelect);if(commands.length)execute(commands,'Revealed group member');select(el.dataset.mixSelect);}));
  root.querySelector('[data-touch-mode]')?.addEventListener('change',guard(e=>onTouchMode(e.target.value)));
  root.querySelector('[data-touch-cancel]')?.addEventListener('click',cancelTouch);
- function bindFader(input,target,parameter,staticCommand){
+ function bindFader(input,target,parameter,staticCommand,busId){
   const trimMode=touchMode.startsWith('trim');
   if(trimMode){input.dataset.trimOffset='true';input.min=parameter==='gainDb'?'-12':'-1';input.max=parameter==='gainDb'?'12':'1';input.setAttribute('aria-label',(input.getAttribute('aria-label')||'Master '+parameter)+' trim offset');}
+  if(busId!==undefined){input.dataset.sendSource=target;input.setAttribute('aria-label',trimMode?'Send trim offset':'Send volume');if(trimMode)input.parentElement.firstChild.textContent='Send trim ';}
   let recording=false;
   input.onpointerdown=()=>{input.dataset.mixerEditing='true';};
   input.onpointerup=()=>{delete input.dataset.mixerEditing;};
@@ -34,10 +35,10 @@ export function bindMixer(root,{session,selected,select,execute,guard,duration,t
    const output=input.parentElement.querySelector('output');if(output)output.textContent=input.value+(parameter==='gainDb'?' dB':'');
    if(touchMode!=='static'&&isPlaying()){
     if(blocked())throw Error('Finish the current operation before recording automation.');
-    touch.input(target,parameter,Number(input.value));recording=true;
+    touch.input(target,parameter,Number(input.value),busId);recording=true;
    }
   });
-  const finish=()=>{if(!recording)return false;recording=false;touch.release(target,parameter);afterTouch();return true;};
+  const finish=()=>{if(!recording)return false;recording=false;touch.release(target,parameter,busId);afterTouch();return true;};
   input.onchange=guard(()=>{delete input.dataset.mixerEditing;if(!finish()){if(trimMode){afterTouch();return;}execute([staticCommand(Number(input.value))],'Updated mixer');}});
   input.onblur=guard(()=>{delete input.dataset.mixerEditing;return finish();});
   input.onpointercancel=()=>{delete input.dataset.mixerEditing;if(recording){recording=false;touch.cancel();afterTouch();}};
@@ -57,6 +58,6 @@ export function bindMixer(root,{session,selected,select,execute,guard,duration,t
  if(track.id!==session.id)bindChannelSettings(root,{session,track,execute,guard,blocked});
  bindEqGraphs(root,{effects:track.effects,execute,guard,sampleRate,blocked,revision:session.revision});
  for(const effect of track.effects){const scope=root.querySelector(`[data-effect-automation="${effect.id}"]`);bindAutomation(scope,{track:effect,session,execute,guard,duration,parameters:effectParameters[effect.kind],mode:value=>({op:'effect.set',target:effect.id,values:{automationMode:value}}),automationParameter:effectParameterSelections.get(effect.id)||Object.keys(effectParameters[effect.kind])[0],onAutomationParameter:key=>effectParameterSelections.set(effect.id,key),point:values=>({op:'effect.automation.point',target:effect.id,values}),edit:(id,values)=>({op:'effect.automation.set',target:id,values}),remove:id=>({op:'effect.automation.delete',target:id}),clear:parameter=>({op:'effect.automation.clear',target:effect.id,values:{parameter}})});}
- if(track.id!==session.id)bindRouting(root,{track,session,execute,guard,duration});
+ if(track.id!==session.id)bindRouting(root,{track,session,execute,guard,duration,bindSendFader:(input,busId)=>bindFader(input,track.id,'gainDb',value=>({op:'send.set',target:track.id,values:{busId,gainDb:value}}),busId)});
  bindAutomation(root.querySelector('.daw-mix-detail > .daw-automation'),{track,session,execute,guard,duration,mode:value=>track.id===session.id?{op:'session.set',values:{masterAutomationMode:value}}:{op:'track.set',target:track.id,values:{automationMode:value}},automationParameter,onAutomationParameter});
 }

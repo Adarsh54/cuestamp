@@ -18,3 +18,15 @@ test('playback exposes isolated send controls and keeps muted source sends prote
 test('agent can specify send-scoped recording without changing the input document',async()=>{
  const {planDawEdit}=await import('../server/daw-agent.js');const h=setup(),before=structuredClone(h.session);let request;const result=await planDawEdit({session:h.session,instruction:'Raise the reverb send for this phrase'},{provider:'openai',key:'test',model:'test',fetchImpl:async(_,init)=>{request=JSON.parse(init.body);return {ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Recorded send curve',commands:[command()]})}]})};}});assert.match(request.input[0].content,/busId/);assert.deepEqual(h.session,before);h.execute(result.commands,result.revision);assert.ok(h.session.tracks[0].sends[0].automation.length);assert.equal(h.session.tracks[1].sends[0].automation.length,0);
 });
+test('send controls record independent source/bus lanes through Touch, Latch and Trim',async()=>{
+ const {createTouchRecording}=await import('../src/experimental/automation-touch.js');
+ for(const mode of ['touch','latch','trimTouch','trimLatch']){
+  const h=setup(),before=structuredClone(h.session),calls=[],state={position:1,epoch:1,playback:{automation:Object.fromEntries(['set','trim','replace','resume','release','cancel'].map(name=>[name,(...args)=>calls.push([name,...args])]))}},recorder=createTouchRecording({getMode:()=>mode,getState:()=>({...state,session:h.session}),commit:(commands,revision)=>h.execute(commands,revision)});
+  recorder.input('a','gainDb',3,'fx');state.position=2;recorder.release('a','gainDb','fx');if(mode.endsWith('Latch')||mode==='latch'){recorder.beforePaint();assert.equal(recorder.value('a','gainDb','fx'),3);assert.equal(recorder.value('a','gainDb'),undefined);state.position=3;recorder.finish();}
+  assert.equal(calls[0][1],sendAutomationTarget('a','fx'));assert.equal(curveAutomationValue(h.session.tracks[0].sends[0].automation,'gainDb',1.5,-12),mode.startsWith('trim')?-9:3);assert.deepEqual(h.session.tracks[1],before.tracks[1]);h.undo();assert.deepEqual(h.session.tracks,before.tracks);
+ }
+});
+test('send recording respects its parent mode but not the parent fader parameter mute',async()=>{
+ const {createTouchRecording}=await import('../src/experimental/automation-touch.js');const h=setup(),state={position:1,epoch:1,playback:{automation:{set(){},cancel(){}}}},recorder=createTouchRecording({getState:()=>({...state,session:h.session}),commit:()=>{}});
+ h.session.tracks[0].automationMuted=['gainDb'];recorder.input('a','gainDb',-6,'fx');recorder.cancel();h.session.tracks[0].automationMode='off';assert.throws(()=>recorder.input('a','gainDb',-6,'fx'),/Read/);h.session.tracks[0].automationMode='read';h.session.tracks[0].sends[0].automationMode='off';assert.throws(()=>recorder.input('a','gainDb',-6,'fx'),/Read/);
+});
