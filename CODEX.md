@@ -3178,3 +3178,7 @@ Scale note timing offers Musical beats (editor default) and Elapsed seconds. Bea
 ### Musical legato gaps
 
 Legato & note lengths offers gap units in milliseconds (existing default) or musical beats. `notes.legato` accepts `timing: "seconds" | "beats"`; command gap values use that unit, with bounds −10..10. Positive beat gaps are measured backward from the next eligible onset, negative gaps forward for overlap, through the session tempo map. Last-note region-end behavior still ignores the gap. Chord grouping, channel/pitch matching, selection, shorten-only mode, protection and undo remain in effect. The UI remembers separate values for each unit. Verify with `test/experimental-legato.test.js` and `scripts/browser-experimental-musical-legato-check.cjs`.
+
+### Musical note division
+
+Split & divide notes offers equal division in Musical beats (editor default) or Elapsed seconds. Beat division places each part through the tempo map and applies the note-length percentage in beats, so retriggers and gaps follow the musical grid across tempo changes. `notes.divide` accepts `timing: "beats" | "seconds"`, defaulting to seconds for existing commands. Splitting at an explicit time is unchanged. The original note ID stays on the first part; other parts get new IDs. Test with `test/experimental-note-split.test.js` and `scripts/browser-experimental-musical-divide-check.cjs`, which renders and checks sound and silence for the gated parts.
