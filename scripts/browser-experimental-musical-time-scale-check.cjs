@@ -1,0 +1,14 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_EXECUTABLE,headless:true});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/auth?*',r=>r.fulfill({json:{configured:true,user:{id:'musical-scale',email:'test@example.com'},profile:{name:'Test',occupation:'Composer',complete:true}}}));await page.route('**/api/projects*',r=>r.fulfill({json:{projects:[]}}));await page.route('**/api/daw',r=>r.fulfill({json:{configured:false}}));
+ await page.goto((process.env.CUESTAMP_URL||'http://127.0.0.1:5190/')+'#/experimental');const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:musical-scale')));
+ await page.getByText('Command harness',{exact:true}).click();await page.locator('#daw-json').fill(JSON.stringify([{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',duration:6}},...[{start:1,duration:.5},{start:1,duration:1},{start:3,duration:2}].map(values=>({op:'note.add',target:'r',values})),{op:'tempo.add',values:{beat:8,bpm:60}}]));await page.getByRole('button',{name:'Execute commands',exact:true}).click();
+ await page.locator('[data-region=r]').click();await page.getByText('Scale note timing',{exact:true}).click();const form=page.locator('[data-time-scale-form]'),apply=page.getByRole('button',{name:'Apply time scale',exact:true});assert.equal(await form.locator('[name=timing]').inputValue(),'beats');
+ await form.locator('[data-time-preset="200"]').click();assert.equal(await apply.isDisabled(),true);await form.locator('[name=extendRegion]').check();assert.equal(await apply.isDisabled(),false);await apply.click();
+ let s=await read();assert.deepEqual(s.tracks[0].regions[0].notes.map(n=>[n.start,n.duration]),[[1,1],[1,2],[6,8]]);assert.equal(s.tracks[0].regions[0].duration,14);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();await form.locator('[name=timing]').selectOption('seconds');await apply.click();s=await read();assert.deepEqual(s.tracks[0].regions[0].notes.map(n=>[n.start,n.duration]),[[1,1],[1,2],[5,6]]);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();await form.locator('[name=timing]').selectOption('beats');await form.locator('[name=scaleLengths]').uncheck();await apply.click();s=await read();assert.deepEqual(s.tracks[0].regions[0].notes.map(n=>[n.start,n.duration]),[[1,.5],[1,1],[6,4]]);
+ await page.reload();await page.locator('[data-region=r]').waitFor();assert.deepEqual((await read()).tracks,s.tracks);assert.deepEqual(errors,[]);
+ console.log('PASS musical/seconds scaling UI, presets, extension validation, preserved beat lengths, undo and reload.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

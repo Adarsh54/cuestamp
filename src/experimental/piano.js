@@ -43,7 +43,7 @@ export function bindPiano(root,{session,region,tempo,getPosition,selected,select
  bindJoinNotes(root,{region,settings,execute,guard});
  bindInvertNotes(root,{region,settings,execute,guard});
  bindTranspose(root,{region,settings,execute,guard});
- bindTimeScale(root,{region,settings,execute,guard});
+ bindTimeScale(root,{region,session,tempo,settings,execute,guard});
  bindReverseNotes(root,{region,session,tempo,settings,execute,guard});
  bindLegato(root,{region,settings,execute,guard});
  bindScale(root,{region,settings,execute,guard});

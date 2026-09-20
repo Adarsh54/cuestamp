@@ -3170,3 +3170,7 @@ The agent/shared command is `notes.repeat`, targeting a MIDI region, with `count
 ### Musical note reversal
 
 Reverse note timing now offers Musical beats (editor default) and Elapsed seconds. Musical mode mirrors full note intervals within phrase/region beat bounds and preserves beat lengths across tempo changes; seconds lengths can change. The `notes.reverse` command accepts `timing: "beats" | "seconds"`, defaulting to seconds for existing commands. Both modes preserve IDs, pitch, velocity, channel and mute; controller events remain unchanged. Preview counts start or duration changes, and invalid lengths/bounds reject atomically. Tests: `test/experimental-note-reverse.test.js`, `scripts/browser-experimental-musical-reverse-check.cjs`.
+
+### Musical phrase time scaling
+
+Scale note timing offers Musical beats (editor default) and Elapsed seconds. Beat mode scales spacing and optional lengths through the tempo map; disabling length scaling preserves each note’s beat length at its new position. `notes.timeScale` accepts `timing: "beats" | "seconds"`; existing commands still default to seconds. The factor, phrase/region anchor, selection, explicit region extension, preview and undo work in either mode. Controllers and tempo maps remain unchanged. Absolute note ends cannot exceed the 24-hour timeline. Verify with `test/experimental-note-time-scale.test.js` and `scripts/browser-experimental-musical-time-scale-check.cjs`.
