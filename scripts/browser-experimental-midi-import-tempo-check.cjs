@@ -17,5 +17,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:midi-tempo'))?.tracks.length===1);
  s=await saved();assert.equal(s.tempoChanges.length,0);assert.equal(s.tracks[0].regions[0].notes[0].duration,2);
  await page.reload();await page.locator('.daw-region.midi').waitFor();assert.equal((await saved()).tracks[0].regions[0].notes[0].duration,2);assert.deepEqual(errors,[]);
- console.log('PASS MIDI file upload with adopt/follow tempo modes, atomic undo and persisted timing.');
+ await page.getByText('MIDI import timing',{exact:true}).click();await page.locator('[data-midi-import-tempo]').selectOption('adopt');
+ const conductor=await page.evaluate(async()=>{const {writeMidi}=await import('/src/experimental/midi.js');return [...writeMidi({tempo:100,tempoChanges:[{beat:8,bpm:60}],tracks:[]})];});
+ await page.locator('#daw-files').setInputFiles({name:'tempo-only.mid',mimeType:'audio/midi',buffer:Buffer.from(conductor)});
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:midi-tempo'))?.tempo===100);
+ s=await saved();assert.equal(s.tracks.length,1);assert.equal(s.tempoChanges.length,1);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal((await saved()).tempo,120);assert.equal((await saved()).tracks.length,1);assert.deepEqual(errors,[]);
+ console.log('PASS MIDI file upload with adopt/follow modes, conductor-only adoption without dummy tracks, atomic undo and persisted timing.');
  }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

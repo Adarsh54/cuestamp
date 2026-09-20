@@ -45,3 +45,13 @@ test('follow mode maps into a changing destination tempo at an offbeat playhead'
  same(to.beatAtTime(b.start+b.events[0].start)-origin,from.beatAtTime(a.events[0].start));
  assert.deepEqual(result.tempoChanges,dest.tempoChanges);
 });
+test('conductor-only MIDI imports adopt tempo without dummy tracks and remain atomic',()=>{
+ const source={tempo:100,tempoChanges:[{beat:8,bpm:60}],tracks:[]},data=encodeMidiImport(writeMidi(source).buffer),h=new SessionHistory(base()),before=structuredClone(h.session);
+ assert.throws(()=>h.execute([{op:'midi.import',values:{data}}]),/Use file tempo/);
+ h.execute([{op:'midi.import',values:{data,tempoMode:'adopt'}}]);assert.equal(h.session.tempo,100);assert.equal(h.session.tempoChanges[0].beat,8);assert.equal(h.session.tracks.length,before.tracks.length);
+ assert.deepEqual(h.session.tracks[1],before.tracks[1]);h.undo();assert.deepEqual(h.session.tracks,before.tracks);assert.deepEqual(h.session.tempoChanges,before.tempoChanges);
+});
+test('empty files do not silently reset tempo even in adopt mode',()=>{
+ const bytes=Uint8Array.from([77,84,104,100,0,0,0,6,0,0,0,1,1,224,77,84,114,107,0,0,0,4,0,255,47,0]);
+ assert.throws(()=>applyCommands(base(),[{op:'midi.import',values:{data:encodeMidiImport(bytes.buffer),tempoMode:'adopt'}}]),/no notes/);
+});

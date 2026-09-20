@@ -19,9 +19,13 @@ export function readMidi(buffer){
   }
   if(p!==end)throw Error('MIDI event exceeds its track.');tracks.push({name,notes,events});
  }
- tempos.sort((a,b)=>a.tick-b.tick);const seconds=tick=>{let last=0,time=0,tempo=500000;for(const point of tempos){if(point.tick>tick)break;time+=(point.tick-last)*tempo/ppq/1e6;last=point.tick;tempo=point.microseconds;}return time+(tick-last)*tempo/ppq/1e6;};
- const tempoChanges=[...new Map(tempos.map(point=>[point.tick,point])).values()].filter(point=>point.tick>0).map(point=>({beat:point.tick/ppq,bpm:60000000/point.microseconds}));
- return {tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
+ // Compile tempo segments once; imported performances can contain thousands of
+ // tempo events. Binary lookup avoids rescanning all earlier points per note.
+ const ordered=[...new Map(tempos.map(point=>[point.tick,point])).values()].sort((a,b)=>a.tick-b.tick),segments=[];
+ for(const point of ordered){const previous=segments.at(-1);segments.push({...point,time:previous?previous.time+(point.tick-previous.tick)*previous.microseconds/ppq/1e6:0});}
+ const seconds=tick=>{let lo=0,hi=segments.length;while(lo<hi){const mid=(lo+hi)>>1;if(segments[mid].tick<=tick)lo=mid+1;else hi=mid;}const point=segments[Math.max(0,lo-1)];return point.time+(tick-point.tick)*point.microseconds/ppq/1e6;};
+ const tempoChanges=ordered.filter(point=>point.tick>0).map(point=>({beat:point.tick/ppq,bpm:60000000/point.microseconds}));
+ return {hasTempoEvents:tempos.length>1,tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
 }
 export function writeMidi(session,{includeMuted=false}={}){
  const ppq=480,map=compileTempoMap(session),chunks=[];

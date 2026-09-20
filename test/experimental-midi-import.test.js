@@ -30,10 +30,10 @@ test('malformed and over-limit imports preserve the document and both history st
  assert.throws(()=>encodeMidiImport(new ArrayBuffer(MAX_MIDI_IMPORT_BYTES+1)),/8 MB/);
  assert.throws(()=>decodeMidiImport('AAA==='),/Invalid/);
 });
-test('MIDI import creates unique IDs on repeated imports and rejects empty or excess tracks',()=>{
+test('MIDI import creates unique IDs on repeated imports and guides tempo-only imports and rejects excess tracks',()=>{
  const data=encodeMidiImport(fixture(20).buffer),s=applyCommands(newSession(),[{op:'midi.import',values:{data}},{op:'midi.import',values:{data,start:5}}]);
  assert.equal(s.tracks.length,2);assert.notEqual(s.tracks[0].regions[0].notes[0].id,s.tracks[1].regions[0].notes[0].id);
- assert.throws(()=>applyCommands(newSession(),[{op:'midi.import',values:{data:encodeMidiImport(writeMidi(newSession()).buffer)}}]),/no notes/);
+ assert.throws(()=>applyCommands(newSession(),[{op:'midi.import',values:{data:encodeMidiImport(writeMidi(newSession()).buffer)}}]),/Use file tempo/);
  const full=structuredClone(s);full.tracks=Array.from({length:128},(_,i)=>({...structuredClone(s.tracks[0]),id:'track'+i,regions:[]}));
  assert.throws(()=>applyCommands(full,[{op:'midi.import',values:{data}}]),/128-track/);
 });
