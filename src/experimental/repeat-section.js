@@ -1,3 +1,4 @@
+import {insertTempoSection} from './tempo-time-edit.js';
 import {copiedArrangementSections} from './arrangement-sections.js';
 import {insertProjectTime} from './insert-time.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
@@ -32,6 +33,7 @@ function repeatedRegion(region,kind,start,end){
 }
 function repeatOnce(session,start,end){
  const source=structuredClone(session),duration=end-start;
+ const tempoTiming=insertTempoSection(source,source,start,end,end);
  insertProjectTime(session,{position:end,duration});
  for(let i=0;i<source.tracks.length;i++){
   const original=source.tracks[i],track=session.tracks[i],copies=new Map();
@@ -47,6 +49,7 @@ function repeatOnce(session,start,end){
  session.masterAutomation=repeatAutomationSection(source.masterAutomation,start,end);
  session.masterEffects.forEach((effect,j)=>{effect.automation=repeatAutomationSection(source.masterEffects[j].automation,start,end);});
  session.markers.push(...source.markers.filter(m=>m.time>=start&&m.time<end).map(m=>({...m,id:crypto.randomUUID(),time:m.time+duration})));
+ if(tempoTiming)Object.assign(session,tempoTiming);
 }
 export function repeatProjectSection(session,{start,end,count=1}){
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||!Number.isInteger(count)||count<1||count>16||end+(end-start)*count>86400)throw Error('Choose a positive section and 1–16 additional copies within 24 hours.');

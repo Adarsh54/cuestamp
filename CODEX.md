@@ -3108,3 +3108,23 @@ project-time edit. Constant-tempo legacy documents do not acquire a new map fiel
 insert/delete reversal, MIDI material shifting once, preserved tempo context and
 pre-mutation rejection of map overflow. Section copy/move/repeat still needs to
 carry the source tempo segments before saved project maps are enabled.
+
+### Experimental DAW: tempo segments in section transfers
+
+Section copy/move/repeat now insert the source tempo segment into the destination
+and restore the destination's tempo immediately afterward. Source tempo is read
+from the pre-edit snapshot, including when copying inside the source section.
+Moves close the source gap first and preserve IDs of surviving moved tempo points;
+copies and newly required boundaries receive fresh IDs. Insertion at zero sets
+the source's starting tempo as the new base tempo. Repetition restarts source
+tempo for each copy. Swap/replace inherit the behavior through their existing
+composition of project-time and transfer operations.
+
+`insertTempoSection` rebuilds beat anchors from edited absolute-time segments;
+it does not retime copied MIDI again. Redundant adjacent tempo points are removed
+and map limits are validated. Legacy flat sessions remain without a map field.
+
+`experimental-tempo-section.test.js` covers internal points, destination tempo
+restoration, insertion at zero, identity uniqueness, moves, multiple repeats,
+copying inside the source, and section swap/replace. Saved project map schema,
+commands and editor controls still need to be enabled and verified end to end.

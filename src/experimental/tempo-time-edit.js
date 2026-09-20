@@ -26,3 +26,13 @@ export function deleteTempoTime(session,start,end){
  if(!after.some(p=>p.time===start))after.unshift({time:start,bpm:map.tempoAtTime(end),...(start?{id:crypto.randomUUID()}:{})});
  return tempoFromSeconds([...before,...after]);
 }
+
+export function insertTempoSection(destination,source,start,end,position,{move=false}={}){
+ if(![start,end,position].every(Number.isFinite)||start<0||end<=start||end>86400||position<0||position+end-start>86400)throw Error('Choose a valid tempo section and destination.');
+ if(!destination.tempoChanges?.length&&!source.tempoChanges?.length&&destination.tempo===source.tempo)return null;
+ const from=compileTempoMap(source),to=compileTempoMap(destination),duration=end-start;
+ const before=to.points.filter(p=>p.time<position),after=to.points.filter(p=>p.time>=position).map(p=>({...p,time:p.time+duration}));
+ if(!after.some(p=>p.time===position+duration))after.unshift({time:position+duration,bpm:to.tempoAtTime(position),id:crypto.randomUUID()});
+ const first=from.points.find(p=>p.time===start),copied=[{time:position,bpm:from.tempoAtTime(start),id:move&&first?.id?first.id:crypto.randomUUID()},...from.points.filter(p=>p.time>start&&p.time<end).map(p=>({...p,time:position+(p.time-start),id:move&&p.id?p.id:crypto.randomUUID()}))];
+ return tempoFromSeconds([...before,...copied,...after]);
+}
