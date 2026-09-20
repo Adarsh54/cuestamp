@@ -2795,3 +2795,27 @@ Regression coverage: `test/experimental-tempo-map.test.js` and
 `test/experimental-midi-tempo-map.test.js`, plus existing ruler, snapping, MIDI,
 protection and undo tests. The browser arrangement snap check covers existing
 constant-tempo editing behavior.
+
+### Experimental DAW: mapped metronome and count-in
+
+The metronome now accepts the internal tempo map. Two shared padded buffers
+(normal pulse and downbeat correction) serve all segments, with at most two
+loop sources per tempo segment plus seek tails. Loop periods compensate for
+sample-frame rounding; tempo changes between beats preserve bar phase. Sources
+stop after their last pulse, retaining a click tail across a tempo boundary.
+Seeking into a click restores its remaining sound. Constant-tempo sessions keep
+the existing bar-buffer path. Metronome sound remains excluded from exports and
+captured audio.
+
+`recordingTiming(session, now, sampleRate, position)` walks backward by the chosen
+number of count-in beats from the recording playback position. Both microphone
+and MIDI recording callers supply that position; capture still rounds up to an
+audio frame. This also supports count-in before time zero using the initial BPM.
+
+`test/experimental-mapped-metronome.test.js` verifies resource bounds, segment
+scheduling, seek tails, cleanup and count-in across tempo changes.
+`scripts/browser-experimental-mapped-metronome-check.cjs` renders actual browser
+OfflineAudioContext PCM to check beat spacing, bar accents, silence, seek tails,
+and a tempo change during a sounding click. This does not verify hardware
+real-time playback. Saved tempo-map commands/UI remain pending the other timing
+consumers listed above.
