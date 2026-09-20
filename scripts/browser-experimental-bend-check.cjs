@@ -5,20 +5,22 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   const {newSession,SessionHistory}=await import('/src/experimental/session.js'),{scheduleSession}=await import('/src/experimental/audio-engine.js'),{createLiveMidiMonitor}=await import('/src/experimental/live-midi-monitor.js');
   const frequency=buffer=>{const data=buffer.getChannelData(0);let crossings=0;for(let i=4801;i<19200;i++)if(data[i-1]<=0&&data[i]>0)crossings++;return crossings/.3;};
   const results=[];
-  for(const instrument of ['sine','sampler'])for(const range of [0,2,12,24]){
+  for(const instrument of ['sine','sampler'])for(const range of [0,2,12,24,36]){
    const ctx=new OfflineAudioContext(2,24000,48000),sample=ctx.createBuffer(1,96000,48000);for(let i=0;i<sample.length;i++)sample.getChannelData(0)[i]=Math.sin(2*Math.PI*440*i/48000)*.2;
    const h=new SessionHistory(newSession());h.execute([{op:'track.add',values:{id:'t',kind:'midi',instrument,pitchBendRange:range,sampleRoot:69,sampleAssetId:'sample'}},{op:'region.add',target:'t',values:{id:'r',duration:1}},{op:'note.add',target:'r',values:{pitch:69,start:0,duration:1,velocity:1}},{op:'event.add',target:'r',values:{type:'pitchBend',start:0,value:16383}}]);
    if(range===24)h.execute([...[101,100,6].map((parameter,i)=>({op:'event.add',target:'r',values:{type:'controlChange',parameter,value:i===2?12:0,start:0}}))]);
-   scheduleSession(ctx,h.session,new Map([['sample',sample]]),.2,{baseTime:0});results.push({instrument,range:range===24?12:range,frequency:frequency(await ctx.startRendering())});
+   if(range===36)h.execute([[101,0],[100,0],[6,11],[38,98],[96,0],[96,127]].map(([parameter,value])=>({op:'event.add',target:'r',values:{type:'controlChange',parameter,value,start:0}})));
+   scheduleSession(ctx,h.session,new Map([['sample',sample]]),.2,{baseTime:0});results.push({instrument,range:range>=24?12:range,frequency:frequency(await ctx.startRendering())});
   }
   {
    const {writeMidi,encodeMidiImport}=await import('/src/experimental/midi.js');
    const source=new SessionHistory(newSession());source.execute([{op:'track.add',values:{id:'export-track',kind:'midi',pitchBendRange:12}},{op:'region.add',target:'export-track',values:{id:'export-region',duration:1}},{op:'note.add',target:'export-region',values:{pitch:69,start:0,duration:1,velocity:1}},{op:'event.add',target:'export-region',values:{type:'pitchBend',start:0,value:16383}}]);
+   source.execute([[101,0],[100,0],[6,11],[38,98],[96,0],[96,127]].map(([parameter,value])=>({op:'event.add',target:'export-region',values:{type:'controlChange',parameter,value,start:0}})));
    const imported=new SessionHistory(newSession());imported.execute([{op:'midi.import',values:{data:encodeMidiImport(writeMidi(source.session).buffer)}}]);imported.execute([{op:'track.set',target:imported.session.tracks[0].id,values:{instrument:'sine'}}]);
    const ctx=new OfflineAudioContext(2,24000,48000);scheduleSession(ctx,imported.session,new Map(),0,{baseTime:0});results.push({instrument:'MIDI export/import',range:12,frequency:frequency(await ctx.startRendering())});
   }
-  for(const range of [0,12,24]){
-   const ctx=new OfflineAudioContext(2,24000,48000),monitor=createLiveMidiMonitor(ctx,{instrument:'sine',pitchBendRange:range});monitor.push([0xe0,127,127]);if(range===24){monitor.push([0xb0,101,0]);monitor.push([0xb0,100,0]);monitor.push([0xb0,6,12]);}monitor.push([0x90,69,127]);results.push({instrument:'monitor',range:range===24?12:range,frequency:frequency(await ctx.startRendering())});
+  for(const range of [0,12,24,36]){
+   const ctx=new OfflineAudioContext(2,24000,48000),monitor=createLiveMidiMonitor(ctx,{instrument:'sine',pitchBendRange:range});monitor.push([0xe0,127,127]);if(range===24){monitor.push([0xb0,101,0]);monitor.push([0xb0,100,0]);monitor.push([0xb0,6,12]);}if(range===36)for(const [parameter,value] of [[101,0],[100,0],[6,11],[38,98],[96,0],[96,127]])monitor.push([0xb0,parameter,value]);monitor.push([0x90,69,127]);results.push({instrument:'monitor',range:range>=24?12:range,frequency:frequency(await ctx.startRendering())});
   }
   return results;
  });

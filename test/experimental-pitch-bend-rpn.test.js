@@ -23,3 +23,19 @@ test('splits preserve ordered RPN selections, repeated data writes and resets',(
  const expected=pitchBendTimeline(events).at(-1).cents;assert.equal(expected,1200);assert.equal(pitchBendTimeline(chasedEvents(events,1)).at(-1).cents,expected);
  const reset=[...events,cc(121,0,.7)];assert.equal(pitchBendTimeline(chasedEvents(reset,1)).at(-1).cents,0);
 });
+
+test('relative sensitivity uses cents, ignores the value byte, and carries without wrapping at bounds',()=>{
+ const s=createPitchBendState();for(const e of [...select,cc(6,2),cc(38,99),bend(16383),cc(96,127)])s.push(e);assert.equal(s.range,3);assert.equal(s.cents,300);
+ s.push(cc(97,0));assert.equal(s.range,2.99);s.push(cc(97,64));assert.equal(s.range,2.98);
+ for(const e of [cc(6,0),cc(38,0),cc(97,127)])s.push(e);assert.equal(s.range,0);
+ for(const e of [cc(6,127),cc(38,127),cc(96,0)])s.push(e);assert.equal(s.range,128.27);
+ for(const e of [cc(101,127),cc(100,127),cc(97,0)])s.push(e);assert.equal(s.range,128.27);
+ for(const e of [...select,cc(99,0),cc(97,0)])s.push(e);assert.equal(s.range,128.27);
+ for(const e of [...select,cc(121,0),cc(97,0)])s.push(e);assert.equal(s.range,128.27);
+});
+test('relative sensitivity history survives a trim and drives held-note playback and sampler seek',()=>{
+ const events=[...select,cc(6,11),cc(38,98),bend(16383),cc(96,0,.1),cc(96,127,.2),cc(97,5,.3)];
+ const chased=chasedEvents(events,.4);assert.equal(chased.filter(e=>e.parameter===96).length,2);assert.equal(pitchBendTimeline(chased).at(-1).cents,1199);
+ const calls=[];schedulePitchBend({detune:{setValueAtTime:(...a)=>calls.push(a)}},events,.25,10,1);assert.deepEqual(calls,[[1200,10],[1199,10.05]]);
+ const expected=.1*2**(1198/1200)+.1*2**(1199/1200)+.1*2+.1*2**(1199/1200);assert.ok(Math.abs(samplerOffset({pitch:60,start:0},60,events,.4)-expected)<1e-12);
+});

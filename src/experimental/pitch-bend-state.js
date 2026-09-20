@@ -1,5 +1,5 @@
 import {pitchBendRangeSchema,pitchBendCents} from './pitch-bend.js';
-export const rpnControllers=new Set([6,38,98,99,100,101]);
+export const rpnControllers=new Set([6,38,96,97,98,99,100,101]);
 // One state per MIDI channel. RPN 0: MSB is semitones, LSB is cents.
 export function createPitchBendState(defaultRange=2){
  const initial=pitchBendRangeSchema.parse(defaultRange);let msb=127,lsb=127,registered=true,semitones=Math.floor(initial),cents=(initial%1)*100,bend=8192;
@@ -10,7 +10,10 @@ export function createPitchBendState(defaultRange=2){
    const p=event.parameter,v=event.value;
    if(p===101){msb=v;registered=true;}if(p===100){lsb=v;registered=true;}
    if(p===98||p===99)registered=false;
-   if(registered&&msb===0&&lsb===0){if(p===6)semitones=v;if(p===38)cents=v;}
+   if(registered&&msb===0&&lsb===0){if(p===6)semitones=v;if(p===38)cents=v;
+    // MIDI RP-018: one cent per message; the value byte is ignored.
+    // Carry/borrow at 100 cents, saturating at the representable data-entry limits.
+    if(p===96||p===97){const total=Math.max(0,Math.min(12827,semitones*100+cents+(p===96?1:-1)));semitones=Math.min(127,Math.floor(total/100));cents=total-semitones*100;}}
    if(p===121){bend=8192;msb=lsb=127;registered=true;}
   }
   return previous!==this.cents;
