@@ -1,0 +1,9 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {regionBeatTiming} from '../src/experimental/tempo-map.js';
+import {stepSequencerView} from '../src/experimental/drums.js';
+import {chordView} from '../src/experimental/chord-controls.js';
+import {midiEventsView} from '../src/experimental/midi-events.js';
+const session={tempo:120,meter:4,tempoChanges:[{beat:8,bpm:60}]},region={start:3,duration:5,notes:[],events:[{id:'event',start:2,channel:0,type:'controlChange',parameter:11,value:80}]};
+test('region-local beats and note lengths use tempo at each interval, including off-beat origins',()=>{const t=regionBeatTiming(region,session);assert.equal(t.timeAtBeat(3),2);assert.equal(t.beatAtTime(2),3);assert.equal(t.durationAtBeat(1,2),1.5);assert.equal(t.durationAtBeat(3,2),2);assert.equal(t.beatsInDuration(.5,1.5),2);const offset=regionBeatTiming({...region,start:3.25},session);assert.equal(offset.timeAtBeat(2),1.25);assert.equal(offset.beatAtTime(1.25),2);for(const beat of [-2,0,.25,2,3,8])assert.ok(Math.abs(offset.beatAtTime(offset.timeAtBeat(beat))-beat)<1e-10);});
+test('legacy scalar timing retains constant-tempo arithmetic',()=>{const t=regionBeatTiming(region,137);assert.equal(t.timeAtBeat(.25),.25*(60/137));assert.equal(t.durationAtBeat(500,.25),.25*(60/137));assert.equal(t.beatsInDuration(500,.25),.25/(60/137));});
+test('sequencer and MIDI event views label local beats across tempo changes',()=>{const view=stepSequencerView(region,session,0,100);assert.match(view,/data-step-time="1"/);assert.match(view,/data-step-time="1.25"/);assert.match(view,/data-step-time="2.75"/);assert.match(view,/<option value="1"/);const events=midiEventsView(region,session,s=>s);assert.match(events,/Beat 3.00/);assert.match(events,/max="6"/);assert.match(chordView({...region,duration:2},session),/value="3" required/);});

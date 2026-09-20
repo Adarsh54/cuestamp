@@ -2819,3 +2819,24 @@ OfflineAudioContext PCM to check beat spacing, bar accents, silence, seek tails,
 and a tempo change during a sounding click. This does not verify hardware
 real-time playback. Saved tempo-map commands/UI remain pending the other timing
 consumers listed above.
+
+### Experimental DAW: region-local musical entry
+
+`regionBeatTiming(region, sessionOrTempo)` converts beat offsets relative to a
+region, including regions starting between global beats. Note durations are
+measured at the note's own starting beat. The constant-tempo path preserves
+existing arithmetic and legacy callers that pass a numeric BPM.
+
+Chord entry, the step sequencer, MIDI event entry/editing, and the split-note
+form now receive session timing. Drum steps remain sixteenth notes across tempo
+changes; their saved durations and enabled steps follow actual region bounds.
+Split at playhead and MIDI event labels convert back to the same local beat
+coordinates used by their inputs. Commands still receive seconds and continue
+through the existing validation/history engine.
+
+Coverage: `test/experimental-region-beats.test.js` checks conversions, off-beat
+origins and rendered labels. `scripts/browser-experimental-region-beats-check.cjs`
+uses actual DOM forms with an internal mapped fixture to check emitted chord,
+event, drum and split commands. Full project tempo-map controls are still not
+exposed: piano-roll gestures, multi-note transformations, controller ramps,
+filters, tempo-synced effects and arrangement-time operations need integration.

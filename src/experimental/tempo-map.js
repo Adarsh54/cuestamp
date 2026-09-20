@@ -29,3 +29,12 @@ export function retimeMidiTracks(tracks,previousTiming,nextTiming){
   if(region.fadeIn+region.fadeOut>region.duration&&region.fadeIn+region.fadeOut-region.duration<=1e-9)region.fadeOut=Math.max(0,region.duration-region.fadeIn);
  }}
 }
+
+// Region editor fields count beats from the region start, which need not itself
+// land on a global beat. Durations must be measured at their own start position.
+export function regionBeatTiming(region,timing){
+ const map=compileTempoMap(typeof timing==='number'?{tempo:timing}:timing),start=region.start??0,origin=map.beatAtTime(start);
+ if(!map.hasChanges){const secondsPerBeat=60/map.points[0].bpm;return {timeAtBeat:beat=>beat*secondsPerBeat,beatAtTime:time=>time/secondsPerBeat,durationAtBeat:(beat,length)=>length*secondsPerBeat,beatsInDuration:(time,duration)=>duration/secondsPerBeat};}
+ const timeAtBeat=beat=>map.timeAtBeat(origin+beat)-start,beatAtTime=time=>map.beatAtTime(start+time)-origin;
+ return {timeAtBeat,beatAtTime,durationAtBeat:(beat,length)=>timeAtBeat(beat+length)-timeAtBeat(beat),beatsInDuration:(time,duration)=>beatAtTime(time+duration)-beatAtTime(time)};
+}
