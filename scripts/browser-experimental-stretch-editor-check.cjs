@@ -9,7 +9,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
  const session=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:stretch-test')));
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:stretch-test'))?.tracks?.length===1);
  const original=(await session()).tracks[0].regions[0];await page.locator(`[data-region="${original.id}"]`).click();
- await page.locator('[data-audio-stretch-panel] > summary').click();await page.locator('[data-audio-stretch] [name=percent]').fill('150');await page.getByRole('button',{name:'Stretch to new track',exact:true}).click();
+ await page.locator('[data-audio-stretch-panel] > summary').click();await page.locator('[data-audio-stretch] [name=mode]').selectOption('beats');await page.locator('[data-audio-stretch] [name=beats]').fill('6');assert.match(await page.locator('[data-audio-stretch-preview]').textContent(),/3.000 seconds/);await page.getByRole('button',{name:'Stretch to new track',exact:true}).click();
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:stretch-test'))?.tracks?.length===2);
  let s=await session();assert.equal(s.tracks[0].regions[0].mute,true);const stretched=s.tracks[1].regions[0];assert.ok(Math.abs(stretched.duration-3)<1e-4);assert.notEqual(stretched.assetId,original.assetId);
  await page.locator('[data-action=undo]').click();s=await session();assert.equal(s.tracks.length,1);assert.equal(s.tracks[0].regions[0].mute,false);

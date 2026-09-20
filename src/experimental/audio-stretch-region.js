@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {durationForBeats} from './tempo-map.js';
 import {duplicateTrack} from './duplicate-track.js';
 import {validateAudioStretch} from './audio-stretch-options.js';
 const ratioSchema=z.number().finite().min(.5).max(2);
@@ -20,8 +21,26 @@ export function stretchedRegionTrack(session,regionId,values){
  copy.regions=[{...structuredClone(r),id:crypto.randomUUID(),name:plan.name,assetId:v.assetId,offset:0,reverse:false,duration,fadeIn:r.fadeIn*scale,fadeOut:r.fadeOut*scale}];
  return {track:copy,sourceTrackId:plan.source.id};
 }
-export function audioStretchView(region,kind,busy){return region&&kind==='audio'?`<details data-audio-stretch-panel><summary>Time stretch audio</summary><form data-audio-stretch><label>Duration · %<input name="percent" type="number" min="50" max="200" step="any" value="100" required></label><output data-audio-stretch-preview>${region.duration.toFixed(3)} seconds</output><button ${busy||region.mute?'disabled':''}>Stretch to new track</button></form><p class="muted">Preserves pitch. Creates a rendered file on a new track and mutes this region. Original audio remains available; undo restores it. Fades scale with duration; track effects and automation stay editable. Stretching can alter transients and texture.</p></details>`:'';}
-export function bindAudioStretch(root,{session,region,run,guard}){const form=root.querySelector('[data-audio-stretch]');if(!form||!region)return;const values=()=>form.elements.percent.value.trim()?Number(form.elements.percent.value)/100:NaN;form.oninput=()=>{try{const plan=audioStretchPlan(session,region.id,values());form.querySelector('output').textContent=`${region.duration.toFixed(3)} → ${(region.duration*plan.ratio).toFixed(3)} seconds`; }catch(error){form.querySelector('output').textContent=error.message;}};form.onsubmit=guard(async e=>{e.preventDefault();const plan=audioStretchPlan(session,region.id,values());await run(plan);});}
+export function audioStretchView(region,kind,busy){return region&&kind==='audio'?`<details data-audio-stretch-panel><summary>Time stretch audio</summary><form data-audio-stretch><label>Fit by<select name="mode"><option value="percent">Duration percentage</option><option value="beats">Musical length</option></select></label><label data-stretch-percent>Duration · %<input name="percent" type="number" min="50" max="200" step="any" value="100" required></label><label data-stretch-beats hidden>Length · quarter-note beats<input name="beats" type="number" min="0.001" max="432000" step="any" value="4" disabled required></label><output data-audio-stretch-preview>${region.duration.toFixed(3)} seconds</output><button ${busy||region.mute?'disabled':''}>Stretch to new track</button></form><p class="muted">Preserves pitch. Creates a rendered file on a new track and mutes this region. Musical length uses the tempo map from the region’s start and fits its endpoint; it does not align individual transients. Original audio remains available; undo restores it. Fades scale with duration; track effects and automation stay editable. Stretching can alter transients and texture.</p></details>`:'';}
+export function bindAudioStretch(root,{session,region,run,guard}){
+ const form=root.querySelector('[data-audio-stretch]');if(!form||!region)return;
+ const number=name=>form.elements[name].value.trim()?Number(form.elements[name].value):NaN;
+ const plan=()=>form.elements.mode.value==='beats'?audioStretchBeatPlan(session,region.id,number('beats')):audioStretchPlan(session,region.id,number('percent')/100);
+ form.oninput=()=>{const beats=form.elements.mode.value==='beats';form.querySelector('[data-stretch-beats]').hidden=!beats;form.querySelector('[data-stretch-percent]').hidden=beats;form.elements.beats.disabled=!beats;form.elements.percent.disabled=beats;try{const result=plan();form.querySelector('output').textContent=`${region.duration.toFixed(3)} → ${(region.duration*result.ratio).toFixed(3)} seconds · ${(result.ratio*100).toFixed(1)}%`; }catch(error){form.querySelector('output').textContent=error.message;}};
+ form.onsubmit=guard(async e=>{e.preventDefault();await run(plan());});
+}
+export function audioStretchBeatPlan(session,regionId,beats){
+ if(!Number.isFinite(beats)||beats<=0||beats>432000)throw Error('Choose a positive number of quarter-note beats.');
+ const original=audioStretchPlan(session,regionId,1),duration=durationForBeats(session,original.region.start,beats),ratio=duration/original.region.duration;
+ if(ratio<.5||ratio>2)throw Error('That musical length requires a duration outside the supported 50–200% range.');
+ return audioStretchPlan(session,regionId,ratio);
+}
+export const audioStretchBeatsSchema=z.object({regionId:z.string().min(1).max(100).nullable(),beats:z.number().finite().positive().max(432000)}).strict();
+export function prepareAudioStretchBeats(session,value,context){
+ const action=audioStretchBeatsSchema.parse(value);
+ if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Stretch context does not match the session.');
+ return audioStretchBeatPlan(session,action.regionId??context.regionId,action.beats);
+}
 
 export const audioStretchActionSchema=z.object({regionId:z.string().min(1).max(100).nullable(),ratio:ratioSchema}).strict();
 export function prepareAudioStretch(session,value,context){
