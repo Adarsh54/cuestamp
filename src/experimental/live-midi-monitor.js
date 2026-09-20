@@ -1,11 +1,13 @@
+import {pitchBendRangeSchema} from './pitch-bend.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
 import {createSamplerFilter} from './sampler-filter.js';
 import {samplerEnvelope,scheduleSamplerEnvelope} from './sampler-envelope.js';
 import {samplerLoop} from './sampler.js';
 import {drumBuffer} from './drums.js';
 // Live audition is independent of capture: count-in notes sound but are not saved.
-export function createLiveMidiMonitor(context, {destination=context.destination,maxVoices=64,instrument='triangle',sampleBuffer=null,sampleRoot=60,sampleTune=0,sampleFineTune=0,sampleLoop:loopEnabled=false,sampleLoopStart=0,sampleLoopEnd=null,sampleAttack=.005,sampleDecay=0,sampleSustain=1,sampleRelease=.02,sampleFilterType='off',sampleFilterCutoff=20000,sampleFilterResonance=0,sampleFilterKeyTrack=0}={}) {
+export function createLiveMidiMonitor(context, {destination=context.destination,maxVoices=64,instrument='triangle',pitchBendRange=2,sampleBuffer=null,sampleRoot=60,sampleTune=0,sampleFineTune=0,sampleLoop:loopEnabled=false,sampleLoopStart=0,sampleLoopEnd=null,sampleAttack=.005,sampleDecay=0,sampleSustain=1,sampleRelease=.02,sampleFilterType='off',sampleFilterCutoff=20000,sampleFilterResonance=0,sampleFilterKeyTrack=0}={}) {
  if(!Number.isInteger(maxVoices)||maxVoices<1||maxVoices>128)throw Error('Live MIDI supports 1–128 voices.');
+ pitchBendRange=pitchBendRangeSchema.parse(pitchBendRange);
  if(!['triangle','sine','square','sawtooth','drumKit','sampler'].includes(instrument))throw Error('Unsupported monitor instrument.');
  if(instrument==='sampler'&&!sampleBuffer)throw Error('Assign a sampler source before monitoring MIDI.');
  const loop=instrument==='sampler'?samplerLoop(sampleBuffer,{sampleLoop:loopEnabled,sampleLoopStart,sampleLoopEnd}):null;
@@ -22,11 +24,11 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
   if(kind===0x90&&b){
    while(voices.size>=maxVoices)release(voices.values().next().value,true);
    const drum=instrument==='drumKit',sampler=instrument==='sampler',osc=(drum||sampler)?context.createBufferSource():context.createOscillator(),gain=context.createGain(),now=context.currentTime;
-   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=sampleBuffer;Object.assign(osc,loop);osc.playbackRate.value=samplerPlaybackRate(a,sampleRoot,{sampleTune,sampleFineTune});osc.detune.value=c.bend*200;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127,envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bend*200;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
+   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=sampleBuffer;Object.assign(osc,loop);osc.playbackRate.value=samplerPlaybackRate(a,sampleRoot,{sampleTune,sampleFineTune});osc.detune.value=c.bend*pitchBendRange*100;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127,envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bend*pitchBendRange*100;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
    const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);gain.connect(c.gain);const v={osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();
   }else if(kind===0x80||(kind===0x90&&!b)){
    const v=matching().find(v=>v.pitch===a&&v.held);if(v){v.held=false;if(!c.sustain&&!v.drum)release(v);}
-  }else if(kind===0xe0){const bend=(a|(b<<7))-8192;c.bend=bend/(bend<0?8192:8191);for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bend*200,context.currentTime);
+  }else if(kind===0xe0){const bend=(a|(b<<7))-8192;c.bend=bend/(bend<0?8192:8191);for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bend*pitchBendRange*100,context.currentTime);
   }else if(kind===0xb0){
    if(a===7){c.volume=b/127;update(c);}if(a===11){c.expression=b/127;update(c);}
    if(a===10)c.pan.pan.setValueAtTime((b-64)/(b<64?64:63),context.currentTime);
