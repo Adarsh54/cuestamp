@@ -173,7 +173,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    }
    case 'region.separateMidi':{need(r,'Region');const copies=separatedMidiTracks(session,owner,r,v);session.tracks.splice(session.tracks.indexOf(owner)+1,0,...copies);r.mute=true;break;}
    case 'region.joinMidi':{need(r,'Region');const plan=joinedMidiRegion(owner,r.id,v);Object.assign(r,plan.region);const removed=new Set(plan.ids.filter(id=>id!==r.id));owner.regions=owner.regions.filter(item=>!removed.has(item.id));break;}
-   case 'region.timeScale':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');Object.assign(r,scaledMidiRegion(r,v));break;
+   case 'region.timeScale':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');Object.assign(r,scaledMidiRegion(r,v,session));break;
    case 'notes.timeScale':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const plan=timeScaleNotes(r,v,session),edits=new Map(plan.edits.map(n=>[n.id,n]));for(const note of r.notes)if(edits.has(note.id))Object.assign(note,edits.get(note.id));r.duration=plan.duration;break;}
    case 'notes.reverse':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(reverseNoteEdits(r,v,session).map(e=>[e.id,e]));for(const note of r.notes)if(edits.has(note.id))Object.assign(note,edits.get(note.id));break;}
    case 'notes.arpeggiate':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const plan=arpeggioPlan(r,session,v),removed=new Set(plan.removedIds);r.notes=[...r.notes.filter(n=>!removed.has(n.id)),...plan.notes.map(n=>({...n,id:crypto.randomUUID()}))];break;}

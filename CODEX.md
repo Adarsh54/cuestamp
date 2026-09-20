@@ -3182,3 +3182,7 @@ Legato & note lengths offers gap units in milliseconds (existing default) or mus
 ### Musical note division
 
 Split & divide notes offers equal division in Musical beats (editor default) or Elapsed seconds. Beat division places each part through the tempo map and applies the note-length percentage in beats, so retriggers and gaps follow the musical grid across tempo changes. `notes.divide` accepts `timing: "beats" | "seconds"`, defaulting to seconds for existing commands. Splitting at an explicit time is unchanged. The original note ID stays on the first part; other parts get new IDs. Test with `test/experimental-note-split.test.js` and `scripts/browser-experimental-musical-divide-check.cjs`, which renders and checks sound and silence for the gated parts.
+
+### Musical MIDI region stretching
+
+Stretch MIDI region offers elapsed seconds (default) or musical beats. In beat mode, the length input and half/double presets use the region’s beat span, and the chosen unit survives editor repaint and undo. `region.timeScale` accepts `timing: "seconds" | "beats"`; it scales region-local note endpoints, controller positions, fade endpoints and total length while keeping the timeline start fixed. Other regions, track automation and the tempo map stay unchanged. Both modes reject an absolute end past 24 hours. Verify with `test/experimental-midi-region-scale.test.js`, `scripts/browser-experimental-musical-region-scale-check.cjs`, and the existing MIDI region scale browser test for rendered sustain-pedal timing.

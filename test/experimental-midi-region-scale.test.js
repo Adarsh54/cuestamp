@@ -3,3 +3,19 @@ const fixture=()=>{const h=new SessionHistory(newSession());h.execute([{op:'trac
 test('whole MIDI region scaling moves every event and fade proportionally and leaves the timeline context alone',()=>{const h=fixture(),before=structuredClone(h.session),old=before.tracks[0].regions[0];h.execute([{op:'region.timeScale',target:'r',values:{factor:2}}]);const r=h.session.tracks[0].regions[0];assert.equal(r.start,2);assert.equal(r.duration,8);assert.equal(r.fadeIn,.4);assert.equal(r.fadeOut,1);assert.deepEqual(r.notes,[{...old.notes[0],start:1,duration:1}]);assert.deepEqual(r.events,old.events.map(e=>({...e,start:e.start*2})));assert.deepEqual(h.session.tracks[0].regions[1],before.tracks[0].regions[1]);assert.deepEqual(h.session.tracks[0].automation,before.tracks[0].automation);h.undo();assert.deepEqual(h.session.tracks,before.tracks);h.redo();assert.equal(h.session.tracks[0].regions[0].duration,8);});
 test('invalid factors, note limits and non-MIDI regions reject the complete batch',()=>{const h=fixture(),before=structuredClone(h.session);for(const values of [{factor:0},{factor:17},{factor:NaN},{factor:2,extra:true}]){assert.throws(()=>h.execute([{op:'session.set',values:{title:'bad'}},{op:'region.timeScale',target:'r',values}]));assert.deepEqual(h.session,before);}assert.throws(()=>scaledMidiRegion({duration:86400,notes:[],events:[],fadeIn:0,fadeOut:0},{factor:2}));assert.throws(()=>scaledMidiRegion({duration:4000,notes:[{start:0,duration:3600}],events:[],fadeIn:0,fadeOut:0},{factor:2}));h.execute([{op:'track.add',values:{id:'a',kind:'audio'}},{op:'region.add',target:'a',values:{id:'ar',duration:1}}]);assert.throws(()=>h.execute([{op:'region.timeScale',target:'ar',values:{factor:2}}]),/MIDI/);});
 test('scaled MIDI note and controller times survive file roundtrip',()=>{const h=fixture();h.execute([{op:'region.timeScale',target:'r',values:{factor:.5}}]);const midi=readMidi(writeMidi(h.session).buffer),track=midi.tracks.find(t=>t.notes.length);assert.equal(track.notes[0].start,2.25);assert.equal(track.notes[0].duration,.25);assert.deepEqual(track.events.map(e=>e.start),[2,2.25,2.5,2.75,3]);});
+test('musical region scaling preserves beat ratios for notes, controllers and both fades',async()=>{
+ const {regionBeatTiming}=await import('../src/experimental/tempo-map.js'),h=fixture();h.execute([{op:'tempo.add',values:{beat:8,bpm:60}}]);
+ const before=structuredClone(h.session),old=before.tracks[0].regions[0],clock=regionBeatTiming(old,h.session);h.execute([{op:'region.timeScale',target:'r',values:{factor:2,timing:'beats'}}]);const r=h.session.tracks[0].regions[0],close=(a,b)=>assert.ok(Math.abs(a-b)<1e-9);
+ close(clock.beatAtTime(r.duration),2*clock.beatAtTime(old.duration));
+ close(clock.beatAtTime(r.fadeIn),2*clock.beatAtTime(old.fadeIn));
+ close(clock.beatAtTime(r.duration)-clock.beatAtTime(r.duration-r.fadeOut),2*(clock.beatAtTime(old.duration)-clock.beatAtTime(old.duration-old.fadeOut)));
+ r.notes.forEach((n,i)=>{close(clock.beatAtTime(n.start),2*clock.beatAtTime(old.notes[i].start));close(clock.beatAtTime(n.start+n.duration),2*clock.beatAtTime(old.notes[i].start+old.notes[i].duration));});
+ r.events.forEach((e,i)=>close(clock.beatAtTime(e.start),2*clock.beatAtTime(old.events[i].start)));
+ assert.equal(r.start,old.start);assert.deepEqual(h.session.tracks[0].automation,before.tracks[0].automation);assert.deepEqual(h.session.tempoChanges,before.tempoChanges);
+ h.undo();assert.deepEqual(h.session.tracks,before.tracks);
+ assert.throws(()=>h.execute([{op:'track.set',target:'t',values:{protected:true}},{op:'region.timeScale',target:'r',values:{factor:2,timing:'beats'}}]),/Unprotect/);
+});
+test('region stretching rejects absolute end overflow and missing musical timing',()=>{
+ const r={start:86398,duration:2,notes:[],events:[],fadeIn:0,fadeOut:0};assert.throws(()=>scaledMidiRegion(r,{factor:2}),/limit/);
+ assert.throws(()=>scaledMidiRegion(r,{factor:1,timing:'beats'}),/session timing/);
+});
