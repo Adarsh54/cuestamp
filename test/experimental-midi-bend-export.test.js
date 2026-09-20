@@ -16,5 +16,5 @@ test('fractional ranges round to cents and zero remains explicitly disabled',()=
  for(const [range,expected]of [[2.345,235],[0,0],[96,9600]]){const events=[...bendRangeEvents(range,0),{type:'pitchBend',value:16383,start:0}];assert.ok(Math.abs(pitchBendTimeline(events).at(-1).cents-expected)<1e-8);}
 });
 test('muted tracks and regions do not introduce bend setup unless requested',()=>{
- const s=setup();s.tracks[0].regions[0].mute=true;assert.equal(readMidi(writeMidi(s).buffer).tracks.length,0);assert.equal(readMidi(writeMidi(s,{includeMuted:true}).buffer).tracks[0].events.length,8);
+ const s=setup();s.tracks[0].regions[0].mute=true;assert.equal(readMidi(writeMidi(s).buffer).tracks.length,0);assert.equal(readMidi(writeMidi(s,{includeMuted:true}).buffer).tracks[0].events.length,17);
 });

@@ -9,5 +9,5 @@ export function needsBendInitialization(tracks,includeMuted){return tracks.some(
 export function regionBendInitialization(track,region,includeMuted){
  if(track.instrument==='drumKit')return [];
  const channels=new Set([...region.notes.filter(n=>n.velocity>0&&(includeMuted||!n.mute)).map(n=>n.channel??0),...(region.events||[]).map(e=>e.channel??0)]);
- return [...channels].flatMap(channel=>bendRangeEvents(track.pitchBendRange,channel));
+ return [...channels].flatMap(channel=>[...bendRangeEvents(track.pitchBendRange,channel),...[[101,0],[100,1],[6,64],[38,0],[101,0],[100,2],[6,64],[101,127],[100,127]].map(([parameter,value])=>({type:'controlChange',parameter,value,channel,start:0}))]);
 }
