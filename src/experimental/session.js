@@ -1,3 +1,4 @@
+import {projectKeyScale} from './key-map.js';
 import {applyMidiImportMeter} from './midi-import-meter.js';
 import {compileMeterMap} from './meter-map.js';
 import {repeatNotesPlan} from './note-repeat.js';
@@ -189,7 +190,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'notes.reverse':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(reverseNoteEdits(r,v,session).map(e=>[e.id,e]));for(const note of r.notes)if(edits.has(note.id))Object.assign(note,edits.get(note.id));break;}
    case 'notes.arpeggiate':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const plan=arpeggioPlan(r,session,v),removed=new Set(plan.removedIds);r.notes=[...r.notes.filter(n=>!removed.has(n.id)),...plan.notes.map(n=>({...n,id:crypto.randomUUID()}))];break;}
    case 'notes.legato':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(legatoEdits(r,v,session).map(e=>[e.id,e.duration]));for(const note of r.notes)if(edits.has(note.id))note.duration=edits.get(note.id);break;}
-   case 'notes.scale':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(scaleNoteEdits(r,v).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
+   case 'notes.scale':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const values={...v};if(values.useProjectKey!==undefined){if(typeof values.useProjectKey!=='boolean')throw Error('useProjectKey must be boolean.');if(values.useProjectKey){if(values.root!==undefined||values.scale!==undefined)throw Error('Choose project key or an explicit scale, not both.');Object.assign(values,projectKeyScale(session));}delete values.useProjectKey;}const edits=new Map(scaleNoteEdits(r,values).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
    case 'notes.chord':need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');r.notes.push(...createChordNotes(r,v));break;
    case 'notes.invert':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(invertNoteEdits(r,v).map(e=>[e.id,e.pitch]));for(const note of r.notes)if(edits.has(note.id))note.pitch=edits.get(note.id);break;}
    case 'notes.velocityRamp':{need(r,'Region');if(owner.kind!=='midi')throw Error('Choose a MIDI region.');const edits=new Map(velocityRampEdits(r,v).map(e=>[e.id,e.velocity]));for(const note of r.notes)if(edits.has(note.id))note.velocity=edits.get(note.id);break;}

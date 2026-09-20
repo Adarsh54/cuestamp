@@ -17,3 +17,9 @@ export function compileKeyMap({keySignature=null,keyChanges=[]}={}){
  points.forEach(Object.freeze);Object.freeze(points);
  return Object.freeze({points,keyAtBeat(beat){if(!Number.isFinite(beat)||beat<0)throw Error('Choose a nonnegative musical position.');let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>1;if(points[mid].beat<=beat)lo=mid+1;else hi=mid;}return points[lo-1]??null;}});
 }
+export function projectKeyScale(session){
+ if(!session?.keySignature)throw Error('Set a project key first.');
+ const key=validateKeySignature(session.keySignature);
+ // Each sharp advances seven semitones; relative minor is nine above major.
+ return {root:((key.sharps*7+(key.mode==='minor'?9:0))%12+12)%12,scale:key.mode};
+}
