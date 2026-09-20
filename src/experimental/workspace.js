@@ -257,7 +257,7 @@ export function createExperimentalWorkspace({account,esc}){
   root.querySelector('[data-midi-import-key]').onchange=e=>{midiImportKey=e.target.value;};
   root.querySelector('[data-midi-import-meter]').onchange=e=>{midiImportMeter=e.target.value;};
   root.querySelector('[data-midi-import-tempo]').onchange=e=>{midiImportTempo=e.target.value;};
-  bindTempo(root,{execute,guard});
+  bindTempo(root,{session:session(),execute,guard});
   bindMeter(root,{execute,guard});
   bindKey(root,{execute,guard});
   bindMetronome(root,{execute,guard});
