@@ -3128,3 +3128,21 @@ and map limits are validated. Legacy flat sessions remain without a map field.
 restoration, insertion at zero, identity uniqueness, moves, multiple repeats,
 copying inside the source, and section swap/replace. Saved project map schema,
 commands and editor controls still need to be enabled and verified end to end.
+
+### Experimental DAW: musical region repetition
+
+`region.repeat` accepts positive `beats` spacing instead of `interval` seconds;
+supplying both is rejected. Every copy's onset is independently converted through
+the session tempo map. MIDI copies also remap region/note endpoints, controller
+events and fade endpoints to preserve musical timing. Audio/video retain source
+offsets, duration and playback speed. Copies keep independent region/note/event
+IDs, and normal command validation, track protection and undo remain in force.
+
+The region-repeat form displays its default spacing in local beats and emits the
+beat command. Legacy seconds commands remain unchanged. Musical copies must end
+within the timeline, and invalid spacing/capacity rejects the edit.
+
+Tests: `experimental-musical-region-repeat.test.js` covers mapped copy placement,
+MIDI internal timing/fades, unchanged media speed, IDs and command undo/validation.
+The existing repeat-region browser check exercises the form and history workflow.
+Saved tempo maps and their editor controls remain pending end-to-end integration.

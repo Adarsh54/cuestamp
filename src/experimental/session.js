@@ -128,7 +128,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'region.trim':need(r,'Region');pick(v,['start','end']);Object.assign(r,(owner.kind==='midi'?trimmedMidiRegion:trimmedRegion)(r,v.start,v.end));break;
    case 'track.commitBounce':{need(t,'Track');const {track:copy}=bouncedWholeTrack(session,t.id,v);session.tracks.splice(session.tracks.indexOf(t)+1,0,copy);t.mute=true;break;}
    case 'region.commitBounce':{need(r,'Region');const {track:copy,sourceTrackId}=bouncedRegionTrack(session,r.id,v);session.tracks.splice(session.tracks.findIndex(t=>t.id===sourceTrackId)+1,0,copy);r.mute=true;break;}
-   case 'region.repeat':{need(r,'Region');pick(v,['count','interval']);owner.regions.push(...repeatRegion(r,v,owner.regions.length));break;}
+   case 'region.repeat':{need(r,'Region');pick(v,['count','interval','beats']);owner.regions.push(...repeatRegion(r,v,owner.regions.length,{session,kind:owner.kind}));break;}
    case 'region.duplicate':need(r,'Region');pick(v,['start']);owner.regions.push({...structuredClone(r),id:crypto.randomUUID(),start:v.start??r.start+r.duration,notes:r.notes.map(n=>({...n,id:crypto.randomUUID()})),events:r.events.map(e=>({...e,id:crypto.randomUUID()}))});break;
    case 'regions.split':splitSelectedRegions(session,v);break;
    case 'region.split':{
