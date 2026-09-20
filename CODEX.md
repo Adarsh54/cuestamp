@@ -3500,3 +3500,9 @@ The Tempo map panel includes **Create tempo curve**, with a step-curve preview, 
 ### Proportional tempo scaling
 
 **Scale existing tempo** in the Tempo map panel accepts a percentage and whole-project or beat-range scope. A range preview reports its original and new duration. `tempo.scale` exposes `factor` (>0 through 16; 1.1 = 110%) with optional paired zero-based `startBeat`/`endBeat`. Existing tempos are multiplied while beat anchors and IDs remain; missing range boundaries are inserted and the original tempo resumes at the end. Earlier/later tempo values are unchanged. MIDI is retimed to preserve musical beats, while audio/video/automation remain fixed in seconds. Factor 1 does not modify tempo data. BPM outside 20–300 or more than 256 points rejects atomically. Tests: `test/experimental-tempo-scale.test.js`; browser preview/apply/undo coverage is in `scripts/browser-experimental-keys-check.cjs`.
+
+### Constant tempo with a fixed endpoint
+
+Experimental → Tempo map → Make tempo constant simplifies the selected passage to one BPM while keeping its duration and endpoint time. The UI uses one-based quarter-note beats; the shared `tempo.constant` command uses zero-based `startBeat` and `endBeat`. The BPM is total beats divided by elapsed minutes, not an arithmetic average of tempo values. Original tempo resumes at the end boundary. MIDI inside the passage moves to retain musical beat positions; later music retains its timing. Audio, video, and automation retain absolute seconds. One undo restores the tempo map and MIDI timing. Already constant ranges leave tempo data unchanged.
+
+Verification: `node --test test/experimental-tempo-constant.test.js` covers boundary preservation, downstream timing, MIDI retiming, fixed video, invalid ranges and undo. `scripts/browser-experimental-keys-check.cjs` exercises the preview, apply and undo controls in Chromium.
