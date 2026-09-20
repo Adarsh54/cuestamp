@@ -1,0 +1,7 @@
+SoundTouchJS core and interpolation-strategy-lanczos, version 2.1.1
+Copyright Olli Parviainen, Ryan Berdeen, Jakub Fiala, Steve 'Cutter' Blades and contributors.
+Licensed under the Mozilla Public License, version 2.0.
+Source: https://github.com/cutterbl/SoundTouchJS
+Package sources: https://www.npmjs.com/package/@soundtouchjs/core/v/2.1.1
+License: https://www.mozilla.org/MPL/2.0/
+These packages are used without source modifications.
