@@ -1,3 +1,4 @@
+import {compileMeterMap} from './meter-map.js';
 import {compileTempoMap} from './tempo-map.js';
 import {eventBytes,eventFromBytes} from './midi-events.js';
 // Standard MIDI File types 0/1, PPQ timing, tempo maps and note-on/off pairs.
@@ -29,14 +30,13 @@ export function readMidi(buffer){
  return {timeSignatures,hasTempoEvents:tempos.length>1,tempoChanges,markers:markers.map(m=>({name:m.name,time:seconds(m.tick)})),tempo:60000000/(tempos.filter(t=>t.tick===0).at(-1)?.microseconds||500000),tracks:tracks.filter(t=>t.notes.length||t.events.length).map(t=>({name:t.name,events:t.events.map(e=>({...e,start:seconds(e.start)})),notes:t.notes.map(n=>({id:crypto.randomUUID(),pitch:n.pitch,channel:n.channel,start:seconds(n.tick),duration:seconds(n.end)-seconds(n.tick),velocity:n.velocity}))}))};
 }
 export function writeMidi(session,{includeMuted=false}={}){
- const ppq=480,map=compileTempoMap(session),chunks=[],meter=session.meter??4;
- if(!Number.isInteger(meter)||meter<1||meter>16)throw Error('MIDI export requires 1–16 quarter-note beats per bar.');
+ const ppq=480,map=compileTempoMap(session),signatures=compileMeterMap(session),chunks=[];
  const tickAt=time=>Math.round(map.beatAtTime(time)*ppq);
  const int=(n,bytes)=>Array.from({length:bytes},(_,i)=>(n>>>((bytes-1-i)*8))&255),str=s=>[...new TextEncoder().encode(s)];
  const vlq=n=>{if(!Number.isInteger(n)||n<0||n>0x0fffffff)throw Error('MIDI event spacing exceeds the file format limit.');let out=[n&127];while((n>>>=7)>0)out.unshift((n&127)|128);return out;};
  const chunk=data=>[...str('MTrk'),...int(data.length,4),...data];
  const conductorEvents=map.points.map(point=>({tick:Math.round(point.beat*ppq),priority:0,data:[255,81,3,...int(Math.round(60000000/point.bpm),3)]}));
- conductorEvents.push({tick:0,priority:-1,data:[255,88,4,meter,2,24,8]});
+ for(const point of signatures.points){if(map.timeAtBeat(point.beat)>86400)throw Error('Time signatures must fit within the 24-hour timeline.');conductorEvents.push({tick:Math.round(point.beat*ppq),priority:-1,data:[255,88,4,point.numerator,Math.log2(point.denominator),24,8]});}
  for(const marker of session.markers||[]){const name=str(marker.name);conductorEvents.push({tick:tickAt(marker.time),priority:1,data:[255,6,...vlq(name.length),...name]});}
  conductorEvents.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);const conductor=[];let previousTick=0;
  for(const event of conductorEvents){conductor.push(...vlq(event.tick-previousTick),...event.data);previousTick=event.tick;}
