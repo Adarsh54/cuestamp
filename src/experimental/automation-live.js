@@ -37,6 +37,9 @@ export function createLiveAutomation({context,base,position,lanes}){
    const lane=resolve(target,parameter),id=key(target,parameter);if(!touched.has(id))return;
    schedule(lane,parameter,lane.points,now(),lane.fallback);touched.delete(id);
   },
+  replace(target,parameter,points,fallback){
+   const lane=resolve(target,parameter);lane.points=structuredClone(points);lane.fallback=fallback;
+  },
   stop(){stopped=true;touched.clear();},
  };
 }
