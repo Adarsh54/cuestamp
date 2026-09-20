@@ -1,3 +1,4 @@
+import {insertKeySection} from './key-time-edit.js';
 import {insertMeterSection} from './meter-time-edit.js';
 import {insertTempoSection} from './tempo-time-edit.js';
 import {copiedArrangementSections} from './arrangement-sections.js';
@@ -35,8 +36,9 @@ function repeatedRegion(region,kind,start,end){
 function repeatOnce(session,start,end){
  const source=structuredClone(session),duration=end-start;
  const tempoTiming=insertTempoSection(source,source,start,end,end);
+ const keyTiming=insertKeySection(source,source,start,end,end,tempoTiming??source);
  const meterTiming=insertMeterSection(source,source,start,end,end,tempoTiming??source);
- insertProjectTime(session,{position:end,duration},{skipMeter:true});
+ insertProjectTime(session,{position:end,duration},{skipMeter:true,skipKey:true});
  for(let i=0;i<source.tracks.length;i++){
   const original=source.tracks[i],track=session.tracks[i],copies=new Map();
   for(const region of original.regions){if(region.start>=end||region.start+region.duration<=start)continue;const copy=repeatedRegion(region,track.kind,start,end);copies.set(region.id,copy);track.regions.push(copy);}
@@ -53,6 +55,7 @@ function repeatOnce(session,start,end){
  session.markers.push(...source.markers.filter(m=>m.time>=start&&m.time<end).map(m=>({...m,id:crypto.randomUUID(),time:m.time+duration})));
  if(tempoTiming)Object.assign(session,tempoTiming);
  if(meterTiming)Object.assign(session,meterTiming);
+ Object.assign(session,keyTiming);
 }
 export function repeatProjectSection(session,{start,end,count=1}){
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||!Number.isInteger(count)||count<1||count>16||end+(end-start)*count>86400)throw Error('Choose a positive section and 1–16 additional copies within 24 hours.');

@@ -1,3 +1,4 @@
+import {insertKeySection} from './key-time-edit.js';
 import {insertMeterSection} from './meter-time-edit.js';
 import {insertTempoSection} from './tempo-time-edit.js';
 import {copiedArrangementSections} from './arrangement-sections.js';
@@ -33,8 +34,9 @@ export function transferProjectSection(session,{mode,start,end,position}){
  if(position+duration>86400)throw Error('The inserted section exceeds the 24-hour timeline.');
  const destination=structuredClone(session),automate=(to,from)=>insertAutomationSection(to,from,start,end,position);
  const tempoTiming=insertTempoSection(destination,source,start,end,position,{move:mode==='move'});
+ const keyTiming=insertKeySection(destination,source,start,end,position,tempoTiming??destination,{move:mode==='move'});
  const meterTiming=insertMeterSection(destination,source,start,end,position,tempoTiming??destination,{move:mode==='move'});
- insertProjectTime(session,{position,duration},{skipMeter:true});
+ insertProjectTime(session,{position,duration},{skipMeter:true,skipKey:true});
  for(let i=0;i<source.tracks.length;i++){
   const original=source.tracks[i],previous=destination.tracks[i],track=session.tracks[i],copies=new Map();
   for(const region of original.regions){if(region.start>=end||region.start+region.duration<=start)continue;const copy=copyRegion(region,track.kind,start,end,position);copies.set(region.id,copy);track.regions.push(copy);}
@@ -51,6 +53,7 @@ export function transferProjectSection(session,{mode,start,end,position}){
  if(mode==='move')for(const prefix of ['loop','audioPunch','midiPunch']){const a=prefix+'Start',b=prefix+'End';if(source[a]>=start&&source[b]<=end){session[a]=position+(source[a]-start);session[b]=position+(source[b]-start);session[prefix+'Enabled']=source[prefix+'Enabled'];}}
  if(tempoTiming)Object.assign(session,tempoTiming);
  if(meterTiming)Object.assign(session,meterTiming);
+ Object.assign(session,keyTiming);
 }
 export function sectionTransferView(session,position){return `<details class="daw-markers"><summary>Copy or move section</summary><form data-section-transfer><label>Action<select name="mode"><option value="copy">Copy section</option><option value="move">Move section</option></select></label><label>From · seconds<input name="start" type="number" min="0" max="86400" step="any" value="${session.loopStart}" required></label><label>To · seconds<input name="end" type="number" min="0" max="86400" step="any" value="${session.loopEnd}" required></label><label>Insert at · seconds<input name="position" type="number" min="0" max="86400" step="any" value="${position}" required></label><button type="button" data-transfer-cycle>Use cycle range</button><button>Apply across project</button></form><p class="muted">Includes all tracks, automation, markers and saved comp selections. Destination refers to the timeline before the edit. Copy makes room; Move also closes the source gap. Undo restores the whole edit.</p></details>`;}
 export function bindSectionTransfer(root,{session,execute,guard}){const form=root.querySelector('[data-section-transfer]');root.querySelector('[data-transfer-cycle]').onclick=()=>{form.elements.start.value=session.loopStart;form.elements.end.value=session.loopEnd;};form.onsubmit=guard(e=>{e.preventDefault();const values={mode:form.elements.mode.value,start:Number(form.elements.start.value),end:Number(form.elements.end.value),position:Number(form.elements.position.value)};execute([{op:'session.transferSection',values}],values.mode==='copy'?'Copied section across project':'Moved section across project');const next=root.querySelector('[data-section-transfer]');for(const [key,value]of Object.entries(values))next.elements[key].value=value;});}
