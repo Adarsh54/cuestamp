@@ -1,13 +1,13 @@
+import {recordingAutomationLane} from './automation-recording-lane.js';
 import {z} from 'zod';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
 const sample=z.object({time:z.number().finite().min(0).max(86400),value:z.number().finite()}).strict();
-const options=z.object({parameter:z.enum(['gainDb','pan']),samples:z.string().max(160000),returnSeconds:z.number().finite().min(0).max(10).default(.1)}).strict();
+const options=z.object({parameter:z.enum(['gainDb','pan']),busId:z.string().min(1).max(100).optional(),samples:z.string().max(160000),returnSeconds:z.number().finite().min(0).max(10).default(.1)}).strict();
 // Touch-style replacement, including a return ramp. The scheduler cannot store
 // two values at one time; a <=1us guard preserves the incoming curve at the seam.
 export function automationGesturePlan(session,target,values){
- const v=options.parse(values),samples=z.array(sample).min(2).max(2000).parse(JSON.parse(v.samples)),track=session.tracks.find(t=>t.id===target);
- if(target!==session.id&&(!track||track.kind==='video'))throw Error('Choose a mixer track or Master for automation recording.');
- const points=target===session.id?session.masterAutomation:track.automation,fallback=target===session.id?(v.parameter==='gainDb'?session.masterDb:session.masterPan):track[v.parameter],min=v.parameter==='pan'?-1:-96,max=v.parameter==='pan'?1:12;
+ const v=options.parse(values),samples=z.array(sample).min(2).max(2000).parse(JSON.parse(v.samples));
+ const {points,fallback,min,max}=recordingAutomationLane(session,target,v.parameter,v.busId);
  if(samples.some((p,i)=>p.value<min||p.value>max||(i&&p.time<=samples[i-1].time)))throw Error('Recorded automation needs increasing times and values within the parameter range.');
  const start=samples[0].time,end=samples.at(-1).time,restore=end+Math.max(v.returnSeconds,.000001);if(restore>86400)throw Error('Automation return ramp exceeds the 24-hour timeline.');
  const lane=points.filter(p=>p.parameter===v.parameter).sort((a,b)=>a.time-b.time),rendered=automationSegments(lane,v.parameter),valueAt=time=>orderedAutomationValue(rendered,time,fallback);
