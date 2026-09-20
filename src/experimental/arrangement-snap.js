@@ -1,3 +1,4 @@
+import {meterGrid} from './meter-grid.js';
 import {compileTempoMap,durationForBeats} from './tempo-map.js';
 import {exactFrameRate} from './timecode.js';
 export const arrangementGrids=[['off','Off'],['bar','Bar'],['beat','Beat'],['eighth','1/8 note'],['sixteenth','1/16 note'],['thirtySecond','1/32 note'],['eighthTriplet','1/8 triplet'],['sixteenthTriplet','1/16 triplet'],['frame','Frame'],['second','Second'],['tenth','0.1 second']];
@@ -7,13 +8,15 @@ export function arrangementStep(session,grid='sixteenth',position=0){
  if(grid==='off')return 0;
  if(grid==='frame')return 1/exactFrameRate(session.frameRate||24);
  if(grid==='second')return 1;if(grid==='tenth')return .1;
+ const signatureGrid=meterGrid(session,grid);if(signatureGrid)return signatureGrid.timeAt(signatureGrid.atTime(position)+1)-position;
  const beats=musicalBeats(session,grid);
  if(beats===undefined)throw Error('Choose a valid arrangement snap grid.');return session.tempoChanges?.length?durationForBeats(session,position,beats):60/session.tempo*beats;
 }
-export function snapArrangementTime(session,time,grid='sixteenth',bypass=false){const step=arrangementStep(session,grid);if(bypass||!step)return time;const beats=musicalBeats(session,grid);if(beats&&session.tempoChanges?.length){const map=compileTempoMap(session);return map.timeAtBeat(Math.round(map.beatAtTime(time)/beats)*beats);}return Math.round(time/step)*step;}
+export function snapArrangementTime(session,time,grid='sixteenth',bypass=false){const signatureGrid=meterGrid(session,grid);if(signatureGrid&&!bypass)return signatureGrid.timeAt(Math.round(signatureGrid.atTime(time)));const step=arrangementStep(session,grid);if(bypass||!step)return time;const beats=musicalBeats(session,grid);if(beats&&session.tempoChanges?.length){const map=compileTempoMap(session);return map.timeAtBeat(Math.round(map.beatAtTime(time)/beats)*beats);}return Math.round(time/step)*step;}
 export function snapArrangementDelta(session,delta,anchor,settings=defaultArrangementSnap,bypass=false){
  if(bypass||settings.grid==='off')return delta;
  if(settings.alignment==='absolute')return snapArrangementTime(session,anchor+delta,settings.grid)-anchor;
+ const signatureGrid=meterGrid(session,settings.grid);if(signatureGrid){const start=signatureGrid.atTime(anchor),end=signatureGrid.atTime(anchor+delta);return signatureGrid.timeAt(start+Math.round(end-start))-anchor;}
  const beats=musicalBeats(session,settings.grid);if(beats&&session.tempoChanges?.length){const map=compileTempoMap(session),start=map.beatAtTime(anchor),end=map.beatAtTime(anchor+delta);return map.timeAtBeat(start+Math.round((end-start)/beats)*beats)-anchor;}
  return snapArrangementTime(session,delta,settings.grid);
 }
@@ -22,11 +25,19 @@ export function arrangementSnapView(settings,tool,disabled){const alignment=tool
 
 export function arrangementKeyboardDelta(session,grid,position,direction){
  if(direction!==1&&direction!==-1)throw Error('Choose a left or right keyboard step.');
+ const signatureGrid=meterGrid(session,grid);if(signatureGrid)return signatureGrid.timeAt(signatureGrid.atTime(position)+direction)-position;
  const beats=musicalBeats(session,grid);
  if(beats&&session.tempoChanges?.length)return durationForBeats(session,position,beats*direction);
  return direction*(arrangementStep(session,grid)||.01);
 }
 export function arrangementGridLines(session,zoom,width,grid){
+ const signatureGrid=meterGrid(session,grid);
+ if(signatureGrid){
+  if(!Number.isFinite(zoom)||zoom<=0||!Number.isFinite(width)||width<0)throw Error('Invalid arrangement grid dimensions.');
+  const end=signatureGrid.atTime(width/zoom);let step=1;while(end/step>999||step*signatureGrid.minimumSeconds*zoom<8)step*=2;
+  return Array.from({length:Math.min(1000,Math.floor(end/step)+1)},(_,i)=>signatureGrid.timeAt(i*step)*zoom);
+ }
+
  const beats=musicalBeats(session,grid);if(!beats||!session.tempoChanges?.length)return null;
  if(!Number.isFinite(zoom)||zoom<=0||!Number.isFinite(width)||width<0)throw Error('Invalid arrangement grid dimensions.');
  const map=compileTempoMap(session),end=map.beatAtTime(width/zoom),fastest=Math.max(...map.points.map(p=>p.bpm));let step=beats;
