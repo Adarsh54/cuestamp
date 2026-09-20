@@ -1,3 +1,4 @@
+import {deleteTempoTime} from './tempo-time-edit.js';
 import {deleteArrangementSections} from './arrangement-sections.js';
 import {splitRegion,clampCompRounding} from './region-split.js';
 import {automationSegments,orderedAutomationValue} from './automation-curves.js';
@@ -21,6 +22,7 @@ export function deleteAutomationTime(points,start,end){
 }
 export function deleteProjectTime(session,{start,end}){
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>86400||end<=start)throw Error('Choose a positive deletion range within 24 hours.');
+ const tempoTiming=deleteTempoTime(session,start,end);
  const duration=end-start,shift=t=>t<=start?t:t<=end?start:t-duration;
  const automate=owner=>{owner.automation=deleteAutomationTime(owner.automation||[],start,end);};
  for(const track of session.tracks){
@@ -54,6 +56,7 @@ export function deleteProjectTime(session,{start,end}){
   const a=prefix+'Start',b=prefix+'End';session[a]=shift(session[a]);session[b]=shift(session[b]);
   if(session[b]<=session[a]){session[prefix+'Enabled']=false;session[b]=Math.min(86400,session[a]+1);}
  }
+ if(tempoTiming)Object.assign(session,tempoTiming);
 }
 export function deleteTimeView(session){return `<details class="daw-markers"><summary>Delete time</summary><form data-delete-time><label>From · seconds<input name="start" type="number" min="0" max="86400" step="any" value="${session.loopStart}" required></label><label>To · seconds<input name="end" type="number" min="0" max="86400" step="any" value="${session.loopEnd}" required></label><button type="button" data-delete-cycle>Use cycle range</button><button>Delete time across project</button></form><p class="muted">Removes this section from every track and closes the gap, including automation, markers and saved comp selections. Original media is preserved. Undo restores the whole edit.</p></details>`;}
 export function bindDeleteTime(root,{session,execute,guard}){const form=root.querySelector('[data-delete-time]');root.querySelector('[data-delete-cycle]').onclick=()=>{form.elements.start.value=session.loopStart;form.elements.end.value=session.loopEnd;};form.onsubmit=guard(e=>{e.preventDefault();execute([{op:'session.deleteTime',values:{start:Number(form.elements.start.value),end:Number(form.elements.end.value)}}],'Deleted time across project');});}

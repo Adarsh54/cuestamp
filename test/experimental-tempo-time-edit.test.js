@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {compileTempoMap} from '../src/experimental/tempo-map.js';
+import {insertTempoTime,deleteTempoTime} from '../src/experimental/tempo-time-edit.js';
+import {newSession,applyCommands} from '../src/experimental/session.js';
+import {insertProjectTime} from '../src/experimental/insert-time.js';
+import {deleteProjectTime} from '../src/experimental/delete-time.js';
+const timing={tempo:120,tempoChanges:[{id:'a',beat:8,bpm:60},{id:'b',beat:12,bpm:180}]};
+const points=s=>compileTempoMap(s).points.map(p=>[p.time,p.bpm]);
+test('insertion shifts tempo changes in seconds, holding the preceding tempo through the gap',()=>{assert.deepEqual(points(insertTempoTime(timing,4,2)),[[0,120],[6,60],[10,180]]);assert.deepEqual(points(insertTempoTime(timing,5,2)),[[0,120],[4,60],[10,180]]);assert.deepEqual(points(insertTempoTime(timing,0,2)),[[0,120],[6,60],[10,180]]);assert.equal(insertTempoTime(timing,4,2).tempoChanges[0].id,'a');});
+test('deletion restores tempo from the right seam, including cuts from zero',()=>{assert.deepEqual(points(deleteTempoTime(timing,3,6)),[[0,120],[3,60],[5,180]]);assert.deepEqual(points(deleteTempoTime(timing,4,8)),[[0,120],[4,180]]);assert.deepEqual(points(deleteTempoTime(timing,0,5)),[[0,60],[3,180]]);assert.deepEqual(points(deleteTempoTime(timing,0,9)),[[0,180]]);assert.equal(deleteTempoTime(timing,4,8).tempoChanges[0].id,'b');});
+test('project operations retain tempo placement without separately retiming MIDI',()=>{const s={...newSession(),...structuredClone(timing)},before=structuredClone(s);insertProjectTime(s,{position:4,duration:2});assert.deepEqual(points(s),[[0,120],[6,60],[10,180]]);deleteProjectTime(s,{start:4,end:6});assert.deepEqual(s.tempoChanges,before.tempoChanges);assert.equal(s.tempo,before.tempo);});
+test('invalid tempo edits reject before project mutations and legacy timing stays absent',()=>{const s={...newSession(),tempo:120,tempoChanges:[{beat:172798,bpm:60}]},before=structuredClone(s);assert.throws(()=>insertProjectTime(s,{position:0,duration:2}),/timeline/);assert.deepEqual(s,before);assert.equal(insertTempoTime({tempo:120},2,1),null);assert.equal(deleteTempoTime({tempo:120},2,3),null);});
+
+test('MIDI material shifts once while its tempo context moves with it',()=>{const s={...applyCommands(newSession(),[{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',start:8,duration:1}},{op:'note.add',target:'r',values:{id:'n',pitch:60,start:.1,duration:.5}}]),...structuredClone(timing)};const original=structuredClone(s.tracks);insertProjectTime(s,{position:4,duration:2});assert.equal(s.tracks[0].regions[0].start,10);assert.equal(s.tracks[0].regions[0].notes[0].duration,.5);assert.equal(compileTempoMap(s).tempoAtTime(10),180);deleteProjectTime(s,{start:4,end:6});assert.deepEqual(s.tracks,original);});

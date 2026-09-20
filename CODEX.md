@@ -3089,3 +3089,22 @@ fixed-time grid compatibility and directional steps. The browser script
 keyboard handlers and generated grid positions. Project-time insertion/deletion
 and section content transfers still need tempo-map handling before enabling
 saved project maps.
+
+### Experimental DAW: tempo maps during project time edits
+
+Insert/delete time now plan their tempo-map changes before mutating project
+content. Insertion shifts points at or after the insertion in absolute seconds;
+the preceding tempo holds through the gap (the initial tempo holds for insertion
+at zero). Deletion removes points in the cut and restores the tempo at the old
+right edge at the new seam. Deleting from zero updates the initial tempo.
+Surviving point IDs are retained; newly required boundary points get fresh IDs.
+
+`tempoFromSeconds` rebuilds musical beat positions by integrating the edited
+segments, removes redundant adjacent tempos and validates the normal map limits.
+There is no second MIDI retime: region/note content already follows the existing
+project-time edit. Constant-tempo legacy documents do not acquire a new map field.
+
+`experimental-tempo-time-edit.test.js` covers exact boundaries, cuts from zero,
+insert/delete reversal, MIDI material shifting once, preserved tempo context and
+pre-mutation rejection of map overflow. Section copy/move/repeat still needs to
+carry the source tempo segments before saved project maps are enabled.
