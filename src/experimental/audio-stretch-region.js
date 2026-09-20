@@ -22,3 +22,10 @@ export function stretchedRegionTrack(session,regionId,values){
 }
 export function audioStretchView(region,kind,busy){return region&&kind==='audio'?`<details data-audio-stretch-panel><summary>Time stretch audio</summary><form data-audio-stretch><label>Duration · %<input name="percent" type="number" min="50" max="200" step="any" value="100" required></label><output data-audio-stretch-preview>${region.duration.toFixed(3)} seconds</output><button ${busy||region.mute?'disabled':''}>Stretch to new track</button></form><p class="muted">Preserves pitch. Creates a rendered file on a new track and mutes this region. Original audio remains available; undo restores it. Fades scale with duration; track effects and automation stay editable. Stretching can alter transients and texture.</p></details>`:'';}
 export function bindAudioStretch(root,{session,region,run,guard}){const form=root.querySelector('[data-audio-stretch]');if(!form||!region)return;const values=()=>form.elements.percent.value.trim()?Number(form.elements.percent.value)/100:NaN;form.oninput=()=>{try{const plan=audioStretchPlan(session,region.id,values());form.querySelector('output').textContent=`${region.duration.toFixed(3)} → ${(region.duration*plan.ratio).toFixed(3)} seconds`; }catch(error){form.querySelector('output').textContent=error.message;}};form.onsubmit=guard(async e=>{e.preventDefault();const plan=audioStretchPlan(session,region.id,values());await run(plan);});}
+
+export const audioStretchActionSchema=z.object({regionId:z.string().min(1).max(100).nullable(),ratio:ratioSchema}).strict();
+export function prepareAudioStretch(session,value,context){
+ const action=audioStretchActionSchema.parse(value);
+ if(!context||context.sessionId!==session.id||context.revision!==session.revision)throw Error('Stretch context does not match the session.');
+ return audioStretchPlan(session,action.regionId??context.regionId,action.ratio);
+}

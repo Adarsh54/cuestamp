@@ -1,4 +1,4 @@
-import {audioStretchView,bindAudioStretch} from './audio-stretch-region.js';
+import {audioStretchView,bindAudioStretch,prepareAudioStretch} from './audio-stretch-region.js';
 import {validateAudioStretch} from './audio-stretch-options.js';
 import {renderAudioStretch} from './audio-stretch-client.js';
 import {midiTuningView,bindMidiTuning} from './midi-tuning.js';
@@ -199,9 +199,9 @@ export function createExperimentalWorkspace({account,esc}){
   }finally{busy=false;paint();}
  }
 
- async function stretchRegion(plan){
-  if(busy||agentBusy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');
-  const original=history,revision=session().revision,controller=new AbortController(),signal=controller.signal;let assetId=null,committed=false;
+ async function stretchRegion(plan,request=null){
+  if(busy||(agentBusy&&request!==agentController)||recordAbort||midiInput.active)throw Error('Finish the current operation first.');
+  const original=history,revision=session().revision,controller=request||new AbortController(),signal=controller.signal;let assetId=null,committed=false;
   const check=()=>{signal.throwIfAborted();if(!root?.isConnected||history!==original||session().revision!==revision)throw Error('The session changed during stretching. Try again.');};
   busy=true;stop();bounceController=controller;status='Preparing audio stretch…';paint();
   try{
@@ -212,9 +212,9 @@ export function createExperimentalWorkspace({account,esc}){
    const channels=await renderAudioStretch(clip,plan.ratio,{signal,onProgress:progress=>{check();status=`Stretching audio · ${Math.round(progress*100)}%`;const el=root.querySelector('.daw-status');if(el)el.textContent=status;}});check();
    const rendered=context.createBuffer(channels.length,channels[0].length,source.sampleRate);channels.forEach((data,c)=>rendered.copyToChannel(data,c));
    assetId=crypto.randomUUID();const file=new File([encodeWav(rendered,{bitDepth:32})],plan.name+'.wav',{type:'audio/wav'});await assetStore(scope,'readwrite',{id:assetId,file});check();
-   const previous={session:history.session,past:[...history.past],future:[...history.future]};try{history.execute([{op:'region.commitStretch',target:plan.region.id,values:{ratio:plan.ratio,assetId,sampleRate:source.sampleRate,channels:source.numberOfChannels,frames:rendered.length}}],revision);persist();}catch(error){Object.assign(history,previous);throw error;}committed=true;
+   const previous={session:history.session,past:[...history.past],future:[...history.future]};try{history.execute([{op:'region.commitStretch',target:plan.region.id,values:{ratio:plan.ratio,assetId,sampleRate:source.sampleRate,channels:source.numberOfChannels,frames:rendered.length}}],revision);persist();}catch(error){Object.assign(history,previous);throw error;}committed=true;plan.committedSession=structuredClone(session());
    files.set(assetId,file);buffers.set(assetId,rendered);urls.set(assetId,URL.createObjectURL(file));peaks.set(assetId,Array.from({length:240},(_,i)=>{let peak=0;for(const data of channels)for(let j=Math.floor(i*data.length/240);j<Math.floor((i+1)*data.length/240);j+=Math.max(1,Math.floor(data.length/240/1000)))peak=Math.max(peak,Math.abs(data[j]));return peak;}));
-   selected=session().tracks.flatMap(t=>t.regions).find(r=>r.assetId===assetId).id;regionSelection=[selected];selectedNote=null;status='Stretched audio created. Original region muted.';trace.push({role:'action',text:status});
+   selected=session().tracks.flatMap(t=>t.regions).find(r=>r.assetId===assetId).id;regionSelection=[selected];selectedNote=null;status='Stretched audio created. Original region muted.';trace.push({role:'action',text:status});return status;
   }finally{if(assetId&&!committed)await deleteAsset(scope,assetId).catch(()=>{});bounceController=null;busy=false;paint();}
  }
  async function bounceInPlace(prepared=null,request=null){
@@ -358,13 +358,13 @@ export function createExperimentalWorkspace({account,esc}){
     for(let attempt=0;attempt<2;attempt++){
      request.signal.throwIfAborted();
      transportSnapshot=currentTransport();clipboardSnapshot={sessionId:before.id,revision,epoch:clipboardEpoch,count:regionClipboard?.count||0,position:transportSnapshot.position,transportEpoch:transportSnapshot.epoch};
-     const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({editingContinuation:editStep>0,remainingEditSteps:2-editStep,instruction,session:before,conversation:recent,allowBounceInPlace:true,allowClipboard:true,clipboardContext:clipboardSnapshot,allowHistory:true,historyContext:historySnapshot,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selectedRegionIds,selection}),signal:request.signal});
+     const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({editingContinuation:editStep>0,remainingEditSteps:2-editStep,instruction,session:before,conversation:recent,allowAudioStretch:true,allowBounceInPlace:true,allowClipboard:true,clipboardContext:clipboardSnapshot,allowHistory:true,historyContext:historySnapshot,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selectedRegionIds,selection}),signal:request.signal});
      result=await response.json();if(!response.ok)throw Error(result.error||'The agent request failed.');request.signal.throwIfAborted();
      if(!root?.isConnected||history!==original||session().id!==before.id||session().revision!==revision||result.revision!==revision){outcome='discarded';throw Error('The session changed. This response was not applied. Run the instruction again.');}
      if(result.action!==undefined&&result.afterEditExport!==undefined)throw Error('Follow-up export belongs only in an edit plan.');
      if(editStep&&result.action!==undefined&&result.action!=='analyze_mix')throw Error('Continuation supports only editing and mix analysis.');
      if(result.action===undefined)break;
-     if(['bounce_in_place','bounce_track_in_place','bounce_tracks_in_place'].includes(result.action)){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Bounce in place must be separate from edits and follow-up actions.');break;}
+     if(['stretch_audio_region','bounce_in_place','bounce_track_in_place','bounce_tracks_in_place'].includes(result.action)){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Bounce in place must be separate from edits and follow-up actions.');break;}
      if(result.action==='clipboard'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Clipboard requests must be separate from edits and follow-up actions.');break;}
      if(result.action==='history'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('History must be separate from edits and follow-up actions.');break;}
      if(result.action==='export_audio'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Export must be separate from edits and transport.');break;}
@@ -382,7 +382,9 @@ export function createExperimentalWorkspace({account,esc}){
      if(result.transportEpoch!==transportSnapshot.epoch||transportEpoch!==transportSnapshot.epoch){outcome='discarded';throw Error('Transport changed while planning. No edits applied. Run the instruction again.');}
     }
     summary=String(result.summary||'No edits requested.').slice(0,2000);
-    if(['bounce_in_place','bounce_track_in_place','bounce_tracks_in_place'].includes(result.action)){
+    if(result.action==='stretch_audio_region'){
+     const plan=prepareAudioStretch(before,result.stretch,exportContext);try{summary=await stretchRegion(plan,request);}finally{applied=Boolean(plan.committedSession);if(applied)appliedSession=plan.committedSession;}outcome='applied';
+    }else if(['bounce_in_place','bounce_track_in_place','bounce_tracks_in_place'].includes(result.action)){
      const prepared=(result.action==='bounce_tracks_in_place'?prepareTracksBounce:result.action==='bounce_track_in_place'?prepareTrackBounce:prepareRegionBounce)(before,result.bounce,exportContext);try{summary=await bounceInPlace(prepared,request);}finally{applied=Boolean(prepared.committedSession);if(applied)appliedSession=prepared.committedSession;}outcome='applied';
     }else if(result.action==='clipboard'){
      const action=resolveClipboardAction(before,result.clipboard,clipboardSnapshot,selectedRegionIds);
