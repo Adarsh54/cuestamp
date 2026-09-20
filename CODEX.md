@@ -3564,3 +3564,9 @@ Source: MIDI Association RP-015, linked from [MIDI 1.0 Addenda](https://midi.org
 ### Reset-aware controller curves
 
 Expression, sustain and pitch-bend lanes display CC121-derived resets as outlined squares, and their step curves follow actual reset order, including messages sharing a timestamp. Volume and pan do not show a reset because CC121 leaves those values intact. Reset markers are annotations rather than editable lane points: use MIDI events to modify or delete the underlying CC121 message. Clicking a reset marker does not create another event. This preserves the reset’s effects on other controllers. Tests compare reset-derived curve values with playback state and browser-check marker behavior.
+
+### Dense MIDI playback scheduling
+
+The audio engine groups region events by MIDI channel once and compiles gain/pan, sustain-release and pitch/tuning timelines once per active channel. All voices reuse this interpretation. Sustain and seek positions use binary lookup; pitch scheduling visits only points inside the note's audible interval. Sampler seek integration reuses the compiled pitch timeline. The cache is local to each scheduling call, so edits cannot leave stale controller state behind.
+
+Tests compare compiled behavior against direct evaluation for unsorted and same-time events, verify 20,000 events/notes, and render tuning, sampler seeks and controller resets in Chromium. A local Node microbenchmark with 2,000 controller events measured approximately 69 ms for the former repeated gain scans versus 1 ms for compilation. This is a preparation benchmark, not a promise about end-to-end playback startup or physical hardware latency. Node creation, decoding, effects and the number of audible voices still contribute to startup cost.
