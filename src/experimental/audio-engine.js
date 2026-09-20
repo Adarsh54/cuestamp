@@ -1,3 +1,4 @@
+import {createLiveAutomation} from './automation-live.js';
 import {effectiveAutomationSession} from './automation-mode.js';
 import {scheduleRegionEnvelope} from './region-fades.js';
 import {samplerRelease} from './sampler-envelope.js';
@@ -23,6 +24,16 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
    else{let buffer=buffers.get(r.assetId);if(!buffer)throw Error(`Missing audio: ${r.name}. Re-import the file.`);if(r.offset+r.duration>buffer.duration+.01)throw Error(`Region exceeds its source: ${r.name}`);let offset=r.offset+relative;if(r.reverse){const reversed=context.createBuffer(buffer.numberOfChannels,Math.ceil(r.duration*buffer.sampleRate),buffer.sampleRate);for(let c=0;c<buffer.numberOfChannels;c++){const input=buffer.getChannelData(c),output=reversed.getChannelData(c);for(let i=0;i<output.length;i++)output[i]=input[Math.floor((r.offset+r.duration)*buffer.sampleRate)-1-i]||0;}buffer=reversed;offset=relative;}const source=context.createBufferSource();source.buffer=buffer;source.connect(regionGain);source.start(when,offset,length);nodes.push(source);}
   }
  }
- return {base,meters,stop(){meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
+ const lanes=new Map();
+ const addLane=(id,parameter,param,points,fallback)=>lanes.set(`${id}:${parameter}`,{param,points:structuredClone(points||[]),fallback});
+ addLane(session.id,'gainDb',masterGain.gain,session.masterAutomation,session.masterDb);
+ addLane(session.id,'pan',masterPan.pan,session.masterAutomation,session.masterPan||0);
+ for(const track of session.tracks.filter(t=>t.kind!=='video'&&!t.mute)){
+  const channel=channels.get(track.id);
+  addLane(track.id,'gainDb',channel.gain.gain,track.automation,track.gainDb);
+  addLane(track.id,'pan',channel.pan.pan,track.automation,track.pan);
+ }
+ const automation=createLiveAutomation({context,base,position,lanes});
+ return {base,meters,automation,stop(){automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
 }
 export {encodeWav} from './wav.js';
