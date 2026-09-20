@@ -41,3 +41,19 @@ test('session scheduler exposes master and audible channels, respects Off and mu
  playback.automation.set('t','gainDb',0);context.currentTime=1;playback.automation.release('t','gainDb',.1);assert.deepEqual(events.at(-1),[10**(-6/20),1.1]);
  assert.throws(()=>playback.automation.set('muted','gainDb',0));playback.automation.set(h.session.id,'pan',.5);playback.stop();assert.throws(()=>playback.automation.set(h.session.id,'pan',0),/stopped/);
 });
+
+test('live trim follows future automation instead of holding an absolute fader value',()=>{
+ const {control,context,events}=setup();assert.equal(control.trim('t','gainDb',3),4);
+ assert.deepEqual(events,[['cancel',102],['set',10**(-11.4/20),102],['exp',10**(3/20),108],['set',10**(9/20),110]]);
+ context.currentTime=103;events.length=0;control.trim('t','gainDb',-3);assert.ok(Math.abs(events[1][1]-10**(-15/20))<1e-12);assert.throws(()=>control.release('t','gainDb'),/resume/);
+ control.cancel('t','gainDb');assert.equal(events.at(-1)[1],10**(6/20));
+});
+test('trim validates current and future bounds before changing a live schedule',()=>{
+ const {control,events}=setup();for(const offset of [NaN,Infinity,109,7,-97])assert.throws(()=>control.trim('t','gainDb',offset));assert.equal(events.length,0);
+});
+test('trim curve segments are expanded once and committed playback resumes exactly',()=>{
+ const {control,events,points,context}=setup('gainDb','smooth');control.trim('t','gainDb',1);
+ // There are fewer than 64 remaining linearized base intervals, not 64 squared.
+ assert.ok(events.length<70);context.currentTime=103;events.length=0;
+ const committed=[...points,{parameter:'gainDb',time:5,value:-6,shape:'linear'},{parameter:'gainDb',time:6,value:-12,shape:'hold'}];control.replace('t','gainDb',committed,0);control.resume('t','gainDb');assert.equal(events[1][1],10**(-6/20));assert.ok(events.some(e=>e[0]==='exp'&&e[1]===10**(-12/20)&&e[2]===104));const length=events.length;control.cancel('t','gainDb');assert.equal(events.length,length);control.stop();assert.throws(()=>control.trim('t','gainDb',0),/stopped/);
+});

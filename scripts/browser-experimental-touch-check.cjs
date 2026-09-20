@@ -64,5 +64,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   return rendered[1].map((v,i)=>v/rendered[0][i]);
  });
  for(const [i,offset]of [0,4.5,3,0].entries())assert.ok(Math.abs(trimRatios[i]-10**(offset/20))<.001);
- console.log('PASS range Trim UI/undo; Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return and changing Trim render. Physical/realtime audio not tested.');
+ const liveTrim=await page.evaluate(async()=>{
+  const {scheduleSession}=await import('/src/experimental/audio-engine.js'),{newSession,SessionHistory}=await import('/src/experimental/session.js');const h=new SessionHistory(newSession());
+  h.execute([{op:'track.add',values:{id:'audio',kind:'audio'}},{op:'region.add',target:'audio',values:{assetId:'signal',start:0,duration:1}},{op:'automation.point',target:'audio',values:{parameter:'gainDb',time:0,value:-24}},{op:'automation.point',target:'audio',values:{parameter:'gainDb',time:1,value:-12}}]);
+  const ctx=new OfflineAudioContext(2,48000,48000),buffer=ctx.createBuffer(1,48000,48000);buffer.getChannelData(0).fill(.2);const player=scheduleSession(ctx,h.session,new Map([['signal',buffer]]),0,{baseTime:0});const first=ctx.suspend(.25),rendering=ctx.startRendering();await first;const start=player.automation.trim('audio','gainDb',6);const second=ctx.suspend(.5);await ctx.resume();await second;const end=ctx.currentTime;
+  h.execute([{op:'automation.trimRecord',target:'audio',values:{parameter:'gainDb',samples:JSON.stringify([{time:start,value:6},{time:end,value:6}]),returnSeconds:.1}}]);player.automation.replace('audio','gainDb',h.session.tracks[0].automation,0);player.automation.resume('audio','gainDb');await ctx.resume();const result=await rendering,data=result.getChannelData(0),reference=data[4800];
+  return {end,ratios:[.1,.4,.55,.8].map(t=>data[Math.round(t*48000)]/reference/10**((12*(t-.1))/20))};
+ });
+ for(const [i,offset]of [0,6,6*(1-(.55-liveTrim.end)/.1),0].entries())assert.ok(Math.abs(liveTrim.ratios[i]-10**(offset/20))<.001);
+ console.log('PASS range Trim UI/undo; Write start/stop/undo/discard; automated fader playback/seek/drag protection; Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return and changing/live Trim renders. Physical/realtime audio not tested.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
