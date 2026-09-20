@@ -1,4 +1,4 @@
-import {snapArrangementTime,snapArrangementDelta,arrangementStep,defaultArrangementSnap} from './arrangement-snap.js';
+import {snapArrangementTime,snapArrangementDelta,arrangementKeyboardDelta,defaultArrangementSnap} from './arrangement-snap.js';
 import {timelinePosition} from './timeline-ruler.js';
 const limit=86400,minLength=.001,clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 export function cycleGesture(session,action,from,to,settings=defaultArrangementSnap,bypass=false){
@@ -24,7 +24,7 @@ export function bindCycleStrip(root,{session,zoom,mode,settings,execute,guard,bl
  const toggle=()=>commit({loopEnabled:!session.loopEnabled});
  root.querySelector('[data-cycle-strip-toggle]').onclick=guard(()=>{if(!blocked())toggle();});
  body.onclick=guard(e=>{if(e.detail===0&&!blocked())toggle();});
- strip.onkeydown=guard(e=>{if(blocked()||!['ArrowLeft','ArrowRight'].includes(e.key))return;const edge=e.target.dataset.cycleEdge,action=edge||'move';if(!edge&&!e.target.matches('[data-cycle-body]'))return;e.preventDefault();const amount=e.shiftKey ? .01 : (arrangementStep(session,settings.grid)||.01),anchor=action==='end'?session.loopEnd:session.loopStart;commit(cycleGesture(session,action,anchor,anchor+(e.key==='ArrowLeft'?-amount:amount),settings,e.shiftKey));const target=root.querySelector(edge?`[data-cycle-edge="${edge}"]`:'[data-cycle-body]');target?.focus({preventScroll:true});});
+ strip.onkeydown=guard(e=>{if(blocked()||!['ArrowLeft','ArrowRight'].includes(e.key))return;const edge=e.target.dataset.cycleEdge,action=edge||'move';if(!edge&&!e.target.matches('[data-cycle-body]'))return;e.preventDefault();const anchor=action==='end'?session.loopEnd:session.loopStart,direction=e.key==='ArrowLeft'?-1:1,delta=e.shiftKey?.01*direction:arrangementKeyboardDelta(session,settings.grid,anchor,direction);commit(cycleGesture(session,action,anchor,anchor+delta,settings,e.shiftKey));const target=root.querySelector(edge?`[data-cycle-edge="${edge}"]`:'[data-cycle-body]');target?.focus({preventScroll:true});});
  strip.onpointerdown=e=>{
   if(e.button!==0||blocked())return;e.preventDefault();e.stopPropagation();const edge=e.target.closest('[data-cycle-edge]')?.dataset.cycleEdge,action=edge||(e.target.closest('[data-cycle-range]')?'move':'draw'),point=event=>(event.clientX-strip.getBoundingClientRect().left)/zoom,from=point(e),origin=e.clientX,revision=session.revision;
   let moved=false,ended=false,last=e,values=null,error='',frame;

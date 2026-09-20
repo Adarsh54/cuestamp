@@ -19,3 +19,22 @@ export function snapArrangementDelta(session,delta,anchor,settings=defaultArrang
 }
 export function arrangementGridSpacing(session,zoom,grid){let pixels=arrangementStep(session,grid)*zoom;if(!pixels)return 0;while(pixels<8)pixels*=2;return pixels;}
 export function arrangementSnapView(settings,tool,disabled){const alignment=tool==='scissors'?'absolute':settings.alignment;return `<label>Snap<select data-arrangement-snap aria-label="Arrangement snap" ${disabled?'disabled':''}>${arrangementGrids.map(([value,label])=>`<option value="${value}" ${settings.grid===value?'selected':''}>${label}</option>`).join('')}</select></label><label>Alignment<select data-arrangement-alignment aria-label="Snap alignment" ${disabled||tool==='scissors'||settings.grid==='off'?'disabled':''}><option value="relative" ${alignment==='relative'?'selected':''}>Relative</option><option value="absolute" ${alignment==='absolute'?'selected':''}>Absolute</option></select></label>`;}
+
+export function arrangementKeyboardDelta(session,grid,position,direction){
+ if(direction!==1&&direction!==-1)throw Error('Choose a left or right keyboard step.');
+ const beats=musicalBeats(session,grid);
+ if(beats&&session.tempoChanges?.length)return durationForBeats(session,position,beats*direction);
+ return direction*(arrangementStep(session,grid)||.01);
+}
+export function arrangementGridLines(session,zoom,width,grid){
+ const beats=musicalBeats(session,grid);if(!beats||!session.tempoChanges?.length)return null;
+ if(!Number.isFinite(zoom)||zoom<=0||!Number.isFinite(width)||width<0)throw Error('Invalid arrangement grid dimensions.');
+ const map=compileTempoMap(session),end=map.beatAtTime(width/zoom),fastest=Math.max(...map.points.map(p=>p.bpm));let step=beats;
+ while(end/step>999||step*60/fastest*zoom<8)step*=2;
+ return Array.from({length:Math.min(1000,Math.floor(end/step)+1)},(_,i)=>map.timeAtBeat(i*step)*zoom);
+}
+export function arrangementGridStyle(session,zoom,width,grid){
+ const base=`--daw-grid-spacing:${arrangementGridSpacing(session,zoom,grid)}px;`,lines=arrangementGridLines(session,zoom,width,grid);if(!lines)return base;
+ const stops=lines.flatMap(x=>[`transparent ${x}px`,`var(--line) ${x}px`,`var(--line) ${x+1}px`,`transparent ${x+1}px`]);
+ return base+`--daw-grid-image:linear-gradient(to right,${stops.join(',')});`;
+}

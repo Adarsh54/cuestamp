@@ -3067,3 +3067,25 @@ OfflineAudioContext audio through complete track/master effect chains, compares
 samples with expected modulation, and compares a seek render with the matching
 full-render segment. This verifies offline PCM, not hardware real-time output.
 Saved project tempo-map controls are still pending arrangement-time integration.
+
+### Experimental DAW: mapped arrangement grids and keyboard steps
+
+Arrangement musical grid lines now convert absolute beat positions through the
+tempo map. Frame/seconds grids and constant-tempo rendering retain the existing
+uniform path. Mapped lines are bounded to 1,000 and thinned by powers of two when
+needed for eight-pixel visual spacing; edit snapping retains its actual selected
+interval. The timeline shares a bounded CSS gradient rather than adding DOM
+nodes per track.
+
+Cycle and section-edge keyboard gestures now calculate signed musical movement
+at the edited position. Left steps integrate backward, right steps forward;
+they can differ in seconds at a tempo boundary. Shift continues to use 0.01-second
+free movement, and Off retains its fine-step fallback. Pointer snapping already
+uses the mapped conversion helpers.
+
+`experimental-mapped-arrangement-grid.test.js` checks variable spacing, bounds,
+fixed-time grid compatibility and directional steps. The browser script
+`browser-experimental-mapped-arrangement-check.cjs` verifies actual cycle/section
+keyboard handlers and generated grid positions. Project-time insertion/deletion
+and section content transfers still need tempo-map handling before enabling
+saved project maps.
