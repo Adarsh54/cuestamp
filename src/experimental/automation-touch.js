@@ -1,38 +1,61 @@
 import {createAutomationCapture} from './automation-capture.js';
 
-// One user-controlled fader at a time. Captured edits go through the same
-// revision-checked command engine as manual and agent edits.
-export function createTouchRecording({getState,commit}){
- let active=null;
- function cancel(){const gesture=active;active=null;if(!gesture)return;gesture.capture.cancel();try{gesture.playback.automation.cancel(gesture.target,gesture.parameter);}catch{}}
- function verify(gesture,state){if(state.playback!==gesture.playback||state.epoch!==gesture.epoch||state.session.id!==gesture.sessionId||state.session.revision!==gesture.revision)throw Error('Playback or the project changed during automation recording.');}
- function finish(){
-  const gesture=active;if(!gesture)return false;
+// Captured edits use the same revision-checked commands as manual/agent edits.
+// Latch keeps several lanes live until Stop; the resulting batch is one undo.
+export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
+ const active=new Map(),key=(target,parameter)=>`${target}:${parameter}`;
+ function cancel(){const gestures=[...active.values()];active.clear();for(const g of gestures){g.capture.cancel();try{g.playback.automation.cancel(g.target,g.parameter);}catch{}}}
+ function verify(g,state){if(state.playback!==g.playback||state.epoch!==g.epoch||state.session.id!==g.sessionId||state.session.revision!==g.revision)throw Error('Playback or the project changed during automation recording.');}
+ function finish(gestures=[...active.values()]){
+  if(!gestures.length)return false;
   try{
-   const state=getState();verify(gesture,state);
-   if(state.position<=gesture.start){cancel();return false;}
-   const samples=gesture.capture.finish(state.position);
-   const command={op:'automation.record',target:gesture.target,values:{parameter:gesture.parameter,samples:JSON.stringify(samples),returnSeconds:.1}};
-   commit(command,gesture.revision);
-   // Keep playback's source curve in sync for another touch during the return.
-   const updated=getState().session,owner=gesture.target===updated.id?{automation:updated.masterAutomation,gainDb:updated.masterDb,pan:updated.masterPan}:updated.tracks.find(t=>t.id===gesture.target);
-   gesture.playback.automation.replace(gesture.target,gesture.parameter,owner.automation,owner[gesture.parameter]);
-   gesture.playback.automation.release(gesture.target,gesture.parameter,.1);
-   active=null;return true;
+   const state=getState();for(const g of active.values())verify(g,state);
+   const valid=gestures.filter(g=>state.position>g.start);
+   const commands=valid.map(g=>({op:'automation.record',target:g.target,values:{parameter:g.parameter,samples:JSON.stringify(g.capture.finish(state.position)),returnSeconds:.1}}));
+   if(commands.length)commit(commands,state.session.revision);
+   const updated=getState().session;
+   for(const g of gestures){
+    if(valid.includes(g)){
+     const owner=g.target===updated.id?{automation:updated.masterAutomation,gainDb:updated.masterDb,pan:updated.masterPan}:updated.tracks.find(t=>t.id===g.target);
+     g.playback.automation.replace(g.target,g.parameter,owner.automation,owner[g.parameter]);g.playback.automation.release(g.target,g.parameter,.1);
+    }else{g.capture.cancel();g.playback.automation.cancel(g.target,g.parameter);}
+    active.delete(key(g.target,g.parameter));
+   }
+   for(const g of active.values())g.revision=updated.revision;
+   return commands.length>0;
   }catch(error){cancel();throw error;}
  }
+ function release(target,parameter){
+  const g=active.get(key(target,parameter));if(!g)return false;
+  if(g.mode!=='latch')return finish([g]);
+  try{const state=getState();verify(g,state);g.capture.push(state.position,g.value);g.released=true;return false;}catch(error){cancel();throw error;}
+ }
  return {
-  get active(){return Boolean(active);},finish,cancel,
+  get active(){return active.size>0;},get count(){return active.size;},value(target,parameter){return active.get(key(target,parameter))?.value;},finish,cancel,release,
+  beforePaint(){
+   // A latch remains deliberately held across channel selection and repaint.
+   if(getMode()==='latch'){try{for(const g of active.values())release(g.target,g.parameter);}catch{cancel();}}else cancel();
+  },
   input(target,parameter,value){
-   let state=getState();if(active&&(active.target!==target||active.parameter!==parameter)){finish();state=getState();}
+   let state=getState();const mode=getMode(),id=key(target,parameter);
+   if(mode!=='latch'&&active.size&&!active.has(id)){finish();state=getState();}
    try{
-    if(!state.playback||state.playback.loop||state.playback.compPreview||!state.playback.automation)throw Error('Touch recording needs normal playback with Cycle off.');
+    if(!['touch','latch'].includes(mode))throw Error('Choose Touch or Latch recording.');
+    if(!state.playback||state.playback.loop||state.playback.compPreview||!state.playback.automation)throw Error('Automation recording needs normal playback with Cycle off.');
     const owner=target===state.session.id?{automationMode:state.session.masterAutomationMode,automationMuted:state.session.masterAutomationMuted}:state.session.tracks.find(t=>t.id===target);
     if(!owner||owner.kind==='video'||owner.mute||owner.protected)throw Error('Choose an unmuted, unprotected mixer channel.');
-    if(owner.automationMode==='off'||owner.automationMuted?.includes(parameter))throw Error('Enable Read for this automation lane before recording Touch.');
-    if(active)verify(active,state);
-    if(!active){const capture=createAutomationCapture({start:state.position,value,min:parameter==='pan'?-1:-96,max:parameter==='pan'?1:12});active={target,parameter,capture,start:state.position,playback:state.playback,epoch:state.epoch,sessionId:state.session.id,revision:state.session.revision};}
-    else active.capture.push(state.position,value);
+    if(owner.automationMode==='off'||owner.automationMuted?.includes(parameter))throw Error('Enable Read for this automation lane before recording.');
+    for(const g of active.values())verify(g,state);
+    let g=active.get(id);
+    if(!g){
+     if(active.size>=100)throw Error('Stop this automation pass before recording more than 100 lanes.');
+     const capture=createAutomationCapture({start:state.position,value,min:parameter==='pan'?-1:-96,max:parameter==='pan'?1:12});
+     g={target,parameter,capture,value,mode,released:false,start:state.position,playback:state.playback,epoch:state.epoch,sessionId:state.session.id,revision:state.session.revision};active.set(id,g);
+    }else{
+     // Holding after release must not become a long slope toward the next move.
+     const last=g.capture.points.at(-1);if(g.released&&state.position>last.time)g.capture.push(Math.max(last.time,state.position-1e-6),g.value);
+     g.capture.push(state.position,value);g.value=value;g.released=false;
+    }
     state.playback.automation.set(target,parameter,value);
    }catch(error){cancel();throw error;}
   },

@@ -3,7 +3,7 @@ import {createTouchRecording} from '../src/experimental/automation-touch.js';
 import {newSession,SessionHistory} from '../src/experimental/session.js';
 function setup(){
  const history=new SessionHistory(newSession());history.execute([{op:'track.add',values:{id:'t',kind:'audio'}}]);const calls=[],state={session:history.session,epoch:1,position:1,playback:{automation:Object.fromEntries(['set','replace','release','cancel'].map(name=>[name,(...args)=>calls.push([name,...args])]))}};
- const touch=createTouchRecording({getState:()=>({...state,session:history.session}),commit:(command,revision)=>history.execute([command],revision)});return {touch,history,state,calls};
+ const touch=createTouchRecording({getState:()=>({...state,session:history.session}),commit:(commands,revision)=>history.execute(commands,revision)});return {touch,history,state,calls};
 }
 test('Touch commits an undoable gesture, preserves static value and continues playback',()=>{
  const {touch,history,state,calls}=setup(),before=structuredClone(history.session);touch.input('t','gainDb',-6);state.position=2;touch.input('t','gainDb',-12);state.position=3;assert.equal(touch.finish(),true);

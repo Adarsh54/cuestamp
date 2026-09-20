@@ -16,6 +16,15 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
  const revision=(await session()).revision;await input(4,-3);await page.locator('[data-mix-gain="t"]').dispatchEvent('keydown',{key:'Escape'});assert.equal((await session()).revision,revision);
  await input(5,-9);await page.evaluate(()=>window.testAudioTime=6);await page.locator('[data-action=stop]').click();assert.equal((await session()).revision,revision+1);assert.equal(await page.locator('[data-action=play]').textContent(),'Play');
  await page.locator('[data-action=undo]').click();assert.equal((await session()).tracks[0].automation.some(p=>p.time>4),false);
+ // Latch several lanes, retain them through repaint, and save/discard whole passes.
+ await page.locator('[data-touch-mode]').selectOption('latch');await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();
+ const latchRevision=(await session()).revision;await input(7,-15);await page.locator('[data-mix-gain="t"]').dispatchEvent('change');
+ assert.equal((await session()).revision,latchRevision);assert.equal(await page.locator('[data-mix-gain="t"]').inputValue(),'-15');
+ await page.evaluate(()=>{window.testAudioTime=8;const el=document.querySelector('[data-mix-pan="t"]');el.value='.5';el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));});
+ await page.getByText('2 automation lanes recording',{exact:true}).waitFor();assert.equal(await page.locator('[data-mix-gain="t"]').inputValue(),'-15');
+ await page.evaluate(()=>window.testAudioTime=12);await page.locator('[data-action=stop]').click();assert.equal((await session()).revision,latchRevision+1);assert.ok((await session()).tracks[0].automation.some(p=>p.parameter==='pan'&&p.time>5&&p.value===.5));
+ await page.locator('[data-action=undo]').click();assert.equal((await session()).tracks[0].automation.some(p=>p.parameter==='pan'),false);
+ await page.locator('[data-action=play]').click();await page.getByRole('button',{name:'Pause',exact:true}).waitFor();await input(13,-5);await page.locator('[data-mix-gain="t"]').dispatchEvent('change');const discardRevision=(await session()).revision;await page.locator('[data-touch-cancel]').click();await page.locator('[data-action=stop]').click();assert.equal((await session()).revision,discardRevision);
  // Verify actual rendered audio separately from the UI's controllable clock.
  const rendered=await page.evaluate(async()=>{
   const {scheduleSession}=await import('/src/experimental/audio-engine.js'),{newSession,SessionHistory}=await import('/src/experimental/session.js');
@@ -27,5 +36,5 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const asse
   return [.1,.4,.8].map(t=>d[Math.floor(t*48000)]);
  });
  assert.ok(Math.abs(rendered[1]/rendered[0]-.1)<.001);assert.ok(Math.abs(rendered[2]/rendered[0]-1)<.001);assert.deepEqual(errors,[]);
- console.log('PASS Touch UI record/release, Escape, stop/undo; actual offline audio override/return. Physical/realtime audio not tested.');
+ console.log('PASS Touch/Latch UI release, held readback, multi-lane stop/undo/discard, Escape; actual offline audio override/return. Physical/realtime audio not tested.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
