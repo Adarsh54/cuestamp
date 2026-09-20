@@ -3154,3 +3154,9 @@ The Tempo map panel adds, updates and removes step tempo changes. Its beat field
 Manual controls and agent commands share `tempo.add`, `tempo.set`, and `tempo.delete`. Changes preserve MIDI region, note and controller beat positions, including MIDI fades. Audio/video, automation, markers and locators retain absolute seconds. Protected MIDI tracks reject timing changes. Tempo maps support undo, local/account saves and MIDI export; this is step tempo, not tempo ramps or changing time signatures.
 
 Verification: `node --test test/experimental-tempo-commands.test.js test/experimental-cloud-projects.test.js`; `scripts/browser-experimental-tempo-map-check.cjs` covers actual controls, reload and rendered MIDI audio timing. The agent test mocks provider responses; it does not establish live model quality.
+
+### MIDI import tempo choices
+
+The MIDI import timing panel controls file imports only; captured MIDI takes keep their recorded timing. Preserve performance (default) imports seconds exactly. Follow session tempo converts file beat positions into the destination map at the insertion time, including note ends, channel events and markers. Use file tempo replaces the session map from the insertion time onward with the file map, preserves earlier tempo points, and retimes existing MIDI to keep its beats. Audio/video and existing markers/automation retain seconds. The final imported tempo continues until another change is added. Each file and its tempo edit form one undo step; protected MIDI retiming rejects the whole import.
+
+The shared `midi.import` command accepts `tempoMode: "performance" | "follow" | "adopt"`. MIDI tempo adoption/following uses the session limits (20–300 BPM, 256 changes, 24 hours). Use Preserve performance for a file outside those tempo limits. Verify with `test/experimental-midi-import-timing.test.js` and `scripts/browser-experimental-midi-import-tempo-check.cjs`.

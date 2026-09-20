@@ -1,0 +1,21 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');const assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_EXECUTABLE,headless:true});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/auth?*',r=>r.fulfill({json:{configured:true,user:{id:'midi-tempo',email:'test@example.com'},profile:{name:'Test',occupation:'Composer',complete:true}}}));
+ await page.route('**/api/projects*',r=>r.fulfill({json:{projects:[]}}));await page.route('**/api/daw',r=>r.fulfill({json:{configured:false}}));
+ await page.goto((process.env.CUESTAMP_URL||'http://127.0.0.1:5190/')+'#/experimental');
+ const saved=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:midi-tempo')));
+ const bytes=await page.evaluate(async()=>{const {newSession,applyCommands}=await import('/src/experimental/session.js'),{writeMidi}=await import('/src/experimental/midi.js');return [...writeMidi(applyCommands(newSession(),[{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',duration:8}},{op:'note.add',target:'r',values:{start:3,duration:2}},{op:'tempo.add',values:{beat:8,bpm:60}}]))];});
+ await page.getByText('MIDI import timing',{exact:true}).click();await page.locator('[data-midi-import-tempo]').selectOption('adopt');
+ const file={name:'tempo.mid',mimeType:'audio/midi',buffer:Buffer.from(bytes)};
+ await page.locator('#daw-files').setInputFiles(file);
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:midi-tempo'))?.tracks.length===1);
+ let s=await saved();assert.equal(s.tempoChanges[0].bpm,60);assert.equal(s.tracks[0].regions[0].notes[0].duration,3);
+ await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal((await saved()).tempoChanges.length,0);
+ if(!await page.locator('[data-midi-import-tempo]').isVisible())await page.getByText('MIDI import timing',{exact:true}).click();
+ await page.locator('[data-midi-import-tempo]').selectOption('follow');await page.locator('#daw-files').setInputFiles(file);
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:midi-tempo'))?.tracks.length===1);
+ s=await saved();assert.equal(s.tempoChanges.length,0);assert.equal(s.tracks[0].regions[0].notes[0].duration,2);
+ await page.reload();await page.locator('.daw-region.midi').waitFor();assert.equal((await saved()).tracks[0].regions[0].notes[0].duration,2);assert.deepEqual(errors,[]);
+ console.log('PASS MIDI file upload with adopt/follow tempo modes, atomic undo and persisted timing.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

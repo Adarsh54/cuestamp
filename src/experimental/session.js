@@ -1,3 +1,4 @@
+import {applyMidiImportTiming} from './midi-import-timing.js';
 import {musicalNoteShift} from './musical-note-shift.js';
 import {compileTempoMap,retimeMidiTracks} from './tempo-map.js';
 import {swapProjectSections,replaceProjectSection} from './section-exchange.js';
@@ -91,7 +92,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'session.deleteTime':pick(v,['start','end']);deleteProjectTime(session,v);break;
    case 'session.insertTime':pick(v,['position','duration']);insertProjectTime(session,v);break;
    case 'midi.import':{
-    pick(v,['data','start','trackId','minimumDuration']);const destination=v.trackId===undefined?null:need(session.tracks.find(t=>t.id===v.trackId),'Destination track');if(destination&&destination.kind!=='midi')throw Error('MIDI takes require an instrument track.');const start=time.parse(v.start??0),midi=readMidi(decodeMidiImport(v.data));
+    pick(v,['data','start','trackId','minimumDuration','tempoMode']);const destination=v.trackId===undefined?null:need(session.tracks.find(t=>t.id===v.trackId),'Destination track');if(destination&&destination.kind!=='midi')throw Error('MIDI takes require an instrument track.');const start=time.parse(v.start??0),midi=readMidi(decodeMidiImport(v.data));
     if(!midi.tracks.length&&!midi.markers.length)throw Error('This MIDI file has no notes, channel events or markers to import.');
     if(session.markers.length+midi.markers.length>1000)throw Error('Import would exceed the 1,000-marker session limit.');
     if(!destination&&session.tracks.length+midi.tracks.length>128)throw Error('Import would exceed the 128-track session limit.');
@@ -100,10 +101,11 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
      if(source.notes.length>20000||source.events.length>20000)throw Error('Each imported MIDI track supports up to 20,000 notes and 20,000 channel events.');
      const duration=Math.max(.1,time.parse(v.minimumDuration??0),...source.notes.map(n=>n.start+n.duration),...source.events.map(e=>e.start+.001));
      return track.parse({id:crypto.randomUUID(),name:source.name.slice(0,200),kind:'midi',gainDb:0,pan:0,mute:false,solo:false,instrument:'triangle',
-      regions:[{id:crypto.randomUUID(),name:source.name.slice(0,200),assetId:null,start,offset:0,duration,gainDb:0,fadeIn:0,fadeOut:0,reverse:false,notes:source.notes,events:source.events}],
+      regions:[{id:crypto.randomUUID(),name:source.name.slice(0,200),assetId:null,start:0,offset:0,duration,gainDb:0,fadeIn:0,fadeOut:0,reverse:false,notes:source.notes,events:source.events}],
      });
     });
-    if(destination)destination.regions.push(...imported.flatMap(t=>t.regions));else session.tracks.push(...imported);session.markers.push(...midi.markers.map(m=>({id:crypto.randomUUID(),name:m.name,time:start+m.time})));break;
+    const markers=applyMidiImportTiming(session,midi,imported,start,v.tempoMode);
+    if(destination)destination.regions.push(...imported.flatMap(t=>t.regions));else session.tracks.push(...imported);session.markers.push(...markers.map(m=>({id:crypto.randomUUID(),...m})));break;
    }
    case 'master.gain.offset':if(target!==undefined&&target!==session.id)throw Error('Target the current session for a master gain adjustment.');pick(v,['deltaDb']);Object.assign(session,offsetMasterGain(session,v.deltaDb));break;
    case 'session.set':{const previousTiming={tempo:session.tempo,tempoChanges:structuredClone(session.tempoChanges)};Object.assign(session,pick(v,['title','tempo','meter','metronomeEnabled','metronomeRecordEnabled','countInBars','recordWithPlayback','audioPunchEnabled','audioPunchStart','audioPunchEnd','midiPunchEnabled','midiPunchStart','midiPunchEnd','midiMonitorEnabled','audioMonitorEnabled','audioMonitorDb','metronomeDb','masterDb','masterPan','masterAutomationMode','frameRate','loopEnabled','loopStart','loopEnd']));if(v.tempo!==undefined)retimeMidiTracks(session.tracks,previousTiming,session);break;}
