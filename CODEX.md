@@ -4970,3 +4970,13 @@ Verification: `test/experimental-sampler-zone-zero-agent.test.js` covers plannin
 Zone-map mouse/keyboard selection and the named zone buttons now dispatch the same bubbling change event as the zone dropdown. This reloads the selected source waveform and stops an active zone audition. Previously these shortcuts only replaced numeric fields, leaving a different source's waveform visible and its preview playing. Selecting a newly saved zone also emits the event so its waveform is available immediately.
 
 Verification: `scripts/browser-experimental-sampler-zone-switch-check.cjs` first reproduced the stale waveform with one- and two-second sources. It now verifies button selection, map keyboard and mouse selection, stopping an active audition, clearing the waveform for a new empty zone, and loading the newly saved zone. Production build passes. This change does not alter saved zone/audio formats.
+
+## Sampler waveform attack detection
+
+Expand **Find sample attacks** in a loaded zone waveform and choose **Detect attacks**. The existing transient worker analyzes the source using its defaults (9 dB rise, −45 dBFS floor, 50 ms minimum gap). It accepts up to ten minutes of mono/stereo audio within 250 MB of decoded PCM. The detector finds energy onsets, not beats; attack times can require manual refinement.
+
+Detected attacks appear as lines in the visible waveform and in a timestamp dropdown, with Previous/Next navigation. **Use as start/end** applies the selected attack to the active Sample or Loop draft. Boundaries snap to source frames and cannot cross or leave the selected sample portion in loop mode. Applying a loop boundary enables looping. No document changes occur until Save; the existing zone commands retain agent access to the resulting numerical boundaries.
+
+Detection can be canceled. Zone/source changes cancel pending work and clear temporary markers; disconnected forms ignore late results. Zoom redraws visible markers without rerunning detection. Markers and navigation are transient editor state, not saved attack markers in an audio region.
+
+Verification: `test/experimental-sampler-zone-attacks.test.js` checks immutable frame-aligned edits, containment and invalid requests. `scripts/browser-experimental-sampler-zone-attacks-check.cjs` exercises real worker detection of two synthetic attacks, navigation, markers while zoomed, sample/loop draft changes, rejection and persistence. Zone-selection regression and build pass. The rendered controls were visually inspected.

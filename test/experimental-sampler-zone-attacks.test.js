@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {zoneAttackRange} from '../src/experimental/sampler-zone-attacks.js';
+test('attack boundary edits snap to frames and preserve the other boundary',()=>{const range={start:.1,end:.9};assert.deepEqual(zoneAttackRange(range,'start',.3001,{start:0,end:1},1000),{start:.3,end:.9});assert.deepEqual(zoneAttackRange(range,'end',.7,{start:0,end:1},1000),{start:.1,end:.7});assert.deepEqual(range,{start:.1,end:.9});});
+test('attack edits reject crossings, out-of-selection loops and nonfinite data',()=>{for(const [edge,time] of [['start',.9],['end',.1],['start',.05],['end',.95],['start',NaN],['bad',.3]])assert.throws(()=>zoneAttackRange({start:.2,end:.8},edge,time,{start:.1,end:.9},1000));});
