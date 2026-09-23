@@ -156,3 +156,9 @@ form.daw-note-editor{margin-top:8px}
 
 .daw-sample-zone-map { margin: 12px 0; }
 .daw-sample-zone-map svg { display: block; width: 100%; max-height: 180px; }
+.daw-sample-zone-map [data-zone-map] { touch-action: none; user-select: none; }
+.daw-sample-zone-map [data-zone-shape] { fill: #1ed760; fill-opacity: .25; stroke: #1ed760; cursor: move; }
+.daw-sample-zone-map [data-zone-shape].selected { fill-opacity: .5; stroke-width: 2; }
+.daw-sample-zone-map [data-zone-handle] { fill: var(--text); stroke: var(--bg); cursor: ew-resize; }
+.daw-sample-zone-map [data-zone-handle^="velocity"] { cursor: ns-resize; }
+.daw-sample-zone-map [data-zone-shape]:focus, .daw-sample-zone-map [data-zone-handle]:focus { outline: 2px solid currentColor; }
