@@ -4023,3 +4023,32 @@ microphone, verifies saved passes and one-step undo/redo, cancellation cleanup,
 repeated accompaniment samples and digital click isolation. Ordinary recording
 regression coverage checks timing, saved PCM and cancellation/navigation cleanup.
 Real hardware latency/listening validation remains outstanding.
+
+
+### Experimental stereo phaser
+
+The mixer’s effect picker includes **Stereo phaser** on tracks, buses, and the
+master channel. It uses four second-order all-pass filters per side with sine
+modulation and a dry/wet mix. Shared `effect.add`, `effect.set`, and effect
+automation commands also expose it to the agent.
+
+- `rate`: 0.05–10 Hz; default 0.5.
+- `frequency`: 20–4,000 Hz; default 1,000. At low sample rates the renderer caps
+  the center below sample-rate / 8 so a full two-octave sweep stays below Nyquist.
+- `depthCents`: 0–2,400 cents; default 1,200. Zero fixes the filters in place.
+- `mix`: 0–1; default 0.5. Zero is dry; half wet produces cancellation notches.
+- `stereoPhase`: −180–180 degrees; default 90, static. Other controls support
+  automation and the existing live automation controls.
+
+Playback, mix renders, and stems use the same graph. Seeking restores the LFO
+phase from project time and rate automation; filter history starts empty. Wet
+phasers reserve a conservative two seconds of render tail. No feedback, tempo
+sync, envelope follower, or configurable stage count is implemented yet.
+
+Validation: `node --test test/experimental-phaser.test.js` and
+`scripts/browser-experimental-phaser-check.cjs` (using the Playwright setup above).
+The browser check tests real OfflineAudioContext output against an analytical
+static notch, unity all-pass energy, dry/bypass equivalence, stereo modulation,
+seek behavior with automated rate/depth/frequency/mix, and mixer save/undo/reload.
+Full tests: 971 passing; production build passes with the existing bundle-size
+warning. Live model inference is not covered by these checks.
