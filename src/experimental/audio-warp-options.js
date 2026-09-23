@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {validateAudioStretch} from './audio-stretch-options.js';
-const anchorsSchema=z.array(z.object({source:z.number().finite().positive(),target:z.number().finite().positive()}).strict()).min(1).max(64);
+export const anchorsSchema=z.array(z.object({source:z.number().finite().positive(),target:z.number().finite().positive()}).strict()).min(1).max(64);
 export function audioWarpPlan({sampleRate,frames,channels,anchors}){
  validateAudioStretch({sampleRate,frames,channels,ratio:1});const values=anchorsSchema.parse(anchors),points=[{source:0,target:0}];
  for(const v of values){const point={source:Math.round(v.source*sampleRate),target:Math.round(v.target*sampleRate)},last=points.at(-1);if(point.source<=last.source||point.target<=last.target||point.source>=frames||point.target>=frames)throw Error('Warp anchors must remain ordered and inside the audio on both timelines.');points.push(point);}
