@@ -2,15 +2,16 @@ import {audibleSources} from './routing.js';
 import {eventBytes,chasedEvents} from './midi-events.js';
 import {regionBendInitialization} from './midi-bend-export.js';
 import {compileMidiControllers} from './midi-controller-timeline.js';
-export function midiOutputPlan(session,trackId,start=0,{arrangement=false}={}){
+export function midiOutputPlan(session,trackId,start=0,{arrangement=false,endAt=null}={}){
  if(!Number.isFinite(start)||start<0||start>86400)throw Error('Choose a valid playback position.');
+ if(endAt!==null&&(!Number.isFinite(endAt)||endAt<=start||endAt>86400))throw Error('Choose a valid MIDI playback end.');
  const selected=session.tracks.find(t=>t.id===trackId&&t.kind==='midi');
  if(!arrangement){if(!selected)throw Error('Choose an instrument track.');if(selected.mute)throw Error('Unmute this track before playing it on the device.');}
  const tracks=arrangement?audibleSources(session).filter(t=>t.kind==='midi'):[selected];
  if(!tracks.length)throw Error('No audible MIDI tracks. Check mute and solo settings.');
- const messages=[],spans=new Map();let end=start;
+ const messages=[],spans=new Map();let end=endAt??start;
  const add=(time,bytes,priority)=>{if(messages.length>=200000)throw Error('This playback has too many MIDI messages for one playback.');messages.push({time,bytes,priority});};
- for(const track of tracks)for(const region of track.regions.filter(r=>!r.mute&&r.start+r.duration>start)){
+ for(const track of tracks)for(const region of track.regions.filter(r=>!r.mute&&r.start+r.duration>start&&(endAt===null||r.start<endAt)).map(r=>endAt===null?r:{...r,duration:Math.min(r.duration,endAt-r.start)})){
   const relative=Math.max(0,start-region.start),at=region.start+relative,limit=region.start+region.duration,notes=region.notes.filter(n=>!n.mute&&n.velocity>0),channels=new Set([...notes.map(n=>n.channel??0),...region.events.map(e=>e.channel??0)]);end=Math.max(end,limit);
   for(const channel of channels){const prior=spans.get(channel)||[];if(prior.some(([a,b])=>at<b&&limit>a))throw Error(`Overlapping regions share a MIDI channel (${channel+1}). Assign separate channels before hardware playback.`);prior.push([at,limit]);spans.set(channel,prior);
    for(const [cc,value] of [[121,0],[7,127],[10,64],[11,127],[64,0]])add(at,[0xb0|channel,cc,value],1);
@@ -24,4 +25,11 @@ export function midiOutputPlan(session,trackId,start=0,{arrangement=false}={}){
  }
  if(!messages.length)throw Error('No MIDI notes or events remain after the playhead.');
  messages.sort((a,b)=>a.time-b.time||a.priority-b.priority);return {trackId:arrangement?null:trackId,trackIds:tracks.map(t=>t.id),start,end,messages};
+}
+
+export function midiOutputPlaybackPlan(session,trackId,position,options={}){
+ if(!session.loopEnabled)return {...midiOutputPlan(session,trackId,position,options),cycle:false};
+ const duration=session.loopEnd-session.loopStart;
+ if(!Number.isFinite(duration)||duration<.01||duration>600)throw Error('MIDI cycle playback supports ranges from 0.01 seconds to 10 minutes.');
+ return {...midiOutputPlan(session,trackId,session.loopStart,{...options,endAt:session.loopEnd}),cycle:true};
 }
