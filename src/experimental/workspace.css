@@ -184,3 +184,12 @@ form.daw-note-editor{margin-top:8px}
 [data-sampler-automap] [hidden]{display:none!important}
 [data-filename-roots]{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:160px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 [data-filename-roots][data-valid=false]{color:var(--muted)}
+
+[data-sampler-create]{margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:8px}
+[data-sampler-create]>summary{cursor:pointer;font-weight:600;font-size:12px}
+.daw-inspector form[data-sampler-create-form]{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:12px}
+[data-sampler-create] [hidden]{display:none!important}
+[data-sampler-create] .daw-create-source-list{display:grid;gap:8px;max-height:220px;overflow:auto}
+[data-sampler-create] .daw-create-source-list label{display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
+[data-sampler-create] input[type=checkbox]{width:16px;height:16px;flex:none;margin:0}
+[data-create-preview]{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:6px}
