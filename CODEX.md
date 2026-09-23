@@ -5047,7 +5047,7 @@ Verification: slice-agent unit tests prove that saved mode bypasses the detector
 
 ## Export a MIDI region as MusicXML
 
-Select a pitched MIDI region and choose **Export region MusicXML**. The `.musicxml` file uses MusicXML 4.0 score-partwise with one part, treble clef, explicit chromatic pitches (sharp spellings), multiple voices for overlapping notes, rests and ties across measures. Tempo and meter changes follow the project maps; partial first/last bars are marked implicit. Export does not alter the session. Muted or zero-velocity notes are omitted.
+Select a pitched MIDI region and choose **Export region MusicXML**. The `.musicxml` file uses MusicXML 4.0 score-partwise with one part, the track clef (treble by default), explicit chromatic pitches (sharp spellings), multiple voices for overlapping notes, rests and ties across measures. Tempo and meter changes follow the project maps; partial first/last bars are marked implicit. Export does not alter the session. Muted or zero-velocity notes are omitted.
 
 Timing uses 960 divisions per quarter note. Notes that collapse below one tick reject; this is not a notation quantization editor. Limits are 2,048 measures and 128 simultaneous voices. Drum-kit/channel-10 percussion notation is not yet supported. Key-signature spelling, beams, tuplets as engraved groups, lyrics, expressive MIDI controllers, articulation engraving and MusicXML import remain future work. Source note pitches are exported without rendering instrument effects/tuning. The file is an interchange starting point, not evidence of built-in score-editor or professional engraving parity.
 
@@ -5068,3 +5068,9 @@ Selected MIDI regions now have a collapsible **Score preview** before the piano 
 Rendering has no automatic window-resize listener. Detached panels ignore pending loads, preventing a stale region from drawing into a new editor. Errors display inline. The renderer is a separate ~1.33 MB uncompressed/~352 KB gzip build chunk, fetched only on first opening the preview; the existing main-bundle size warning remains.
 
 Verification: `scripts/browser-experimental-score-preview-check.cjs` opens a polyphonic, bar-tied phrase, renders SVG, changes zoom, asserts a visible width (preventing a zero-width-container regression), and verifies unchanged session state. The actual rendered staff/notes/rests/tempo/tie were visually inspected. Full suite: 1,295 passing; build passes; npm audit reported zero vulnerabilities after installation. Renderer reference: https://github.com/opensheetmusicdisplay/opensheetmusicdisplay/wiki/Getting-Started.
+
+## Track notation clefs
+
+The score preview now offers Treble, Bass, Alto and Tenor clefs. This persists as optional track `scoreClef`; legacy tracks use treble. Manual changes execute `track.set`, so Undo/Redo and agent edits use the same validation. `track.add` also accepts the setting. Changing clef does not transpose pitches or alter MIDI timing/playback. MusicXML export and in-app rendering read the same track setting (G/2, F/4, C/3 or C/4 respectively).
+
+Verification: `test/experimental-score-clef.test.js` checks supported clefs, exact MusicXML attributes, persistence, invalid-value rejection, unchanged notes and Undo. `scripts/browser-experimental-score-clef-check.cjs` changes the rendered preview to bass, downloads the matching XML, and restores treble with Undo. The bass score was visually inspected and its downloaded file validates against MusicXML 4.0. Full suite: 1,296 passing; build passes.

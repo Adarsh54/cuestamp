@@ -15,9 +15,9 @@ export function musicxmlRegionPlan(session,track,region){
  return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
 }
 export function exportRegionMusicxml(session,track,region){
- const plan=musicxmlRegionPlan(session,track,region),parts=[];let lastSignature='';
+ const plan=musicxmlRegionPlan(session,track,region),parts=[],clefs={treble:['G',2],bass:['F',4],alto:['C',3],tenor:['C',4]},clef=clefs[track.scoreClef??'treble'];if(!clef)throw Error('Choose a supported score clef.');let lastSignature='';
  for(const [index,m] of plan.measures.entries()){
-  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions><key><fifths>0</fifths></key>':''}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?'<clef><sign>G</sign><line>2</line></clef>':''}`;lastSignature=signature;
+  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions><key><fifths>0</fifths></key>':''}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?`<clef><sign>${clef[0]}</sign><line>${clef[1]}</line></clef>`:''}`;lastSignature=signature;
   const music=[attributes?`<attributes>${attributes}</attributes>`:'',...m.tempos.map(t=>`<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${t.bpm}</per-minute></metronome></direction-type><offset>${t.offset}</offset><sound tempo="${t.bpm}"/></direction>`)];
   for(let voice=1;voice<=plan.voices;voice++){
    if(voice>1)music.push(`<backup><duration>${m.end-m.start}</duration></backup>`);let cursor=m.start;
