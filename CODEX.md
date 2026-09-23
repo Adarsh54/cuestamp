@@ -5122,3 +5122,10 @@ Verification: `test/experimental-score-clef.test.js` checks supported clefs, exa
 - Complete runs of three equal triplet-duration events now share a bracket and number in preview and MusicXML. Explicit rests can participate. Runs are grouped per voice within a bar/key segment; incomplete runs keep the individual 3:2 ratio labels. Mixed-length, nested and cross-bar tuplets remain ungrouped.
 - Rest notation also receives explicit type/dot/time-modification metadata when its length is recognized. All grouping is an export/engraving operation: source note pitches, timing and session data stay unchanged.
 - Checked `test/experimental-score-tuplets.test.js`, `scripts/browser-experimental-score-tuplet-check.cjs`, visually inspected `/tmp/cuestamp-score-tuplet.png`, and validated `/tmp/cuestamp-score-tuplet.musicxml` against MusicXML 4.0 XSD. The browser fixture contains a triplet note–rest–note group and zooms to 125%.
+
+### Inserting notes at score rests (2026-09-23)
+
+- Click a rest (or focus it and press Enter/Space) to open **Add note** at its score position. The form provides pitch, start, velocity and written/custom duration. Cancel does not alter the session; Add uses shared validated `note.add`, persistence and Undo.
+- Starts are converted through the tempo map into original region-relative seconds. Initial duration is one quarter note or the remaining rest/region extent, whichever is shorter. The displayed draft is editable before applying.
+- In arrangement view, insertion requires exactly one existing MIDI region covering the rest position. Empty timeline outside regions and ambiguous overlapping regions do not expose insertion targets. Automatic region creation and freehand note placement remain pending.
+- Tests: `test/experimental-score-rest-insert.test.js` covers tempo changes, timeline/region offsets, boundaries and overlapping destinations; `scripts/browser-experimental-score-rest-insert-check.cjs` verifies mouse/keyboard access, cancel, insertion timing and Undo.

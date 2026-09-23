@@ -1,9 +1,10 @@
+import {scoreRestDraft} from './score-rest-insert.js';
 import {scoreRhythmDuration,identifyScoreRhythm,scoreRhythmView} from './score-rhythm.js';
 import {bindScorePitchDrag} from './score-pitch-drag.js';
 import {musicxmlRegionPlan,scorePartRegions} from './musicxml.js';
 export function scoreNotePlans(session,track,region,scope){
  const parts=scope==='arrangement'?scorePartRegions(session):[{track,region}];
- return parts.map(({track,region})=>({regionId:region.id,notes:musicxmlRegionPlan(session,track,region).notes}));
+ return parts.map(({track,region})=>({trackId:track.id,regionId:region.id,notes:musicxmlRegionPlan(session,track,region).notes}));
 }
 export function resolveScoreNote(part,{pitch,tick,voice}){
  const notes=part.notes.filter(n=>n.pitch===pitch&&n.voice===voice&&n.startTick<=tick&&n.endTick>tick);
@@ -15,15 +16,19 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
  const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null;
  form.hidden=true;
  const select=reference=>{
-  const sourceRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=sourceRegion?.notes.find(n=>n.id===reference.noteId);if(!note)return;
-  selected=note;selectedRegion=sourceRegion;const rhythm=identifyScoreRhythm(session,sourceRegion,note);form.elements.namedItem('scoreLength').value=rhythm.length;form.elements.namedItem('scoreRhythm').value=rhythm.variant;form.elements.namedItem('scoreRhythm').disabled=rhythm.length==='custom';form.querySelector('[data-score-rhythm-status]').textContent='';form.hidden=false;form.querySelector('[data-score-note-label]').textContent=`Edit note in ${sourceRegion.name||'MIDI region'} · changes all tied segments`;
+  const sourceRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=reference.note??sourceRegion?.notes.find(n=>n.id===reference.noteId);if(!note)return;
+  selected=note;selectedRegion=sourceRegion;const rhythm=identifyScoreRhythm(session,sourceRegion,note);form.elements.namedItem('scoreLength').value=rhythm.length;form.elements.namedItem('scoreRhythm').value=rhythm.variant;form.elements.namedItem('scoreRhythm').disabled=rhythm.length==='custom';form.querySelector('[data-score-rhythm-status]').textContent='';form.hidden=false;form.querySelector('[data-score-note-label]').textContent=reference.note?`Add note to ${sourceRegion.name||'MIDI region'}`:`Edit note in ${sourceRegion.name||'MIDI region'} · changes all tied segments`;form.querySelector('[type=submit]').textContent=reference.note?'Add note':'Apply note edit';
   for(const key of ['pitch','start','duration','velocity'])form.elements.namedItem(key).value=note[key];
   panel.querySelectorAll('[data-score-note]').forEach(el=>{const active=el.dataset.scoreNote===note.id;el.setAttribute('aria-pressed',String(active));el.style.fill=active?'#168544':'';});
  };
  for(const measures of renderer.GraphicSheet.MeasureList){for(const [partIndex,measure] of measures.entries()){
   if(!plans[partIndex])continue;
   for(const entry of measure.staffEntries){for(const voice of entry.graphicalVoiceEntries){for(const graphical of voice.notes){
-   const source=graphical.sourceNote;if(!source.Pitch)continue;
+   const source=graphical.sourceNote;if(!source.Pitch){
+    const draft=scoreRestDraft(session,{...plans[partIndex],scope,beat:source.getAbsoluteTimestamp().RealValue*4,beats:source.Length.RealValue*4});
+    if(draft)for(const element of graphical.getNoteheadSVGs()||[]){element.dataset.scoreRest=draft.regionId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label','Add note at this rest');element.style.cursor='pointer';element.onclick=e=>{e.stopPropagation();select(draft);};element.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(draft);}};}
+    continue;
+   }
    const reference=resolveScoreNote(plans[partIndex],{pitch:source.Pitch.getHalfTone()+12,tick:Math.round(source.getAbsoluteTimestamp().RealValue*4*960),voice:source.ParentVoiceEntry.ParentVoice.VoiceId});
    if(!reference)continue;
    for(const element of graphical.getNoteheadSVGs()||[]){
@@ -42,6 +47,6 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
  const length=form.elements.namedItem('scoreLength'),rhythm=form.elements.namedItem('scoreRhythm'),duration=form.elements.namedItem('duration'),start=form.elements.namedItem('start'),rhythmStatus=form.querySelector('[data-score-rhythm-status]');
  const updateRhythm=()=>{rhythm.disabled=length.value==='custom';rhythmStatus.textContent='';if(!selected||length.value==='custom')return;try{duration.value=scoreRhythmDuration(session,selectedRegion,Number(start.value),length.value,rhythm.value);rhythmStatus.textContent='Length follows the project tempo at this note.';}catch(error){rhythmStatus.textContent=error.message;}};
  length.onchange=updateRhythm;rhythm.onchange=updateRhythm;start.oninput=updateRhythm;duration.oninput=()=>{length.value='custom';rhythm.disabled=true;rhythmStatus.textContent='';};
- form.onsubmit=guard(e=>{e.preventDefault();if(!selected)throw Error('Select a score note first.');const values=Object.fromEntries(['pitch','start','duration','velocity'].map(key=>[key,Number(form.elements.namedItem(key).value)]));if(length.value!=='custom')values.duration=scoreRhythmDuration(session,selectedRegion,values.start,length.value,rhythm.value);execute([{op:'note.set',target:selected.id,values}],'Edited score note');});
+ form.onsubmit=guard(e=>{e.preventDefault();if(!selected)throw Error('Select a score note first.');const values=Object.fromEntries(['pitch','start','duration','velocity'].map(key=>[key,Number(form.elements.namedItem(key).value)]));if(length.value!=='custom')values.duration=scoreRhythmDuration(session,selectedRegion,values.start,length.value,rhythm.value);execute([{op:selected.id?'note.set':'note.add',target:selected.id??selectedRegion.id,values}],selected.id?'Edited score note':'Added score note');});
  form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
 }
