@@ -3774,7 +3774,7 @@ Incomplete blocks are excluded; insufficient duration or level returns null.
 The DSP supports 8–192 kHz, ten minutes and 250 MB of PCM; mix rendering retains
 its existing limits. Filtering uses a small ring buffer instead of another full
 PCM copy. This adds integrated measurement; true peaks and loudness range are described
-below. A live loudness meter remains unimplemented.
+below, along with live momentary/short-term playback metering.
 
 References: [ITU-R BS.1770-5, Annex 1](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
 and [De Man filter parameterization](https://github.com/BrechtDeMan/loudness.py).
@@ -3866,4 +3866,29 @@ current-revision mix analysis, with older measurements still accepted.
 Tests generate the four synthetic level-sequence cases specified by EBU and
 meet their ±1 LU tolerances. Browser coverage processes a forty-second stereo
 fixture in the real worker and checks the UI and agent data on a shorter mix.
-Real-program certification and live metering remain outstanding.
+Real-program certification remains outstanding; live playback meters are described below.
+
+### Experimental DAW: live loudness meters
+
+Playback now loads `live-loudness.worklet.js` once per AudioContext and attaches
+an independent silent meter branch to the master output. The processor consumes
+all samples, shares the offline K-weighting coefficients, maintains 400 ms and
+3 s energy windows, and reports about ten times per second. Its signal is never
+mixed into audible output. Startup windows and values below approximately
+−120 LUFS display a dash. Each new playback graph starts empty; stop disconnects
+the nodes and closes their message port. UI rerenders do not reset the processor.
+
+Linear metering taps the post-fader/post-pan master before the separately routed
+click. Cycle metering analyzes the rendered repeating buffer, including its click.
+The UI states this difference. These are current playback windows, not full-song
+integrated loudness, LRA or true peaks. Existing agent meter context remains
+sample-peak-only; full mix analysis supplies its loudness data. Unsupported or
+failed worklet loading leaves playback available and displays meter unavailable.
+
+The worklet is bundled through Vite's `worker&url` import, loaded lazily so Node
+command-engine tests do not execute browser code. Verify both `npm run dev` and
+`npm run preview` with `scripts/browser-experimental-live-loudness-check.cjs`;
+the latter catches asset/import failures hidden by development serving. Unit
+coverage compares live windows with offline weighting at all mix render rates,
+checks level changes and silence. Browser coverage uses real AudioWorklet audio
+in linear and cycle playback and checks stop/start reset.
