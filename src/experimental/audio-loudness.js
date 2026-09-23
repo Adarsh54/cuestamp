@@ -26,7 +26,8 @@ export function integratedLoudness(channels,sampleRate){
   const longSlot=frame%longBlock;longSum+=power-longRing[longSlot];longRing[longSlot]=power;
   if(frame+1===nextShort){shortPowers.push(Math.max(0,longSum/longBlock));nextShort=longBlock+Math.round(++shortIndex*sampleRate/10);}
  }
- const dynamics={momentaryMaxLufs:level(Math.max(0,...powers)),shortTermMaxLufs:level(Math.max(0,...shortPowers)),rangeLu:loudnessRange(shortPowers)};
+ const peakStart=(p,hop)=>{const max=Math.max(0,...p);return max>0?Math.round(p.indexOf(max)*hop):null;};
+ const dynamics={momentaryMaxLufs:level(Math.max(0,...powers)),shortTermMaxLufs:level(Math.max(0,...shortPowers)),rangeLu:loudnessRange(shortPowers),momentaryMaxStartFrame:peakStart(powers,block/4),shortTermMaxStartFrame:peakStart(shortPowers,sampleRate/10)};
  const absolute=powers.filter(p=>level(p)>-70&&p>0);
  if(!absolute.length)return {integratedLufs:null,dynamics,blocks:powers.length,gatedBlocks:0};
  const mean=values=>values.reduce((sum,p)=>sum+p,0)/values.length;

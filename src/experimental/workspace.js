@@ -83,7 +83,7 @@ import {joinMidiView,bindJoinMidi} from './join-midi.js';
 import {midiRegionScaleView,bindMidiRegionScale} from './midi-region-scale.js';
 import {createInstructionDrafts} from './agent-drafts.js';
 import {analyzeRender} from './analyze-render.js';
-import {currentMixAnalysis,validateMixAnalysis,mixAnalysisView,bindPeakNormalization,bindLoudnessNormalization} from './mix-analysis.js';
+import {mixAnalysisPosition,currentMixAnalysis,validateMixAnalysis,mixAnalysisView,bindPeakNormalization,bindLoudnessNormalization} from './mix-analysis.js';
 import {conversationTurn,appendConversation} from './agent-conversation.js';
 import {crossfadeView} from './region-fades.js';
 import {samplerWaveformView,bindSamplerWaveform} from './sampler-waveform.js';
@@ -538,6 +538,7 @@ export function createExperimentalWorkspace({account,esc}){
   bindPeakNormalization(root,{session:session(),analysis:mixAnalysis,target:normalizationTarget,onTarget:value=>{normalizationTarget=value;},guard,busy:busy||agentBusy||Boolean(recordAbort)||midiInput.active,apply:async plan=>{execute(plan.commands,'Adjusted master level to the measured peak target');await analyzeMix();}});
   bindLoudnessNormalization(root,{session:session(),analysis:mixAnalysis,settings:loudnessSettings,onSettings:value=>{loudnessSettings=value;},guard,busy:busy||agentBusy||Boolean(recordAbort)||midiInput.active,apply:async plan=>{execute(plan.commands,'Adjusted master level to the measured loudness target');await analyzeMix();}});
   root.querySelector('[data-analyze-mix]')?.addEventListener('click',guard(analyzeMix));
+  root.querySelectorAll('[data-analysis-loudness]').forEach(button=>button.addEventListener('click',guard(()=>{if(busy||recordAbort||midiInput.active)return;const next=mixAnalysisPosition(mixAnalysis,session(),button.dataset.analysisLoudness);stop();position=next;paint();})));
   root.querySelector('[data-analysis-correlation]')?.addEventListener('click',()=>{if(busy||recordAbort||midiInput.active)return;const result=currentMixAnalysis(mixAnalysis,session()),frame=result?.stereoWindows?.worstStartFrame;if(frame===null||frame===undefined)return;stop();position=frame/result.sampleRate;paint();});
   root.querySelector('[data-analysis-peak]')?.addEventListener('click',()=>{const result=currentMixAnalysis(mixAnalysis,session());if(!result)return;const peak=result.channels.reduce((best,c)=>(c.peakDb??-Infinity)>(best.peakDb??-Infinity)?c:best);if(peak.peakFrame!==null){stop();position=peak.peakFrame/result.sampleRate;paint();}});
   root.querySelector('[data-agent-clear]')?.addEventListener('click',()=>{if(agentBusy)return;conversation.length=0;trace.length=0;paint();});

@@ -4652,3 +4652,11 @@ Tests detect a brief polarity reversal concealed by a positive full-render avera
 `navigate_mix_analysis` accepts `sample_peak` or `lowest_correlation`. It resolves the actual measured sample index against current analysis and returns an ordinary guarded transport seek. It pauses playback and does not change the document. The tool requires current analysis and transport capability, and is not offered during editing continuations. If measurements are missing, the agent can request the existing analysis pass first. Missing eligible results, silent peaks, stale revisions and unsupported requests reject.
 
 Unit tests cover sample-index conversion, current-analysis validation, eligibility and capability gating. The browser mix-analysis workflow now sends real rendered measurements through the actual server planner with mocked model output and verifies both destinations in the UI. All 1,160 tests and build pass. Live model behavior remains unverified.
+
+### Navigate to loudness maxima
+
+Full-mix analysis retains the first maximum window start for momentary (400 ms) and short-term (3 s) loudness. **Go to loudest 400 ms** and **Go to loudest 3 s** pause playback and move the playhead to that measured start without changing gain or project data. Controls are disabled while busy, after edits invalidate analysis, or when no position is available. Short-term analysis preserves the existing convention of up to 1.5 seconds of trailing zero padding; its final windows can extend beyond the recording.
+
+`navigate_mix_analysis` also accepts `momentary_loudness` and `short_term_loudness`. Positions are validated for measurement consistency, 100 ms alignment, session revision and render bounds. The optional timestamp fields preserve compatibility with older observations; missing positions cannot be navigated.
+
+All 1,162 unit tests, the production build and the real-render browser analysis workflow pass. Browser agent checks use mocked model responses through the actual planner; live inference remains unverified. One full-suite attempt stalled in an FFmpeg reference subprocess waiting on input; that process was terminated, its isolated test passed, and the subsequent full suite passed. The existing bundle-size warning remains.

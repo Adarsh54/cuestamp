@@ -41,8 +41,9 @@ test('loudness range passes the four synthetic EBU Tech 3342 level-sequence case
 });
 test('loudness dynamics preserve scale and distinguish silence from insufficient duration',()=>{
  const empty=integratedLoudness([new Float32Array(48000*4)],48000).dynamics;
- assert.deepEqual(empty,{momentaryMaxLufs:null,shortTermMaxLufs:null,rangeLu:null});
+ assert.deepEqual(empty,{momentaryMaxLufs:null,shortTermMaxLufs:null,rangeLu:null,momentaryMaxStartFrame:null,shortTermMaxStartFrame:null});
  const brief=integratedLoudness([tone(48000,1)],48000).dynamics;assert.ok(Number.isFinite(brief.momentaryMaxLufs));assert.equal(brief.shortTermMaxLufs,null);assert.equal(brief.rangeLu,null);
  const normal=integratedLoudness([tone(48000,10)],48000).dynamics,quiet=integratedLoudness([tone(48000,10,.01)],48000).dynamics;
  assert.ok(Math.abs(normal.shortTermMaxLufs-quiet.shortTermMaxLufs-20)<.001);assert.ok(Math.abs(normal.rangeLu-quiet.rangeLu)<.001);
 });
+test('loudness maxima retain their window starts and silent measurements have no positions',()=>{const rate=48000,samples=tone(rate,8,.01);for(let i=3*rate;i<6*rate;i++)samples[i]*=10;const d=integratedLoudness([samples,samples],rate).dynamics;assert.ok(d.momentaryMaxStartFrame>=3*rate&&d.momentaryMaxStartFrame<=5.6*rate);assert.ok(d.shortTermMaxStartFrame>=2.9*rate&&d.shortTermMaxStartFrame<=3.1*rate);for(const key of ['momentaryMaxStartFrame','shortTermMaxStartFrame']){assert.equal(d[key]%(rate/10),0);assert.equal(integratedLoudness([new Float32Array(rate*4)],rate).dynamics[key],null);}});
