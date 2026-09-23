@@ -1,4 +1,4 @@
-import {exportRegionMusicxml} from './musicxml.js';
+import {exportRegionMusicxml,resolveMusicxmlRegion} from './musicxml.js';
 import {sampleMarkersForBuffer} from './sampler-marker-state.js';
 import {validateSamplerSliceAction,resolveSamplerSliceMarkers} from './sampler-slice-action.js';
 import {samplerSlicePlan} from './sampler-zone-slices.js';
@@ -608,7 +608,7 @@ export function createExperimentalWorkspace({account,esc}){
      if(['scene_take','stop_all_scene_clips','stop_scene_cell','launch_scene_cell','queue_scene','audition_scene','audition_selected_regions','detect_audio_attacks','snap_audio_range_to_zero_crossings','audition_audio_range','normalize_audio_regions','normalize_audio_region','strip_audio_silence','preview_audio_region_warp','warp_audio_region','transpose_audio_region','stretch_audio_region','bounce_in_place','bounce_track_in_place','bounce_tracks_in_place'].includes(result.action)){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Bounce in place must be separate from edits and follow-up actions.');break;}
      if(result.action==='clipboard'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Clipboard requests must be separate from edits and follow-up actions.');break;}
      if(result.action==='history'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('History must be separate from edits and follow-up actions.');break;}
-     if(['slice_sampler_zone','snap_sampler_zone_to_zero_crossings','audition_sampler_zone','create_sampler_zones','map_sampler_filenames','export_audio','export_sampler_preset'].includes(result.action)){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Export must be separate from edits and transport.');break;}
+     if(['slice_sampler_zone','snap_sampler_zone_to_zero_crossings','audition_sampler_zone','create_sampler_zones','map_sampler_filenames','export_audio','export_sampler_preset','export_musicxml'].includes(result.action)){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Export must be separate from edits and transport.');break;}
      if(['capture_recent_midi','hardware_retake'].includes(result.action)){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Hardware take preparation must be separate from edits and playback.');break;}
      if(result.action==='transport'){if(result.commands?.length||result.verifyMix!==undefined||result.afterEditTransport!==undefined)throw Error('Use an edit plan with afterEditTransport for an ordered edit and transport action.');break;}
      if(result.action!=='analyze_mix'||attempt!==0||result.commands?.length||result.afterEditTransport!==undefined)throw Error('Unexpected agent analysis request. No edits applied.');
@@ -686,6 +686,8 @@ export function createExperimentalWorkspace({account,esc}){
      const plan=await createSamplerZones(result.creation,request);applied=true;appliedSession=structuredClone(session());outcome='applied';summary='Created '+plan.zones.length+' sample zones.';
     }else if(result.action==='map_sampler_filenames'){
      if(busy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');request.signal.throwIfAborted();const options=validateFilenameMap(before,result.mapping),plan=filenameMapPlan(before.tracks.find(t=>t.id===options.trackId),files,options);execute(plan.commands,'Mapped sample filenames',revision);applied=true;appliedSession=structuredClone(session());outcome='applied';summary='Mapped '+plan.rows.length+' sample filenames to root notes.';
+    }else if(result.action==='export_musicxml'){
+     request.signal.throwIfAborted();if(session().revision!==revision)throw Error('Session changed before notation export. Try again.');const {track:scoreTrack,region:scoreRegion}=resolveMusicxmlRegion(before,result.regionId),xml=exportRegionMusicxml(before,scoreTrack,scoreRegion);download(new Blob([xml],{type:'application/vnd.recordare.musicxml+xml'}),(scoreRegion.name||'Score')+'.musicxml');summary='Downloaded MusicXML for '+scoreRegion.name+'.';outcome='replied';trace.push({role:'action',text:summary});
     }else if(result.action==='export_sampler_preset'){
      const preset=before.samplerPresets.find(p=>p.id===result.presetId);if(!preset)throw Error('Saved sampler preset not found.');summary=await downloadSamplerPreset(preset,request);outcome='replied';trace.push({role:'action',text:summary});
     }else if(result.action==='export_audio'){

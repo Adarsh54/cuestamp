@@ -5054,3 +5054,9 @@ Timing uses 960 divisions per quarter note. Notes that collapse below one tick r
 Verification: `test/experimental-musicxml.test.js` covers polyphony, ties, escaping, meter/tempo changes, partial bars, nonmutation and rejection. `scripts/browser-experimental-musicxml-check.cjs` downloads the selected region, parses its XML and checks session preservation. The downloaded fixture validates with `xmllint` against the official MusicXML 4.0 XSD and its XML/XLink imports. Full suite: 1,294 passing; production build passes. Import into a notation application has not yet been verified.
 
 Format references: https://www.w3.org/2021/06/musicxml40/tutorial/structure-of-musicxml-files/ and https://www.w3.org/2021/06/musicxml40/tutorial/midi-compatible-part/.
+
+## Agent MusicXML export
+
+The agent can call `export_musicxml` with an observed `regionId` when notation export is requested. It is gated by the existing export capability and validated export context, is separate from edits/transport, and is unavailable in editing continuations. Both server and browser resolve the region through the same MusicXML eligibility/timing checks. The browser checks abort/revision state before downloading with the same generator as the manual button. Export creates no history entry or session mutation.
+
+Verification: `test/experimental-musicxml-agent.test.js` checks export capability, continuation rejection, observed region IDs, unsupported percussion and nonmutation. `scripts/browser-experimental-musicxml-agent-check.cjs` mocks the model action but downloads the real MusicXML, checks its measures/ties and unchanged session; the file validates against the official MusicXML 4.0 XSD. Full suite: 1,295 passing; build passes. Live provider tool selection and import into an external notation application remain unverified.

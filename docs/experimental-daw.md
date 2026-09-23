@@ -2385,4 +2385,4 @@ polyphonic voices, partial measures and cross-bar ties. Unit and browser downloa
 checks pass, and the downloaded fixture validates against the official 4.0 XSD.
 This adds notation interchange, not an interactive score editor. Percussion,
 engraving controls, lyrics, MusicXML import and external notation-app verification
-remain incomplete. Agent-triggered MusicXML export is also not implemented yet.
+remain incomplete. Agent-triggered MusicXML export now uses the same generator; mocked integration checks pass, while live model tool selection remains unverified.

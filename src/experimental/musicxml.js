@@ -30,3 +30,4 @@ export function exportRegionMusicxml(session,track,region){
  }
  return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(region.name||session.title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list><score-part id="P1"><part-name>${xml(track.name)}</part-name></score-part></part-list><part id="P1">${parts.join('')}</part></score-partwise>`;
 }
+export function resolveMusicxmlRegion(session,regionId){if(typeof regionId!=='string'||!regionId||regionId.length>100)throw Error('Choose an existing MIDI region.');const track=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=track?.regions.find(r=>r.id===regionId);musicxmlRegionPlan(session,track,region);return {track,region};}
