@@ -1,3 +1,4 @@
+import {sustainLengthPlan} from './sustain-lengths.js';
 import {draggedSourceOffset} from './region-slip.js';
 import {snapArrangementDelta,defaultArrangementSnap} from './arrangement-snap.js';
 import {selectedRegions,clampRegionMove} from './region-selection.js';
@@ -17,6 +18,12 @@ export function trimmedRegion(region,start,end){
 export function trimmedMidiRegion(region,start,end){
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start)throw Error('Trim boundaries must define a positive region.');
  if(start<region.start||end>region.start+region.duration)throw Error('MIDI trim must stay inside the current region. Undo to restore cropped notes.');
+ // Cropped notes cannot retain the original key-down capture time for sostenuto.
+ // Bake both pedals first so the new region preserves its audible gates.
+ if(region.notes.length&&(region.events||[]).some(e=>e.type==='controlChange'&&e.parameter===66)){
+  const plan=sustainLengthPlan(region),durations=new Map(plan.edits.map(e=>[e.id,e.duration])),removed=new Set(plan.removedIds);
+  region={...region,notes:region.notes.map(n=>durations.has(n.id)?{...n,duration:durations.get(n.id)}:n),events:region.events.filter(e=>!removed.has(e.id))};
+ }
  const from=start-region.start,to=end-region.start,duration=end-start;
  const notes=region.notes.flatMap(note=>{
   const soundingEnd=sustainedEnd(note,(region.events||[]).filter(e=>e.channel===note.channel),region.duration);

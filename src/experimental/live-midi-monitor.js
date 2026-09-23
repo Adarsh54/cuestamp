@@ -16,7 +16,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
  const loop=instrument==='sampler'&&!sampleResolver?samplerLoop(sampleBuffer,{sampleStart,sampleEnd,sampleLoop:loopEnabled,sampleLoopStart,sampleLoopEnd}):null;
  const envelope=samplerEnvelope({sampleAttack,sampleDecay,sampleSustain,sampleRelease});
  const voices=new Set(),channels=new Map(),groups=new Map();let disposed=false;
- function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false});update(channels.get(id));}return channels.get(id);}
+ function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false,sostenuto:false});update(channels.get(id));}return channels.get(id);}
  function update(c){c.gain.gain.setValueAtTime(c.volume*c.expression,context.currentTime);}
  function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();v.zonePan?.disconnect();}
  function release(v,immediate=false){if(v.released&&!immediate)return;v.released=true;const now=context.currentTime;if(immediate){v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(0,now);v.osc.stop(now);destroy(v);}else{const duration=v.sampler?v.envelope.release:.03;const value=v.level*(v.sampler?heldEnvelopeAt(Math.max(0,now-v.startedAt),v.envelope):Math.min(1,Math.max(0,now-v.startedAt)/.008));v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(value,now);if(duration)v.gain.gain.linearRampToValueAtTime(0,now+duration);else v.gain.gain.setValueAtTime(0,now);v.osc.stop(now+duration+.005);}}
@@ -34,16 +34,17 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
    const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack,...(layer??{})},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,sampleGroupDestination(context,c.gain,layer??{},groups,id),layer??{});const v={startedAt:now,level:b/127*(sampler?sampleZoneLevel(layer??{}):.18),envelope:voiceEnvelope,zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);if(sampler){const range=samplerSourceRange(osc.buffer,layer??{sampleStart,sampleEnd});if(osc.loop||range.end===osc.buffer.duration)osc.start(0,range.start);else osc.start(0,range.start,range.end-range.start);}else osc.start();}
 
   }else if(kind===0x80||(kind===0x90&&!b)){
-   const v=matching().find(v=>v.pitch===a&&v.held);if(v)for(const layer of matching().filter(n=>n.group===v.group)){layer.held=false;if(!c.sustain&&!layer.drum)release(layer);}
+   const v=matching().find(v=>v.pitch===a&&v.held);if(v)for(const layer of matching().filter(n=>n.group===v.group)){layer.held=false;if(!c.sustain&&!layer.sostenuto&&!layer.drum)release(layer);}
   }else if(kind===0xe0){c.bendState.push({type:'pitchBend',value:a|(b<<7)});for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);
   }else if(kind===0xb0){
    if(c.bendState.push({type:'controlChange',parameter:a,value:b}))for(const v of matching())if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);
    if(a===7){c.volume=b/127;update(c);}if(a===11){c.expression=b/127;update(c);}
    if(a===10)c.pan.pan.setValueAtTime((b-64)/(b<64?64:63),context.currentTime);
-   if(a===64){c.sustain=b>=64;if(!c.sustain)for(const v of matching())if(!v.held&&!v.drum)release(v);}
+   if(a===64){c.sustain=b>=64;if(!c.sustain)for(const v of matching())if(!v.held&&!v.sostenuto&&!v.drum)release(v);}
+   if(a===66){const down=b>=64;if(down&&!c.sostenuto)for(const v of matching())if(v.held&&!v.released&&!v.drum)v.sostenuto=true;c.sostenuto=down;if(!down)for(const v of matching()){v.sostenuto=false;if(!v.held&&!c.sustain&&!v.drum)release(v);}}
    if(a===120)for(const v of matching())release(v,true);
-   if(a===123)for(const v of matching()){v.held=false;if(!c.sustain&&!v.drum)release(v);}
-   if(a===121){c.expression=1;c.sustain=false;update(c);for(const v of matching()){if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);if(!v.held&&!v.drum)release(v);}}
+   if(a===123)for(const v of matching()){v.held=false;if(!c.sustain&&!v.sostenuto&&!v.drum)release(v);}
+   if(a===121){c.expression=1;c.sustain=false;c.sostenuto=false;update(c);for(const v of matching()){v.sostenuto=false;if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);if(!v.held&&!v.sostenuto&&!v.drum)release(v);}}
   }
  }
  return {push,get voiceCount(){return voices.size;},stop(){if(disposed)return;disposed=true;for(const v of [...voices])release(v,true);for(const c of channels.values()){c.gain.disconnect();c.pan.disconnect();}channels.clear();for(const node of groups.values())node.disconnect();groups.clear();}};

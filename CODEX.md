@@ -5285,3 +5285,11 @@ This supersedes the earlier graphical-pedal limitation for basic damper marks. S
 Verified 1,357 tests and build. `scripts/browser-experimental-musicxml-pedal-marks-check.cjs` checks symbol-only start/change/stop, continuation, explicit sound precedence, imported CC64 order, computed note sustain after re-pedal and Undo. Unit tests verify that older held notes release at the re-pedal position while later notes remain sustained to the next lift.
 
 Reference: [W3C pedal-type semantics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/data-types/pedal-type/).
+
+### Sostenuto playback and editing (2026-09-23)
+
+MIDI CC66 now captures only keys held when sostenuto is first pressed. Repeated pedal-on messages do not capture later notes. Browser instrument playback, live MIDI monitoring, and MIDI-device seek planning respect that distinction; CC121 resets both sostenuto and damper. Damper can extend a captured note after sostenuto releases. One-shot drum playback remains unchanged.
+
+Converting pedal holds to note lengths now includes CC66. Cropping a region containing sostenuto first bakes its pedal holds into note durations so removing the original capture point does not change the resulting sound. Shared command Undo restores the original notes and controller events. MIDI-device seeking starts captured keys before restoring CC66 and starts other keys afterward.
+
+Verified 1,361 tests and production build. `scripts/browser-experimental-sostenuto-check.cjs` renders actual offline browser audio to verify capture, exclusion of later notes, release, and seeking. Unit coverage includes damper interaction, repeated presses, reset, live monitoring, crop/Undo and MIDI message ordering. Physical MIDI hardware has not been verified. This does not add MusicXML sostenuto-mark import or continuous half-pedal synthesis.
