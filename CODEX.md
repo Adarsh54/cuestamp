@@ -4964,3 +4964,9 @@ The capability-gated `snap_sampler_zone_to_zero_crossings` tool accepts observed
 The browser checks abort state, session identity and revision after decoding. This tool runs separately from other edits, transport and exports, and is unavailable in editing continuations. It reads saved values, not unsaved zone-form drafts. Zero crossings do not guarantee click-free seams.
 
 Verification: `test/experimental-sampler-zone-zero-agent.test.js` covers planning without mutation, atomic failure, enabled-loop containment, Undo, capability gating, continuation rejection and invalid IDs/options. `scripts/browser-experimental-sampler-zone-zero-agent-check.cjs` verifies the browser request capability, real decoded PCM boundary results, preserved source trim and Undo using a mocked agent response. Live model selection of the tool remains unverified.
+
+## Keep sampler zone selection synchronized
+
+Zone-map mouse/keyboard selection and the named zone buttons now dispatch the same bubbling change event as the zone dropdown. This reloads the selected source waveform and stops an active zone audition. Previously these shortcuts only replaced numeric fields, leaving a different source's waveform visible and its preview playing. Selecting a newly saved zone also emits the event so its waveform is available immediately.
+
+Verification: `scripts/browser-experimental-sampler-zone-switch-check.cjs` first reproduced the stale waveform with one- and two-second sources. It now verifies button selection, map keyboard and mouse selection, stopping an active audition, clearing the waveform for a new empty zone, and loading the newly saved zone. Production build passes. This change does not alter saved zone/audio formats.
