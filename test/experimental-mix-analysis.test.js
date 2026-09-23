@@ -25,3 +25,10 @@ test('stereo analysis validates power relationships and reaches agent context wi
 });
 
 test('stereo consistency tolerates roundoff when one nonzero channel is extremely quiet',async()=>{const {stereoStatistics}=await import('../src/experimental/audio-statistics.js'),{s,a}=fixture(),channels=[new Float32Array(48000).fill(.5),new Float32Array(48000).fill(1e-20)];assert.ok(validateMixAnalysis({...a,channels:audioStatistics(channels),stereo:stereoStatistics(channels)},s));});
+test('loudness context validates block counts, gates and current revision',async()=>{
+ const {s,a}=fixture(),loudness={integratedLufs:null,blocks:7,gatedBlocks:0};
+ assert.deepEqual(validateMixAnalysis({...a,loudness},s).loudness,loudness);
+ for(const change of [{blocks:8},{gatedBlocks:8},{integratedLufs:-20},{integratedLufs:-71,gatedBlocks:1}])assert.throws(()=>validateMixAnalysis({...a,loudness:{...loudness,...change}},s));
+ let sent;await planDawEdit({session:s,instruction:'What is the loudness?',mixAnalysis:{...a,loudness}},{key:'test',model:'test',fetchImpl:async(_,request)=>{sent=JSON.parse(request.body);return {ok:true,json:async()=>({output:[]})};}});
+ assert.deepEqual(JSON.parse(sent.input.at(-1).content).mixAnalysis.loudness,loudness);
+});

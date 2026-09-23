@@ -3760,3 +3760,27 @@ The render stage uses the same bounded cancelable worker as applying a warp. Ses
 The dedicated agent tool `preview_audio_region_warp` accepts the same explicit anchors as applying a warp, requires captured transport context, and returns a distinct read-only action. The client rejects a stale transport response and follows the same preview renderer. It remains unavailable during editing continuation. Live model inference is still unverified without provider credentials.
 
 Verification: `test/experimental-audio-warp-audition.test.js` covers isolated processing snapshots, unchanged revision/source, validation, muted-channel rejection and tool guards. The editor browser regression uses real rendering/playback for manual preview and mocked-agent preview, checks automatic/early stop, and compares both saved document and media-library IDs before/after. Full tests/build pass.
+
+### Experimental DAW: integrated loudness
+
+Analyze mix now includes integrated LUFS in its existing cancelable worker. It
+measures the rendered stereo output, including effects, automation, mute and solo.
+The current-revision result also reaches the agent as `mixAnalysis.loudness`.
+Older clients may omit that field. Region peak/RMS normalization is unchanged.
+
+`audio-loudness.js` implements mono/stereo K weighting and gated energy averaging
+with 400 ms blocks, 75% overlap, an absolute −70 gate and a relative −10 LU gate.
+Incomplete blocks are excluded; insufficient duration or level returns null.
+The DSP supports 8–192 kHz, ten minutes and 250 MB of PCM; mix rendering retains
+its existing limits. Filtering uses a small ring buffer instead of another full
+PCM copy. This adds integrated measurement, not automatic LUFS normalization,
+true-peak, loudness range, or a live loudness meter.
+
+References: [ITU-R BS.1770-5, Annex 1](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
+and [De Man filter parameterization](https://github.com/BrechtDeMan/loudness.py).
+The coefficient and independent FFmpeg tests live in
+`test/experimental-audio-loudness.test.js`. They verify the published 48 kHz
+coefficients and compare gated mono/stereo fixtures at 44.1/48/96 kHz within
+0.11 LU of FFmpeg's rounded output. This is regression coverage, not certification.
+The browser mix-analysis script checks actual worker/render output, stale-result
+rejection and the measurement passed to a mocked agent provider.
