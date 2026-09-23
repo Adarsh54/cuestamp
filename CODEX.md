@@ -4447,3 +4447,9 @@ Sessions now save up to 64 ordered scenes, each with a name and up to 128 cells.
 Shared manual command harness/agent operations: `scene.add` (name, optional id/regionIds comma list), `scene.rename` (name), `scene.move` (zero-based index), `scene.delete`, `scene.cell.set` (regionId, optional loop; replaces the source track's cell), and `scene.cell.delete` (regionId). Legacy sessions default to no scenes. Validation covers existing audio/MIDI sources, per-track uniqueness, IDs, limits, names, undo and reload.
 
 This checkpoint establishes persistence and editing commands only. There is no scene-launch button or scene playback claim yet. Quantized launching/switching, independent cell transport, a graphical scene grid, recording performances and cell recording remain required. `test/experimental-scenes.test.js` covers document and mocked-agent commands; `scripts/browser-experimental-scenes-check.cjs` verifies browser command execution, source preservation, undo/redo and reload. All 1,040 tests and build pass.
+
+### Scene grid editor
+
+The Scenes panel above the mixer displays audio/MIDI tracks as rows and saved scenes as columns. Select a cell to assign a source clip and its loop/one-shot setting. Scene creation can start empty or use the selected arrangement clips; the existing per-track constraint rejects multiple selected clips from the same track. Rename, reorder, remove cells, and delete scenes use the shared scene commands and undo history. Grid selection is transient and falls back safely after deletion or session changes. Scene playback remains unimplemented and the panel states this explicitly.
+
+The scene browser check now exercises assignment, loop settings, cell removal/undo, creation, rename, reorder, deletion, and source preservation through the actual controls, alongside the existing command/reload check. All 1,040 tests and production build pass; browser screenshot inspected. The existing large-bundle warning remains.
