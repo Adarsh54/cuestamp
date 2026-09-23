@@ -11,7 +11,7 @@ export function samplerSlicePlan(track,draft,markers,startKey,buffer,regionStart
  const edges=[start,...cuts,end],count=edges.length-1;
  if(startKey+count>128)throw Error('There are not enough MIDI keys after the starting key.');
  if(track.sampleZones.length-1+count>128)throw Error('An instrument can contain up to 128 sample zones.');
- const zones=edges.slice(0,-1).map((frame,i)=>samplerZoneSchema.parse({...zone,id:crypto.randomUUID(),name:`${zone.name.slice(0,85)} · Slice ${i+1}`,sourceStart:frame/rate,sourceEnd:edges[i+1]/rate,root:startKey+i,keyLow:startKey+i,keyHigh:startKey+i,loop:false,loopStart:0,loopEnd:null}));
+ const zones=edges.slice(0,-1).map((frame,i)=>samplerZoneSchema.parse({...zone,sliceMarkers:[],id:crypto.randomUUID(),name:`${zone.name.slice(0,85)} · Slice ${i+1}`,sourceStart:frame/rate,sourceEnd:edges[i+1]/rate,root:startKey+i,keyLow:startKey+i,keyHigh:startKey+i,loop:false,loopStart:0,loopEnd:null}));
  const commands=[{op:'samplerZone.delete',target:track.id,values:{id:zone.id}},{op:'samplerZone.addMany',target:track.id,values:{zones:JSON.stringify(zones)}}];let regionId=null;
  if(regionStart!==null){
   const duration=(end-start)/rate;if(!Number.isFinite(regionStart)||regionStart<0||regionStart+duration>86400)throw Error('Place the slice region within the 24-hour timeline.');

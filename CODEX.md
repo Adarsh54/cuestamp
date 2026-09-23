@@ -4977,7 +4977,7 @@ Expand **Find sample attacks** in a loaded zone waveform and choose **Detect att
 
 Detected attacks appear as lines in the visible waveform and in a timestamp dropdown, with Previous/Next navigation. **Use as start/end** applies the selected attack to the active Sample or Loop draft. Boundaries snap to source frames and cannot cross or leave the selected sample portion in loop mode. Applying a loop boundary enables looping. No document changes occur until Save; the existing zone commands retain agent access to the resulting numerical boundaries.
 
-Detection can be canceled. Zone/source changes cancel pending work and clear temporary markers; disconnected forms ignore late results. Zoom redraws visible markers without rerunning detection. Markers and navigation are transient editor state, not saved attack markers in an audio region.
+Detection can be canceled. Zone/source changes cancel pending work and clear temporary markers; disconnected forms ignore late results. Zoom redraws visible markers without rerunning detection. Navigation is transient editor state. Zone markers can now be saved as described below; they are separate from audio-region attack markers.
 
 Verification: `test/experimental-sampler-zone-attacks.test.js` checks immutable frame-aligned edits, containment and invalid requests. `scripts/browser-experimental-sampler-zone-attacks-check.cjs` exercises real worker detection of two synthetic attacks, navigation, markers while zoomed, sample/loop draft changes, rejection and persistence. Zone-selection regression and build pass. The rendered controls were visually inspected.
 
@@ -5030,3 +5030,11 @@ Enable **Place attack markers** above the zone waveform, then click to insert an
 Source endpoints and duplicate marker positions are rejected without changing the list. The mode resets on waveform refresh/source selection; markers remain temporary until used to create slices. Numeric entry remains available without pointer interaction.
 
 Verification: `scripts/browser-experimental-sampler-marker-placement-check.cjs` adds markers at known positions in a zoomed source view, verifies unchanged range/loop/session values, rejects a duplicate, disables placement mode, refines timestamps, creates slices, renders their source ranges and checks Undo. Existing loop gesture browser checks and production build pass. The resulting waveform/editor was visually inspected.
+
+## Save sampler attack markers with zones
+
+Detected and manually edited attack markers now persist with **Save sample zone** as optional `sliceMarkers` source-second arrays. Existing projects without the field keep an empty marker list. Saved markers restore when selecting the zone or loading its waveform after reopening a project; zone duplication and sampler presets retain them. Changing the source file clears the draft marker list to avoid applying positions from another recording. Creating slices clears markers in the generated zones, because each has already been partitioned at the selected cuts.
+
+The shared `samplerZone.set` command accepts the marker array as a JSON string; the zone/session schema stores a validated array. Arrays must be sorted, unique, finite and within the 10,000-marker limit. Manual Save also checks real source bounds and snaps to distinct source frames. Invalid restored/source-bound markers produce an inline error. Unsaved marker changes are still discarded when switching zones; Save commits them in the usual Undo step.
+
+Verification: marker-state tests cover persistence, duplication/presets, invalid arrays and source frames, Undo, and marker preservation through agent zero-crossing commands. The browser check `scripts/browser-experimental-sampler-marker-state-check.cjs` saves manually corrected points, switches zones, reloads the project and confirms exact restored positions. Full suite passed before the final additional zero-crossing regression test; that focused test and build also pass. Live model inference remains unverified.
