@@ -4062,3 +4062,28 @@ Full tests: 974 passing; production build passes with the existing bundle-size
 warning. Live model inference is not covered by these checks.
 
 Reference: [Apple’s Phaser controls](https://support.apple.com/en-mide/guide/logicpro/lgcef266e1ef/10.7/mac/11.0) describe tempo-synchronized modulation. Our single-LFO stereo implementation does not reproduce all of that plug-in’s controls.
+
+### Chorus tempo sync and shared modulation timing
+
+Chorus now supports the same `sync` and `beats` fields as tremolo and phaser.
+Enable **Sync to project tempo** in the effect form and choose quarter-note beats
+per cycle (0.125–16, default 1). Sync defaults off for existing sessions. It
+follows the full tempo map, including changes after playback starts and seeks.
+Free rate and its automation remain saved but are ignored while synced; the
+live free-rate control is disabled. Depth and mix automation remain available.
+These fields also work through the shared agent `effect.add` / `effect.set`
+commands on tracks, buses, and master.
+
+`modulation-timing.js` now handles musical phase, free-rate curve integration,
+rate scheduling, and live rate bindings for all three effects. Chorus still uses
+a 25 ms delay with up to ±20 ms modulation, and starts with empty delay history
+when seeking. Fast synced rates can sound like vibrato or more pronounced pitch
+modulation. This is not an emulation of a specific hardware chorus.
+
+Validation: `scripts/browser-experimental-chorus-check.cjs` renders chorus,
+phaser, and tremolo through two tempo changes, compares them with equivalent
+stepped free-rate automation, checks seek continuity after warmup, and verifies
+that ignored rate automation is not registered for live control. It also checks
+chorus sync controls, undo/redo, reload, and existing free-rate PCM behavior.
+All 976 unit tests and the production build pass; the existing large-bundle
+warning remains. Agent command validation uses a mocked provider response.

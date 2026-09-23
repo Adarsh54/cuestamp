@@ -1,3 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {effectSchema,effectTail} from '../src/experimental/effects.js';import {newSession,applyCommands,SessionHistory} from '../src/experimental/session.js';
 test('chorus defaults, static and automated bounds, estimated tail and bypass',()=>{const e=effectSchema.parse({id:'c',kind:'chorus'});assert.equal(e.depthMs,3);assert.equal(e.stereoPhase,90);assert.equal(effectTail([e]),.028);assert.equal(effectTail([{...e,mix:0}]),0);assert.equal(effectTail([{...e,enabled:false}]),0);assert.equal(effectTail([{...e,automation:[{id:'p',parameter:'depthMs',time:1,value:20}]}]),.045);for(const values of [{rate:0},{rate:11},{depthMs:-1},{depthMs:21},{mix:2},{stereoPhase:181},{feedback:.3},{automation:[{id:'p',parameter:'depthMs',time:0,value:21}]},{automation:[{id:'p',parameter:'stereoPhase',time:0,value:90}]}])assert.throws(()=>effectSchema.parse({...e,...values}));});
 test('chorus works in track bus master chains and supports shared editing, automation and undo',()=>{let s=newSession();s=applyCommands(s,[{op:'track.add',values:{id:'t'}},{op:'track.add',values:{id:'bus',kind:'bus'}},...['t','bus',s.id].map((target,i)=>({op:'effect.add',target,values:{id:'c'+i,kind:'chorus'}}))]);const h=new SessionHistory(s);h.execute([{op:'effect.set',target:'c0',values:{rate:2,depthMs:6}},{op:'effect.automation.point',target:'c0',values:{parameter:'mix',time:1,value:.8}}]);assert.equal(h.session.tracks[0].effects[0].rate,2);h.undo();assert.deepEqual(h.session.tracks,s.tracks);h.redo();assert.equal(h.session.tracks[0].effects[0].automation.length,1);});
+test('chorus sync preserves retained free automation and validates musical division',()=>{
+ const h=new SessionHistory();h.execute([{op:'effect.add',target:h.session.id,values:{id:'c',kind:'chorus'}},{op:'effect.automation.point',target:'c',values:{parameter:'rate',time:0,value:7}}]);
+ const before=structuredClone(h.session.masterEffects);assert.equal(before[0].sync,false);
+ h.execute([{op:'effect.set',target:'c',values:{sync:true,beats:2}}]);assert.equal(h.session.masterEffects[0].beats,2);assert.deepEqual(h.session.masterEffects[0].automation,before[0].automation);
+ for(const values of [{beats:0},{beats:17},{sync:1}])assert.throws(()=>h.execute([{op:'effect.set',target:'c',values}]));
+ h.undo();assert.deepEqual(h.session.masterEffects,before);h.redo();assert.equal(h.session.masterEffects[0].sync,true);
+});
+test('agent can create tempo-synced chorus through shared commands',async()=>{
+ const {planDawEdit}=await import('../server/daw-agent.js');const h=new SessionHistory(),commands=[{op:'effect.add',target:h.session.id,values:{id:'c',kind:'chorus',sync:true,beats:2}}];
+ const result=await planDawEdit({session:h.session,instruction:'Add half-note synced chorus to the master'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Added chorus',commands})}]})})});
+ h.execute(result.commands);assert.equal(h.session.masterEffects[0].sync,true);assert.equal(h.session.masterEffects[0].beats,2);
+});
