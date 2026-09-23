@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {scorePreviewDocument,scorePreviewView} from '../src/experimental/score-preview.js';
+const fixture=()=>({title:'Arrangement',tempo:120,tracks:[{id:'t',kind:'midi',name:'Strings',regions:[{id:'r',name:'Theme',start:2,duration:2,notes:[{pitch:60,start:0,duration:1,velocity:1}]}]}]});
+test('arrangement preview is accessible without selecting a MIDI region',()=>{const s=fixture(),view=scorePreviewView(null,null,s);assert.match(view,/value="arrangement" selected/);assert.doesNotMatch(view,/data-score-clef/);const before=structuredClone(s),doc=scorePreviewDocument(s,null,null,'arrangement');assert.equal(doc.label,'Arrangement score: 1 parts');assert.match(doc.xml,/<rest\/><duration>3840/);assert.deepEqual(s,before);assert.equal(scorePreviewView(null,null,{tracks:[]}), '');});
+test('arrangement validates key changes in gaps before the first region',()=>{const s=fixture();s.keyChanges=[{beat:2,sharps:2,mode:'major'}];const t=s.tracks[0];assert.doesNotThrow(()=>scorePreviewDocument(s,t,t.regions[0],'region'));assert.throws(()=>scorePreviewDocument(s,null,null,'arrangement'),/mid-bar/);});
