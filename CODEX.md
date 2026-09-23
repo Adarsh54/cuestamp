@@ -4980,3 +4980,13 @@ Detected attacks appear as lines in the visible waveform and in a timestamp drop
 Detection can be canceled. Zone/source changes cancel pending work and clear temporary markers; disconnected forms ignore late results. Zoom redraws visible markers without rerunning detection. Markers and navigation are transient editor state, not saved attack markers in an audio region.
 
 Verification: `test/experimental-sampler-zone-attacks.test.js` checks immutable frame-aligned edits, containment and invalid requests. `scripts/browser-experimental-sampler-zone-attacks-check.cjs` exercises real worker detection of two synthetic attacks, navigation, markers while zoomed, sample/loop draft changes, rejection and persistence. Zone-selection regression and build pass. The rendered controls were visually inspected.
+
+## Create playable sampler slices from attacks
+
+After detecting attacks in a saved zone, choose **First slice MIDI key** and **Create playable slices**. This partitions the current draft sample portion at its internal detected attacks, including a slice from the selected start to the first attack. Trim the source start first if that leading portion should be omitted. Cuts align to source frames, duplicate cuts are removed, and attacks outside the selection are ignored. At least one internal cut is required.
+
+The action replaces the selected saved zone with consecutive-key zones in one undoable command batch. Each new zone sets its root and key bounds to its assigned key, shares the original source asset, and has its own source start/end. Looping is disabled. Zone sound settings, group membership, articulation and velocity conditions are retained; group key ranges or other overlapping zones can still limit/layer the result. The original audio is never copied or rewritten. Other zones remain unchanged. A new unsaved zone must be saved first.
+
+The operation rejects insufficient MIDI keys, capacity beyond 128 zones and invalid source ranges before committing. Undo restores the original zone. The existing shared `samplerZone.delete` and `samplerZone.addMany` operations provide the persistence/agent command path; this addition does not introduce a dedicated agent attack-slicing tool.
+
+Verification: `test/experimental-sampler-zone-slices.test.js` checks exact partitions, key/root assignment, retained asset/sound settings, Undo, duplicate/external cuts and invalid/overflow requests. `scripts/browser-experimental-sampler-zone-slices-check.cjs` uses the actual detection worker, creates and persists slices, renders each key in native OfflineAudioContext to verify audible source inclusion/exclusion, and restores the original with Undo. Full suite: 1,281 passing; production build passes. Physical MIDI timing remains unverified.
