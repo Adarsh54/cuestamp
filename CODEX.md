@@ -4624,3 +4624,10 @@ Each marker’s **Loop to next marker** button sets the cycle from that marker t
 The agent can use `marker.cycle`, targeting the start marker ID, with optional `values.endMarkerId` to choose another later marker. Missing/reversed/coincident endpoints, unknown fields and overly long ranges reject. The cycle is a snapshot of the marker times; moving markers later does not automatically move the saved cycle. Existing cycle rendering/tail behavior applies.
 
 Unit tests cover chronological selection, explicit endpoints, rejection, unchanged markers and Undo. The live-marker browser workflow verifies actual cycle playback remains within the chosen markers and Undo restores Cycle off. All 1,155 tests and build pass. Live model inference remains unverified.
+
+
+### Agent cue-marker navigation
+
+`navigate_markers` supports `next`, `previous`, and `jump`. Next/previous use the observed playhead and skip coincident marker timestamps; jump uses an existing `markerId`. The tool is offered only when markers and transport capability are available, outside editing continuations. The model is instructed to ask when marker names are ambiguous. Navigation resolves saved positions on the server, pauses playback through the existing seek path, and does not edit the document.
+
+Missing targets/directions and inconsistent arguments reject. Browser session/revision/transport checks still reject stale responses. Unit tests cover ordering, IDs, ambiguity in arguments and capability gating. The agent-position browser integration runs the real server planner with mocked model output, checking all three navigation actions, unchanged project data and stale response rejection. All 1,156 tests and build pass; live natural-language model behavior remains unverified.
