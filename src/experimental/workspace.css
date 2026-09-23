@@ -180,3 +180,7 @@ form.daw-note-editor{margin-top:8px}
 [data-sampler-automap] .daw-map-zone-list label{display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
 [data-sampler-automap] input[type=checkbox]{width:16px;height:16px;flex:none;margin:0}
 [data-sampler-automap] p{margin:0}
+
+[data-sampler-automap] [hidden]{display:none!important}
+[data-filename-roots]{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:160px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+[data-filename-roots][data-valid=false]{color:var(--muted)}
