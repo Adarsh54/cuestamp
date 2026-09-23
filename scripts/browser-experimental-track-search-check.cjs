@@ -12,18 +12,25 @@ const assert=require('node:assert/strict');
   await page.getByText('Session restored on this device.',{exact:true}).waitFor();
   await page.waitForFunction(()=>!document.querySelector('[data-audio-input-refresh]')?.disabled);await page.evaluate(()=>document.fonts.ready);
   await page.getByText('Command harness',{exact:true}).click();
-  await page.locator('#daw-json').fill(JSON.stringify([{op:'track.add',values:{id:'t',kind:'midi',instrument:'sine'}},{op:'region.add',target:'t',values:{id:'r',duration:4}},...[60,64,67].map((pitch,i)=>({op:'note.add',target:'r',values:{id:'n'+i,pitch,start:0,duration:2,velocity:.7,channel:0}}))]));
+  await page.locator('#daw-json').fill(JSON.stringify([{op:'track.add',values:{id:'t',name:'Lead',kind:'midi',instrument:'sine'}},{op:'region.add',target:'t',values:{id:'r',duration:4}},...[60,64,67].map((pitch,i)=>({op:'note.add',target:'r',values:{id:'n'+i,pitch,start:0,duration:2,velocity:.7,channel:0}}))]));
   await page.getByRole('button',{name:'Execute commands',exact:true}).click();await page.locator('[data-region=r]').click();
 
 
 
 
+  await page.locator('#daw-json').evaluate(e=>e.closest('details').open=true);
   const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cuestamp-experimental:transpose')));
+  await page.locator('#daw-json').fill(JSON.stringify([{op:'track.add',values:{id:'other',name:'Other instrument',kind:'midi'}},{op:'region.add',target:'other',values:{id:'other-region',duration:4}}]));
+  await page.getByRole('button',{name:'Execute commands',exact:true}).click();
+  await page.locator('[data-region=r]').click();await page.locator('[data-region=other-region]').click({modifiers:['Control']});
+  await page.getByText('2 regions selected',{exact:true}).waitFor();
+  await page.locator('#daw-track-search').fill('Lead');assert.equal(await page.locator('[data-region=r]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[data-region-group-move]').count(),0);
+  await page.getByRole('button',{name:'Clear search',exact:true}).click();assert.equal(await page.locator('[data-region=other-region]').getAttribute('aria-pressed'),'false');
   const before=await read();
   const search=page.locator('#daw-track-search');await search.fill('missing');assert.equal(await page.locator('[data-track-row]').count(),0);await page.getByText('No matching tracks',{exact:true}).waitFor();assert.equal(await search.evaluate(e=>e===document.activeElement),true);
-  await search.fill('midi');assert.equal(await page.locator('[data-track-row]').count(),1);assert.deepEqual(await read(),before);
-  await page.getByRole('button',{name:'Clear search',exact:true}).click();assert.equal(await search.inputValue(),'');assert.equal(await page.locator('[data-track-row]').count(),1);
+  await search.fill('Lead');assert.equal(await page.locator('[data-track-row]').count(),1);assert.deepEqual(await read(),before);
+  await page.getByRole('button',{name:'Clear search',exact:true}).click();assert.equal(await search.inputValue(),'');assert.equal(await page.locator('[data-track-row]').count(),2);
   await page.getByRole('button',{name:'Play',exact:true}).click();await search.fill('hidden');await page.getByRole('button',{name:'Pause',exact:true}).waitFor();assert.deepEqual(await read(),before);await page.getByRole('button',{name:'Stop',exact:true}).click();
-  assert.deepEqual(errors,[]);console.log('PASS live search, focus, empty state, clear, unchanged session and uninterrupted playback.');
+  assert.deepEqual(errors,[]);console.log('PASS hidden regions deselected without edits; live search, focus, empty state, clear, unchanged session and uninterrupted playback.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

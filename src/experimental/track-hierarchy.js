@@ -25,3 +25,10 @@ export function filteredTrackHierarchy(session,query=''){
  }
  return trackHierarchy({...session,tracks:session.tracks.filter(t=>included.has(t.id)).map(t=>({...t,collapsed:false}))});
 }
+
+export function visibleTrackSelection(rows,selected,regionIds){
+ const tracks=new Set(rows.map(row=>row.track.id));
+ const regions=new Set(rows.flatMap(row=>row.track.regions||[]).map(region=>region.id));
+ const ids=regionIds.filter(id=>regions.has(id));
+ return {selected:tracks.has(selected)||regions.has(selected)?selected:ids.at(-1)||null,regionIds:ids};
+}

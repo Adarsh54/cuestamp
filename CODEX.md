@@ -4351,3 +4351,5 @@ the production build pass; the existing bundle-size warning remains.
 The Experimental arrangement has a Find tracks field for names and track types. Search includes ancestor buses, temporarily reveals collapsed groups, and includes descendants when a bus matches. Clearing search restores the saved collapsed layout. The filter is transient and arrangement-only; mixer channels, playback, routing, export, and session history are unchanged. Group folding is hidden while searching. New sessions reset the filter.
 
 Validation: `node --test test/experimental-track-search.test.js` and `scripts/browser-experimental-track-search-check.cjs` cover hierarchy/nonmutation, input focus, clearing, no matches, and uninterrupted playback. The browser check uses the Playwright environment variables documented above.
+
+Track search deselects regions hidden by the new filter and retains visible selected regions. Clearing the filter does not restore hidden selections. This prevents later group edits from unintentionally affecting tracks filtered out of the arrangement. Selection changes do not create session revisions or stop playback.
