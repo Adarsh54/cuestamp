@@ -4640,3 +4640,8 @@ Full-mix analysis now also scans 400 ms stereo windows every 100 ms. Both channe
 Overlapping negative windows are not separate incidents, and a negative value alone does not prove an audible problem or justify automatic polarity changes. The optional `stereoWindows` observation reaches the agent with these interpretation limits. Server validation checks window sizes, counts, eligibility/null state, timestamp bounds and negative/minimum consistency. Results become stale with session edits like existing mix analysis.
 
 Tests detect a brief polarity reversal concealed by a positive full-render average, verify quiet-channel gating and reject malformed observations. Browser checks exercise the real render/worker path, visible values and agent context alongside existing analysis, normalization and cancellation workflows. All 1,159 tests and build pass; the existing bundle-size warning remains. Live model interpretation remains unverified.
+
+
+### Navigate to the lowest-correlation window
+
+**Go to lowest correlation** moves the playhead to the measured 400 ms window’s start and pauses playback without editing the session. It is disabled for stale results, busy operations and analyses with no qualifying window. The handler rechecks current analysis validity before seeking. The real-render browser analysis workflow verifies the jump and disabled controls after edits and silence; build passes.
