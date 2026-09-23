@@ -144,3 +144,9 @@ form.daw-note-editor{margin-top:8px}
 
 .daw-scenes [data-scene-cell-status]:empty{display:none}
 .daw-scenes [data-scene-cell-status][data-playing="true"]{color:var(--accent);font-weight:600}
+
+.daw-scenes .daw-scene-launch{display:inline-flex;align-items:center;justify-content:center;min-width:32px;width:32px;min-height:32px;padding:4px;margin:4px;font-size:13px;color:var(--accent);vertical-align:middle}
+.daw-scenes .daw-scene-launch:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+.daw-scene-cell-actions{display:flex;align-items:stretch;gap:4px}
+.daw-scenes .daw-scene-cell-actions .daw-scene-launch{margin:0;min-height:64px}

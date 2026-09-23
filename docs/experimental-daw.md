@@ -2237,3 +2237,7 @@ Validation: `experimental-scene-stop-all.test.js`, `browser-experimental-scene-s
 ### Scene variations
 
 Duplicate scene creates an adjacent scene with its own clip assignments and loop flags, then selects it for editing. Source regions remain shared, so editing a source region affects every scene referencing it. The shared `scene.duplicate` command accepts an optional ID and name; otherwise it generates an ID and a distinct copy name. Scene duplication and subsequent edits support normal batch undo, validation, and persistence. The agent can duplicate and customize a scene in one edit batch.
+
+### Direct scene-grid playback
+
+Scene headers and assigned cells have dedicated Play buttons, and playing track rows have Stop buttons. A cell can start playback by itself or replace only its track's clip in a running scene. Grid buttons use the playback length and timing controls above the grid. These settings, and the selected-cell playback settings below it, survive selection changes and workspace repaints while the workspace remains open. They are playback preferences, not session edits. Clip selection remains separate from playback; grid actions use the saved assignment even when the lower assignment form has unsaved changes. All launches still use the existing bounded scene transport and performance recorder.
