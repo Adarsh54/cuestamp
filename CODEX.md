@@ -4353,3 +4353,7 @@ The Experimental arrangement has a Find tracks field for names and track types. 
 Validation: `node --test test/experimental-track-search.test.js` and `scripts/browser-experimental-track-search-check.cjs` cover hierarchy/nonmutation, input focus, clearing, no matches, and uninterrupted playback. The browser check uses the Playwright environment variables documented above.
 
 Track search deselects regions hidden by the new filter and retains visible selected regions. Clearing the filter does not restore hidden selections. This prevents later group edits from unintentionally affecting tracks filtered out of the arrangement. Selection changes do not create session revisions or stop playback.
+
+### Panel state during editor changes
+
+Workspace panel restoration uses its original DOM position when still valid, then a unique summary label when inserting/removing an editor shifts that position. Duplicate labels do not use the fallback. This keeps the command harness open (or deliberately closed) across track/region selections. `scripts/browser-experimental-view-state-check.cjs` checks both transitions, ambiguous labels, delayed initialization, draft focus, device changes, editor scrolling, and undo.

@@ -7,13 +7,24 @@ function key(element,root){
 }
 export function captureViewState(root,{drafts=false,editor=false,agentFocus=false}={}){
  const log=root.querySelector('.daw-agent-log'),logState=log?{top:log.scrollTop,bottom:log.scrollHeight-log.clientHeight-log.scrollTop<8}:null;
- const details=Array.from(root.querySelectorAll('details')).map(el=>({selector:key(el,root),label:el.querySelector('summary')?.textContent,open:el.open}));
+ const details=Array.from(root.querySelectorAll('details')).map(el=>({selector:key(el,root),label:el.querySelector(':scope > summary')?.textContent,open:el.open}));
+ const detailCounts=new Map();for(const item of details)detailCounts.set(item.label,(detailCounts.get(item.label)||0)+1);
  const scrolls=editor?Array.from(root.querySelectorAll('.daw-scroll,.daw-note-scroll,.daw-note-grid,.daw-controller-scroll')).map(el=>({selector:key(el,root),top:el.scrollTop,left:el.scrollLeft})):[];
  const fields=drafts?Array.from(root.querySelectorAll('input:not([type=file]),select,textarea:not(#daw-instruction)')).map(el=>({selector:key(el,root),tag:el.tagName,name:el.name,value:el.value,checked:el.checked,options:el.tagName==='SELECT'?el.innerHTML:null})):[];
  const chordPreview=drafts?root.querySelector('[data-chord-preview]')?.textContent:null;
  const active=root.contains(document.activeElement)?document.activeElement:null,focus=active&&(drafts||(agentFocus&&active.id==='daw-instruction'))?{selector:key(active,root),start:active.selectionStart,end:active.selectionEnd}:null;
  return ()=>{
-  for(const saved of details){const el=root.querySelector(saved.selector);if(el?.tagName==='DETAILS'&&el.querySelector('summary')?.textContent===saved.label)el.open=saved.open;}
+  const nextDetails=Array.from(root.querySelectorAll('details'));
+  for(const saved of details){
+   let el=root.querySelector(saved.selector);
+   if(el?.tagName!=='DETAILS'||el.querySelector(':scope > summary')?.textContent!==saved.label){
+    // Editors insert/remove siblings, so positional selectors can move. Only
+    // fall back to labels that identify one panel in both renders.
+    const matches=nextDetails.filter(node=>node.querySelector(':scope > summary')?.textContent===saved.label);
+    el=saved.label&&detailCounts.get(saved.label)===1&&matches.length===1?matches[0]:null;
+   }
+   if(el)el.open=saved.open;
+  }
   for(const saved of fields){const el=root.querySelector(saved.selector);if(el?.tagName!==saved.tag||el.name!==saved.name)continue;if(saved.options!==null)el.innerHTML=saved.options;el.value=saved.value;if(typeof saved.checked==='boolean')el.checked=saved.checked;}
   if(chordPreview!==null&&root.querySelector('[data-chord-preview]'))root.querySelector('[data-chord-preview]').textContent=chordPreview;
   for(const saved of scrolls){const el=root.querySelector(saved.selector);if(el){el.scrollTop=saved.top;el.scrollLeft=saved.left;}}
