@@ -20,3 +20,17 @@ test('agent can save and apply a preset through validated shared commands',async
  const {planDawEdit}=await import('../server/daw-agent.js');const h=fixture(),commands=[{op:'effectPreset.save',target:'t',values:{id:'saved',name:'Grit'}},{op:'effectPreset.apply',target:'b',values:{presetId:'saved'}}];
  const result=await planDawEdit({session:h.session,instruction:'Save track t effects as Grit and apply to b'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Saved and applied chain',commands})}]})})});h.execute(result.commands);assert.equal(h.session.tracks[1].effects.length,2);
 });
+test('portable preset files roundtrip settings and automation across projects with renewed IDs',async()=>{
+ const {serializeEffectPreset}=await import('../src/experimental/effect-presets.js');const source=fixture();source.execute([{op:'effectPreset.save',target:'t',values:{id:'saved',name:'Portable',includeAutomation:true}}]);const text=serializeEffectPreset(source.session.effectPresets[0]),destination=new SessionHistory();
+ destination.execute([{op:'effectPreset.import',values:{id:'imported',json:text}}]);const p=destination.session.effectPresets[0];assert.equal(p.name,'Portable');assert.equal(p.effects[0].automation[0].time,2);assert.notEqual(p.effects[0].id,source.session.effectPresets[0].effects[0].id);assert.notEqual(p.effects[0].automation[0].id,source.session.effectPresets[0].effects[0].automation[0].id);assert.equal(destination.session.masterEffects.length,0);
+ destination.execute([{op:'effectPreset.apply',target:destination.session.id,values:{presetId:'imported'}}]);assert.equal(destination.session.masterEffects[0].driveDb,24);
+ destination.undo();destination.undo();assert.equal(destination.session.effectPresets.length,0);destination.redo();assert.equal(destination.session.effectPresets.length,1);
+});
+test('import preserves existing presets and disambiguates duplicate names, including maximum length',async()=>{
+ const {serializeEffectPreset}=await import('../src/experimental/effect-presets.js');const h=fixture();h.execute([{op:'effectPreset.save',target:'t',values:{name:'X'.repeat(100)}}]);const text=serializeEffectPreset(h.session.effectPresets[0]);h.execute([{op:'effectPreset.import',values:{json:text}},{op:'effectPreset.import',values:{json:text}}]);assert.equal(h.session.effectPresets[1].name,'X'.repeat(96)+' (2)');assert.equal(h.session.effectPresets[2].name,'X'.repeat(96)+' (3)');
+});
+test('malformed oversized and unsupported preset files fail before any session change',async()=>{
+ const {serializeEffectPreset,parseEffectPresetFile,effectPresetFileLimit}=await import('../src/experimental/effect-presets.js');const h=fixture();h.execute([{op:'effectPreset.save',target:'t',values:{name:'Valid'}}]);const data=JSON.parse(serializeEffectPreset(h.session.effectPresets[0])),before=structuredClone(h.session);
+ for(const json of ['bad',JSON.stringify({...data,version:2}),JSON.stringify({...data,format:'other'}),JSON.stringify({...data,mediaUrl:'https://example.com'}),JSON.stringify({...data,effects:[{...data.effects[0],driveDb:99}]}),JSON.stringify({...data,effects:[]})]){assert.throws(()=>h.execute([{op:'effectPreset.import',values:{json}}]));assert.deepEqual(h.session,before);}
+ assert.throws(()=>parseEffectPresetFile(' '.repeat(effectPresetFileLimit+1)),/8 MB/);assert.throws(()=>parseEffectPresetFile('é'.repeat(effectPresetFileLimit/2+1)),/8 MB/);
+});

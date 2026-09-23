@@ -4126,7 +4126,8 @@ Open **Mixer → Effect chain presets** on an audio/instrument/bus or master
 channel. Name the current chain and save it; choose a saved chain to replace
 or append effects. Rename and delete are also available. All operations are
 undoable. Presets belong to the project document, survive reload and project
-JSON export/import, and are not yet an account-wide or standalone preset library.
+JSON export/import. Individual chains can also be exported/imported as preset
+files (below); there is no account-wide preset library yet.
 The library holds up to 32 named chains; each channel/preset holds up to 16 effects.
 
 By default a preset saves static effect settings and bypass state without
@@ -4151,3 +4152,31 @@ fresh IDs, curves, limits, invalid requests, atomicity, undo, JSON roundtrip and
 mocked agent validation. `scripts/browser-experimental-effect-presets-check.cjs`
 checks save/apply/append, rename/delete, undo/redo and reload in the mixer. All
 984 tests and the production build pass, with the existing bundle-size warning.
+
+
+### Portable effect preset files
+
+Use **Export preset** for the selected saved chain to download a
+`.cuestamp-preset.json` file. **Import preset** adds a chain to the current
+project library; it does not change any channel until you apply it. Duplicate
+names gain a numbered suffix, and all imported IDs are regenerated. Preserved
+curves still use their original absolute project times.
+
+The versioned format contains only `format: "cuestamp-effect-preset"`,
+`version: 1`, `name`, and `effects`. No audio assets, project identity, routing,
+or executable code is included. Files must be valid UTF-8 JSON under the 8 MB
+limit, and every effect/automation value is validated with the shared schemas.
+Unsupported versions or fields are rejected. The UI checks session freshness
+again after reading a file; imports commit through the undoable command engine.
+
+`effectPreset.import` takes `values.json` (the supplied file string) and optional
+`values.id` for the new preset. Its target is omitted or the current session ID.
+The agent is instructed to use only supplied file content and not to claim a
+file download happened through an edit command. Export itself does not mutate
+the document or create a history entry.
+
+Validation extends the effect-presets unit/browser checks with cross-project
+roundtrips, preserved curves, fresh IDs, duplicate names, downloaded JSON,
+import undo/redo, malformed files, invalid parameters, unsupported versions,
+and UTF-8 byte limits. All 987 tests and the production build pass; the existing
+large-bundle warning remains.
