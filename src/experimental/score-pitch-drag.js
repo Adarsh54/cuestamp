@@ -29,6 +29,7 @@ export function bindScorePitchDrag(element,{session,reference,zoom,execute,guard
  element.onkeydown=guard(e=>{
   if(e.key==='Escape'&&gesture){e.preventDefault();e.stopPropagation();cancel();return;}
   if(gesture)return;
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();e.stopPropagation();execute([{op:'note.delete',target:note.id}],'Deleted score note');return;}
   if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();onSelect();return;}
   if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();const steps=(e.key==='ArrowUp'?1:-1)*(e.shiftKey?7:1);execute([{op:'note.set',target:note.id,values:{pitch:scorePitchStep(note.pitch,steps,key)}}],'Changed score note pitch');}
  });

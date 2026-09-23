@@ -5129,3 +5129,10 @@ Verification: `test/experimental-score-clef.test.js` checks supported clefs, exa
 - Starts are converted through the tempo map into original region-relative seconds. Initial duration is one quarter note or the remaining rest/region extent, whichever is shorter. The displayed draft is editable before applying.
 - In arrangement view, insertion requires exactly one existing MIDI region covering the rest position. Empty timeline outside regions and ambiguous overlapping regions do not expose insertion targets. Automatic region creation and freehand note placement remain pending.
 - Tests: `test/experimental-score-rest-insert.test.js` covers tempo changes, timeline/region offsets, boundaries and overlapping destinations; `scripts/browser-experimental-score-rest-insert-check.cjs` verifies mouse/keyboard access, cancel, insertion timing and Undo.
+
+### Score note actions and view continuity (2026-09-23)
+
+- Existing score notes now offer **Duplicate after** and **Delete note**. Focused noteheads also support Delete/Backspace. Actions use existing `notes.duplicate`/`note.delete` validation, protection rules and Undo; draft insertion forms hide these actions.
+- Duplication starts at the original note's end and preserves its musical length through the tempo map, along with channel/velocity and other copied note metadata. A copy outside the region is rejected atomically; the region is not silently extended.
+- Score scope, zoom and score scroll are retained during document repaint, edits and Undo within the current session. These are transient view preferences, not document mutations, and reset for a different session.
+- Verified `test/experimental-score-note-actions.test.js` (tempo-aware duplicate, metadata, delete, Undo and failed-copy atomicity), plus `scripts/browser-experimental-score-note-actions-check.cjs` (duplicate/delete/Undo retaining full arrangement at 125%).

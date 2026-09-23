@@ -1,3 +1,4 @@
+import {scoreNoteAction} from './score-note-actions.js';
 import {scoreRestDraft} from './score-rest-insert.js';
 import {scoreRhythmDuration,identifyScoreRhythm,scoreRhythmView} from './score-rhythm.js';
 import {bindScorePitchDrag} from './score-pitch-drag.js';
@@ -11,13 +12,14 @@ export function resolveScoreNote(part,{pitch,tick,voice}){
  if(notes.length!==1||!notes[0].id)return null;
  return {noteId:notes[0].id,regionId:notes[0].scoreRegionId??part.regionId};
 }
-export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label>MIDI pitch<input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-close>Cancel</button></div></form>`;
+export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label>MIDI pitch<input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-duplicate>Duplicate after</button><button type="button" data-score-note-delete>Delete note</button><button type="button" data-score-note-close>Cancel</button></div></form>`;
 export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard}){
  const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null;
  form.hidden=true;
  const select=reference=>{
   const sourceRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=reference.note??sourceRegion?.notes.find(n=>n.id===reference.noteId);if(!note)return;
   selected=note;selectedRegion=sourceRegion;const rhythm=identifyScoreRhythm(session,sourceRegion,note);form.elements.namedItem('scoreLength').value=rhythm.length;form.elements.namedItem('scoreRhythm').value=rhythm.variant;form.elements.namedItem('scoreRhythm').disabled=rhythm.length==='custom';form.querySelector('[data-score-rhythm-status]').textContent='';form.hidden=false;form.querySelector('[data-score-note-label]').textContent=reference.note?`Add note to ${sourceRegion.name||'MIDI region'}`:`Edit note in ${sourceRegion.name||'MIDI region'} · changes all tied segments`;form.querySelector('[type=submit]').textContent=reference.note?'Add note':'Apply note edit';
+  for(const action of ['duplicate','delete'])form.querySelector(`[data-score-note-${action}]`).hidden=!note.id;
   for(const key of ['pitch','start','duration','velocity'])form.elements.namedItem(key).value=note[key];
   panel.querySelectorAll('[data-score-note]').forEach(el=>{const active=el.dataset.scoreNote===note.id;el.setAttribute('aria-pressed',String(active));el.style.fill=active?'#168544':'';});
  };
@@ -48,5 +50,6 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
  const updateRhythm=()=>{rhythm.disabled=length.value==='custom';rhythmStatus.textContent='';if(!selected||length.value==='custom')return;try{duration.value=scoreRhythmDuration(session,selectedRegion,Number(start.value),length.value,rhythm.value);rhythmStatus.textContent='Length follows the project tempo at this note.';}catch(error){rhythmStatus.textContent=error.message;}};
  length.onchange=updateRhythm;rhythm.onchange=updateRhythm;start.oninput=updateRhythm;duration.oninput=()=>{length.value='custom';rhythm.disabled=true;rhythmStatus.textContent='';};
  form.onsubmit=guard(e=>{e.preventDefault();if(!selected)throw Error('Select a score note first.');const values=Object.fromEntries(['pitch','start','duration','velocity'].map(key=>[key,Number(form.elements.namedItem(key).value)]));if(length.value!=='custom')values.duration=scoreRhythmDuration(session,selectedRegion,values.start,length.value,rhythm.value);execute([{op:selected.id?'note.set':'note.add',target:selected.id??selectedRegion.id,values}],selected.id?'Edited score note':'Added score note');});
+ for(const action of ['duplicate','delete'])form.querySelector(`[data-score-note-${action}]`).onclick=guard(()=>execute([scoreNoteAction(session,selectedRegion,selected,action)],action==='delete'?'Deleted score note':'Duplicated score note'));
  form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
 }
