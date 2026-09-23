@@ -4383,3 +4383,9 @@ The shared `regions.fades` command takes audio-only comma-separated `regionIds`,
 ### Arrangement framing
 
 Zoom to selection frames the full time span of selected regions with horizontal padding. Fit project frames the rendered project duration, including effect tails. The zoom range now extends down to 0.001 pixels/second for long sessions and retains its 100 pixels/second maximum; very short selections therefore do not fill the viewport. Both actions only change zoom/scroll and preserve playback, session data, and undo history. Loading and recording block framing. Tests: `test/experimental-arrangement-zoom.test.js` and `scripts/browser-experimental-arrangement-zoom-check.cjs` cover long-range bounds, selected spans, invalid dimensions, onscreen geometry, project fit, document preservation, and playback continuity.
+
+### Relative audio source slip
+
+Source-backed audio regions expose Slip source in the inspector. Enter signed seconds: positive moves the source window later in the original recording, negative earlier, independent of reverse playback. The control decodes/loads the original source to check its actual duration and rejects windows outside the recording. It preserves timeline start, clip length, fades, direction, and source-relative attack markers. It uses the existing undoable `region.set` offset command, with revision and editor-lifetime checks after loading. This is an inspector action; it does not add a drag gesture or change the existing absolute offset field.
+
+`test/experimental-region-slip.test.js` checks forward/reverse bounds, shared-command preservation and undo. `scripts/browser-experimental-region-slip-check.cjs` imports a real WAV and verifies relative editing, invalid bounds feedback and undo.
