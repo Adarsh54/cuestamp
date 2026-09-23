@@ -168,3 +168,4 @@ form.daw-note-editor{margin-top:8px}
 .daw-sampler-group-members { max-height: 220px; overflow: auto; }
 .daw-group-shaping { grid-column: 1 / -1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .daw-group-shaping small { grid-column: 1 / -1; }
+[data-sampler-presets] > label, [data-sampler-preset-save] > label, [data-sampler-preset-save] > .button-row { grid-column: 1 / -1; }
