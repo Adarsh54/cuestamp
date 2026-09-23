@@ -4256,3 +4256,25 @@ responses across seven types, Q/frequency/gain extremes and three sample rates,
 checking that ring-down is retained and decays below the test threshold by the
 planned end. All 993 tests and the production build pass; the existing
 large-bundle warning remains.
+
+### Live compressor gain-reduction meters
+
+Compressor inserts now show their native live reduction during ordinary
+playback, separate from channel output peaks. The meter bar spans 0–40 dB of
+reduction; the numeric value shows the actual finite reading. Bypassed inserts
+say **Bypassed**, and stopped playback clears readings. Cycle playback is
+explicitly unavailable because it plays a pre-rendered buffer rather than live
+compressor nodes. The meter does not measure makeup/output gain or loudness.
+
+`connectEffects` optionally registers compressor nodes with the live schedule’s
+`createEffectMeters` instance. Reads do not change the session, and Stop clears
+node references. Offline rendering does not create the live meter registry.
+These readings are currently UI-only; the agent’s existing level-meter context
+does not yet include compressor reduction.
+
+Validation: `test/experimental-compressor-meter.test.js` covers current readings,
+nonfinite values, stop cleanup and initial display states.
+`scripts/browser-experimental-compressor-meter-check.cjs` runs actual live
+compression, checks a nonzero reduction readout without document edits, and
+verifies stop, bypass and cycle behavior. All 995 tests and the production build
+pass; the existing large-bundle warning remains.
