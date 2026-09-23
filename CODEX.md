@@ -4608,3 +4608,10 @@ Tests cover drop-frame conversion, ambiguous/invalid endpoints, atomic rejection
 Workspace draft restoration now notifies forms after restoring their fields (`daw-drafts-restored`). Tempo fit refreshes its format state, preview and button validation in response. Its precise converted endpoint is retained in a hidden draft field, so a temporary redraw does not round a fractional-second target to the displayed timecode frame. Editing the endpoint clears that retained value; marker selection continues to use the marker’s exact time.
 
 The tempo-fit browser check reconstructs the form through the real view-state helper and verifies exact endpoint retention, the submitted command, and disabled Fit for an invalid restored draft. All 1,153 tests and build pass.
+
+
+### Capture markers during playback
+
+**Add marker at playhead** and the workspace **M** shortcut place a marker using the current transport position. Names use the next available `Cue N`; markers can then be renamed normally. Marker-only add/set/delete batches no longer stop ordinary playback because they do not change scheduled audio. Mixed batches retain normal stop-before-edit behavior. Audio/MIDI recording and scene performance capture still block these edits. Undo retains the usual stop-before-history behavior.
+
+The shortcut respects text inputs, composition, dialogs, disabled shortcuts and key repeat. It does not replace typing M in a field. `scripts/browser-experimental-live-markers-check.cjs` verifies live timing from an advancing audio transport, consecutive button/keyboard captures, unique naming, continued playback, native text input, unchanged musical content and Undo. All 1,153 tests and build pass.
