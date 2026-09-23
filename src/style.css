@@ -820,3 +820,7 @@ audio { width: 100%; height: 36px; margin-bottom: 12px; }
 [data-score-status] { display: block; margin: 8px 0; }
 .daw-score-scroll { overflow: auto; max-height: 620px; border-radius: 8px; }
 [data-score-sheet] { width: 900px; background: #fff; color: #111; }
+[data-score-note] { cursor: pointer; }
+[data-score-note]:hover path, [data-score-note]:focus path,
+[data-score-note][aria-pressed="true"] path { fill: #168544 !important; }
+[data-score-note]:focus { outline: 2px solid #168544; outline-offset: 3px; }

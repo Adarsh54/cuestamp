@@ -56,15 +56,17 @@ function scoreDocument(title,parts){
 }
 export function exportRegionMusicxml(session,track,region){return scoreDocument(region.name||session.title,[{name:track.name,measures:regionMeasures(session,track,region)}]);}
 export function scoreTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.instrument!=='drumKit'&&t.regions.length&&!t.regions.some(r=>r.notes.some(n=>n.channel===9)));}
-export function exportScoreMusicxml(session,trackIds=scoreTracks(session).map(t=>t.id)){
+export function scorePartRegions(session,trackIds=scoreTracks(session).map(t=>t.id)){
  if(!Array.isArray(trackIds)||!trackIds.length||trackIds.length>128||new Set(trackIds).size!==trackIds.length)throw Error('Choose between 1 and 128 distinct pitched MIDI tracks.');
  const eligible=scoreTracks(session),tracks=trackIds.map(id=>{const track=eligible.find(t=>t.id===id);if(!track)throw Error('Choose existing pitched MIDI tracks with regions; percussion notation is not supported.');return track;});
  const end=Math.max(...tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration)));
- const parts=tracks.map(track=>{
+ return tracks.map(track=>{
   // Align all parts to the same timeline, retaining gaps as rests and overlapping regions as voices.
-  const region={id:'score-export',name:session.title,start:0,duration:end,notes:track.regions.flatMap(r=>r.notes.map(n=>({...n,start:r.start+n.start})))};
-  return {name:track.name,measures:regionMeasures(session,{...track,regions:[region]},region)};
+  const region={id:'score-export',name:session.title,start:0,duration:end,notes:track.regions.flatMap(r=>r.notes.map(n=>({...n,start:r.start+n.start,scoreRegionId:r.id})))};
+  return {track:{...track,regions:[region]},region};
  });
- return scoreDocument(session.title,parts);
+}
+export function exportScoreMusicxml(session,trackIds){
+ return scoreDocument(session.title,scorePartRegions(session,trackIds).map(({track,region})=>({name:track.name,measures:regionMeasures(session,track,region)})));
 }
 export function resolveMusicxmlRegion(session,regionId){if(typeof regionId!=='string'||!regionId||regionId.length>100)throw Error('Choose an existing MIDI region.');const track=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=track?.regions.find(r=>r.id===regionId);musicxmlRegionPlan(session,track,region);return {track,region};}
