@@ -4864,3 +4864,18 @@ Creation validates capacity (128 zones), selection, group, ranges and filenames 
 `samplerZone.addMany` takes `{zones: '<JSON array>'}` with 1–128 zone definitions. It validates the entire resulting zone collection, rejects duplicate IDs and appends without replacing existing zones. The agent tool `create_sampler_zones` is gated by `allowSamplerZoneCreation` and unavailable during editing continuation. It takes `{trackId, assetIds, mode: 'chromatic' | 'filenames', startKey, middleC: 3 | 4, groupId: string | null}`. Source asset IDs must already be observed in the current session. The browser performs the same real-file validation/decoding and shared creation plan as the manual UI.
 
 Verification: `test/experimental-sampler-zone-create.test.js` covers both mapping modes, append/preservation, group selection, malformed/duplicate/excessive zones, a 128-zone single command, Undo/Redo and mocked agent capability/source validation. `scripts/browser-experimental-sampler-zone-create-check.cjs` covers previews, actual source decoding, rendered two-source WAV PCM, Undo/Redo, mocked agent creation, reload and corrupt-audio rejection without document changes. Physical MIDI output and live model inference remain outside this check.
+
+## Duplicate and remove sampler zones in batches
+
+**Sample zones → Map multiple zones → Selected zone actions** uses the same checked zone list as mapping. **Duplicate selected zones** appends independent zone settings sharing the original source media. Copies preserve loops, velocity ranges, groups, articulations, gain, pan and tuning. **Copy key offset** shifts both key edges and the root by the same integer semitone amount; zero makes an overlapping layer. Out-of-range roots/keys reject the complete operation rather than clamping. Copies receive fresh IDs and unique bounded names such as `Soft (copy)`.
+
+**Delete selected zones** removes only the checked zones. It keeps source files, group definitions and saved instrument presets. Both actions are one Undo step. Checked selections persist through inspector repainting on the same track; duplication selects the new copies and deletion clears the selection. Switching tracks resets the batch selection. The graphical map's active single-zone selection is separate.
+
+Shared agent/manual commands:
+
+- `samplerZone.duplicate`, target instrument track, values `{zoneIds: '<JSON ID array>', keyOffset?: integer, copyIds?: '<JSON fresh ID array>'}`. Offset defaults to zero; omitted copy IDs are generated. Supplied IDs must be distinct, new and match selection count.
+- `samplerZone.deleteMany`, target instrument track, values `{zoneIds: '<JSON ID array>'}`.
+
+Empty/duplicate/missing selections, ID collisions, invalid offsets and the 128-zone limit reject atomically. These commands do not copy, transcode or delete source audio.
+
+Verification: `test/experimental-sampler-zone-batch.test.js` covers full settings preservation, shifted roots/ranges, name/ID uniqueness, independent edits, source/preset retention, atomic failure, capacity, Undo/Redo and mocked agent plans. `scripts/browser-experimental-sampler-zone-batch-check.cjs` verifies checked selection continuity, both actions, offset failure, reload and actual WAV PCM showing a doubled selected layer with unchanged other-source audio. Live model inference remains unverified.

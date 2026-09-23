@@ -193,3 +193,6 @@ form.daw-note-editor{margin-top:8px}
 [data-sampler-create] .daw-create-source-list label{display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
 [data-sampler-create] input[type=checkbox]{width:16px;height:16px;flex:none;margin:0}
 [data-create-preview]{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:180px;overflow:auto;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:6px}
+
+.daw-zone-batch-actions{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.daw-zone-batch-actions>strong{font-size:12px}
