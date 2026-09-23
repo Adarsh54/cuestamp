@@ -1,3 +1,4 @@
+import {captureScoreView} from './score-view-context.js';
 import {scorePitchView} from './score-transposition.js';
 import {selectedScoreNote} from './score-agent-selection.js';
 import {updateScorePosition} from './score-position.js';
@@ -587,7 +588,7 @@ export function createExperimentalWorkspace({account,esc}){
   root.querySelector('#daw-agent-form').onsubmit=guard(async event=>{
    event.preventDefault();if(agentBusy||busy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');
    const instruction=root.querySelector('#daw-instruction').value.trim();if(!instruction)return;
-   const scoreFocus=selectedScoreNote(root,session());
+   const scoreFocus=selectedScoreNote(root,session()),capturedScoreView=captureScoreView(root,session(),track(),region());
    const original=history,before=structuredClone(session()),draftTicket=instructionDrafts.begin(before.id),revision=before.revision,request=new AbortController();agentController=request;const recent=structuredClone(conversation);trace.push({role:'user',text:instruction});agentBusy=true;paint();
    let outcome='failed',summary='',applied=false,appliedSession,verifying=false,transportTouched=false,followingTransport=false,followingExport=false;const timer=setTimeout(()=>request.abort(new Error('The agent request timed out.')),300000);
    try{
@@ -605,7 +606,7 @@ export function createExperimentalWorkspace({account,esc}){
     for(let attempt=0;attempt<2;attempt++){
      request.signal.throwIfAborted();
      takeSnapshot=playback?.recordPerformance?undefined:sceneTakeContext(sceneTakes,before);transportSnapshot=currentTransport();clipboardSnapshot={sessionId:before.id,revision,epoch:clipboardEpoch,count:regionClipboard?.count||0,position:transportSnapshot.position,transportEpoch:transportSnapshot.epoch};
-     const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowSamplerSlicing:true,allowZoneZero:true,allowZoneAudition:true,allowSamplerZoneCreation:true,allowSamplerFilenameMapping:true,sceneTakeLibrary:takeSnapshot,editingContinuation:editStep>0,remainingEditSteps:2-editStep,audioRange,instruction,session:before,conversation:recent,allowTransients:true,allowZeroCrossing:true,allowRangeAudition:true,recordedScenePerformance:availableScenePerformance(before,scenePerformance),allowSceneAudition:true,allowSelectionAudition:true,allowRegionNormalization:true,allowSilence:true,allowAudioStretch:true,allowBounceInPlace:true,allowClipboard:true,clipboardContext:clipboardSnapshot,allowHistory:true,historyContext:historySnapshot,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selectedRegionIds,selection}),signal:request.signal});
+     const response=await fetch('/api/daw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scoreView:editStep===0?capturedScoreView:undefined,allowSamplerSlicing:true,allowZoneZero:true,allowZoneAudition:true,allowSamplerZoneCreation:true,allowSamplerFilenameMapping:true,sceneTakeLibrary:takeSnapshot,editingContinuation:editStep>0,remainingEditSteps:2-editStep,audioRange,instruction,session:before,conversation:recent,allowTransients:true,allowZeroCrossing:true,allowRangeAudition:true,recordedScenePerformance:availableScenePerformance(before,scenePerformance),allowSceneAudition:true,allowSelectionAudition:true,allowRegionNormalization:true,allowSilence:true,allowAudioStretch:true,allowBounceInPlace:true,allowClipboard:true,clipboardContext:clipboardSnapshot,allowHistory:true,historyContext:historySnapshot,allowExport:true,exportContext,allowTransport:true,transport:transportSnapshot,allowAnalysis:attempt===0,mixAnalysis:currentMixAnalysis(mixAnalysis,before),meterObservation:currentMeterObservation(meterObservation,before),selectedNoteIds,selectedRegionIds,selection}),signal:request.signal});
      result=await response.json();if(!response.ok)throw Error(result.error||'The agent request failed.');request.signal.throwIfAborted();
      if(!root?.isConnected||history!==original||session().id!==before.id||session().revision!==revision||result.revision!==revision){outcome='discarded';throw Error('The session changed. This response was not applied. Run the instruction again.');}
      if(result.action!==undefined&&result.afterEditExport!==undefined)throw Error('Follow-up export belongs only in an edit plan.');
