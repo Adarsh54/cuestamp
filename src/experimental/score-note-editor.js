@@ -15,6 +15,13 @@ export function resolveScoreNote(part,{pitch,tick,voice}){
  return {noteId:notes[0].id,regionId:notes[0].scoreRegionId??part.regionId};
 }
 export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label>Sounding MIDI pitch<input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-duplicate>Duplicate after</button><button type="button" data-score-note-delete>Delete note</button><button type="button" data-score-note-close>Cancel</button></div></form>`;
+// OSMD returns all chord heads for each graphical note; VexFlow's index identifies its own head.
+export function scoreNoteheads(graphical){
+ const heads=graphical.getNoteheadSVGs()||[];
+ if(heads.length<=1)return heads;
+ const index=graphical.vfnoteIndex;
+ return Number.isInteger(index)&&heads[index]?[heads[index]]:[];
+}
 export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
  const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null;
@@ -32,15 +39,15 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
   for(const entry of measure.staffEntries){for(const voice of entry.graphicalVoiceEntries){for(const graphical of voice.notes){
    const source=graphical.sourceNote;
    const beat=source.getAbsoluteTimestamp().RealValue*4,length=graphical.graphicalNoteLength.RealValue*4;
-   for(const element of graphical.getNoteheadSVGs()||[]){element.dataset.scoreStart=String(tempo.timeAtBeat(origin+beat));element.dataset.scoreEnd=String(tempo.timeAtBeat(origin+beat+length));}
+   for(const element of scoreNoteheads(graphical)){element.dataset.scoreStart=String(tempo.timeAtBeat(origin+beat));element.dataset.scoreEnd=String(tempo.timeAtBeat(origin+beat+length));}
    if(!source.Pitch){
     const draft=scoreRestDraft(session,{...plans[partIndex],scope,beat:source.getAbsoluteTimestamp().RealValue*4,beats:source.Length.RealValue*4});
-    if(draft)for(const element of graphical.getNoteheadSVGs()||[]){element.dataset.scoreRest=draft.regionId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label','Add note at this rest');element.style.cursor='pointer';element.onclick=e=>{e.stopPropagation();select(draft);};element.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(draft);}};}
+    if(draft)for(const element of scoreNoteheads(graphical)){element.dataset.scoreRest=draft.regionId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label','Add note at this rest');element.style.cursor='pointer';element.onclick=e=>{e.stopPropagation();select(draft);};element.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(draft);}};}
     continue;
    }
    const reference=resolveScoreNote(plans[partIndex],{pitch:source.Pitch.getHalfTone()+12-plans[partIndex].transposition.semitones,tick:Math.round(source.getAbsoluteTimestamp().RealValue*4*960),voice:source.ParentVoiceEntry.ParentVoice.VoiceId});
    if(!reference)continue;
-   for(const element of graphical.getNoteheadSVGs()||[]){
+   for(const element of scoreNoteheads(graphical)){
     const previous=targets.get(element);
     // Some engravings merge unison heads from different voices. Never guess which note to edit.
     if(targets.has(element)&&(!previous||previous.reference.noteId!==reference.noteId))targets.set(element,null);

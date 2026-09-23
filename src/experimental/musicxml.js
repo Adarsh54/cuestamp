@@ -22,7 +22,7 @@ export function musicxmlRegionPlan(session,track,region){
  const timing=regionBeatTiming(region,session),tempo=compileTempoMap(session),meter=compileMeterMap(session),origin=tempo.beatAtTime(region.start),endBeat=tempo.beatAtTime(region.start+region.duration),tick=beat=>Math.round((beat-origin)*MUSICXML_DIVISIONS),total=tick(endBeat);
  if(total<1)throw Error('The region is shorter than one notation tick.');
  const notes=region.notes.filter(n=>!n.mute&&n.velocity>0).map(n=>({...n,startTick:Math.round(timing.beatAtTime(n.start)*MUSICXML_DIVISIONS),endTick:Math.round(timing.beatAtTime(n.start+n.duration)*MUSICXML_DIVISIONS)})).sort((a,b)=>a.startTick-b.startTick||b.pitch-a.pitch);
- const voiceEnds=[];for(const n of notes){if(n.endTick<=n.startTick||n.startTick<0||n.endTick>total)throw Error('A note is too short or outside the region at 1/960-quarter-note resolution.');let voice=voiceEnds.findIndex(end=>end<=n.startTick);if(voice<0)voice=voiceEnds.length;if(voice>=128)throw Error('Notation export supports at most 128 simultaneous voices.');voiceEnds[voice]=n.endTick;n.voice=voice+1;}
+ const voiceEnds=[],chords=new Map();for(const n of notes){if(n.endTick<=n.startTick||n.startTick<0||n.endTick>total)throw Error('A note is too short or outside the region at 1/960-quarter-note resolution.');const chordKey=`${n.startTick}:${n.endTick}`;if(chords.has(chordKey)){n.voice=chords.get(chordKey);continue;}let voice=voiceEnds.findIndex(end=>end<=n.startTick);if(voice<0)voice=voiceEnds.length;if(voice>=128)throw Error('Notation export supports at most 128 simultaneous voices.');voiceEnds[voice]=n.endTick;n.voice=voice+1;chords.set(chordKey,n.voice);}
  const measures=[];let bar=meter.positionAtBeat(origin).bar,at=origin;
  while(at<endBeat-1e-9){if(measures.length>=2048)throw Error('Export up to 2,048 measures at a time.');const next=Math.min(endBeat,meter.barStart(bar+1)),signature=meter.signatureAtBar(bar),start=tick(at),end=tick(next);if(end>start)measures.push({bar,start,end,signature,partial:at>meter.barStart(bar)+1e-9||next<meter.barStart(bar+1)-1e-9,tempos:[...(measures.length===0?[{beat:at,bpm:tempo.tempoAtBeat(at)}]:[]),...tempo.points.filter(p=>p.beat>=at&&p.beat<next&&(measures.length>0||p.beat>at))].map(p=>({offset:tick(p.beat)-start,bpm:p.bpm}))});at=next;bar++;}
  return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
@@ -45,18 +45,22 @@ function regionMeasures(session,track,region){
     const events=[];
     for(const n of plan.notes.filter(n=>n.voice===voice&&n.startTick<right&&n.endTick>left)){
      const start=Math.max(left,n.startTick),end=Math.min(right,n.endTick);
-     if(start>cursor)events.push({start:cursor,end:start});events.push({start,end,n});cursor=end;
+     const previous=events.at(-1);if(previous?.notes&&previous.start===start&&previous.end===end){previous.notes.push(n);continue;}
+     if(start>cursor)events.push({start:cursor,end:start});events.push({start,end,notes:[n]});cursor=end;
     }
     if(cursor<right){events.push({start:cursor,end:right});cursor=right;}
     const groups=musicxmlTripletGroups(events);
     for(const event of events){
-     const {start,end,n}=event,rhythm=musicxmlRhythm(end-start),group=groups.get(event);
+     const {start,end,notes}=event,rhythm=musicxmlRhythm(end-start),group=groups.get(event);
      const tuplet=group&&group!=='member'?`<tuplet type="${group}" number="1"${group==='start'?' bracket="yes" show-number="actual"':''}/>`:'';
      if(rhythm.triplet&&!group)music.push(`<direction placement="above"><direction-type><words font-size="9">3:2</words></direction-type><voice>${voice}</voice></direction>`);
-     if(!n){music.push(`<note><rest/><duration>${end-start}</duration><voice>${voice}</voice>${rhythm.duration}${tuplet?`<notations>${tuplet}</notations>`:''}</note>`);continue;}
+     if(!notes){music.push(`<note><rest/><duration>${end-start}</duration><voice>${voice}</voice>${rhythm.duration}${tuplet?`<notations>${tuplet}</notations>`:''}</note>`);continue;}
+     for(const [chordIndex,n] of notes.entries()){
+     const noteTuplet=chordIndex===0?tuplet:'';
      const writtenPitch=n.pitch+transposition.semitones;if(writtenPitch>131)throw Error('Written pitch exceeds MusicXML octave 9. Use concert pitch for this part.');
      const {step,alter,octave}=spelledPitch(writtenPitch,writtenKey(keys.keyAtBeat(tempo.beatAtTime(region.start+n.start)),transposition)),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
-     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||tuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${tuplet}</notations>`:''}</note>`);
+     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}">${chordIndex?'<chord/>':''}<pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
+     }
     }
    }
   }parts.push(`<measure number="${index+1}"${m.partial?' implicit="yes"':''}>${music.join('')}</measure>`);
