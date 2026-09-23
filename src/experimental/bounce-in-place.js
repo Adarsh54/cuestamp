@@ -36,7 +36,7 @@ function bouncedTrack(session,plan,values){
  const v=commitOptions.parse(values),source=session.tracks.find(t=>t.id===plan.sourceTrackId);
  // A rendered frame can extend the requested duration by at most one sample.
  if(v.duration+1e-9<plan.duration||v.duration-plan.duration>1/44100+1e-9)throw Error('The bounced duration does not match the source. Render it again.');
- const track=duplicateTrack(source,{name:plan.name,includeRegions:false});track.kind='audio';track.sampleAssetId=null;track.effects=[];
+ const track=duplicateTrack(source,{name:plan.name,includeRegions:false});track.kind='audio';track.sampleAssetId=null;delete track.sampleArticulations;track.effects=[];
  track.regions=[{id:crypto.randomUUID(),name:plan.name,assetId:v.assetId,start:plan.start,offset:0,duration:v.duration,gainDb:0,fadeIn:0,fadeOut:0,fadeInShape:'linear',fadeOutShape:'linear',reverse:false,mute:false,notes:[],events:[]}];
  return {track,sourceTrackId:source.id};
 }
