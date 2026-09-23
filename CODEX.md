@@ -4087,3 +4087,35 @@ that ignored rate automation is not registered for live control. It also checks
 chorus sync controls, undo/redo, reload, and existing free-rate PCM behavior.
 All 976 unit tests and the production build pass; the existing large-bundle
 warning remains. Agent command validation uses a mocked provider response.
+
+### Experimental distortion effect
+
+The effect picker includes **Distortion** on tracks, buses, and master. The
+shared command API uses `kind: "distortion"` with these automatable fields:
+
+- `driveDb`: 0–36 dB, default 12, applied before the saturator.
+- `toneHz`: 20–20,000 Hz, default 6,000, a low-pass after distortion; capped below
+  Nyquist by the renderer when needed.
+- `outputDb`: −60–12 dB, default −6, applied to the wet signal only.
+- `mix`: 0–1, default 1. Zero preserves the dry input exactly.
+
+The graph uses a fixed symmetric tanh transfer curve, native WaveShaper 4×
+oversampling, and a second-order low-pass with Q = 1/sqrt(2). Drive and output
+automation interpolate in dB; no curve rebuilding is needed for live edits.
+Filter and resampler history starts empty on seeks. A wet instance reserves
+0.5 seconds of render tail. This is a soft-clipping effect, not a model of
+specific transistor circuitry, automatic loudness compensation, or an output
+limiter. Tone/resampling can alter phase; parallel wet/dry mixes reflect that.
+
+[Apple’s Distortion controls](https://support.apple.com/en-ca/guide/logicpro/lgcef1a8f484/12.2/mac/15.6)
+provide the functional reference for drive, tone, and output controls.
+
+Validation: `test/experimental-distortion.test.js` covers schema bounds, shared
+commands, atomic failures, undo, and mocked agent output. The effect-live tests
+cover all parameter bindings including dB conversion. Run
+`scripts/browser-experimental-distortion-check.cjs` for mixer editing and reload,
+plus actual rendered PCM checks for dry/bypass equivalence, increased odd
+harmonics, tone attenuation, wet output gain, stereo isolation, and automation
+seek continuity after warmup. All 980 tests and the production build pass; the
+existing large-bundle warning remains. Real model inference and listening tests
+with representative music are not covered by these automated checks.
