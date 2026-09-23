@@ -2357,3 +2357,11 @@ The server supplies `hardwareCaptures` observations to the agent with current st
 The value is a transient recording preference and is saved as `hardwareRecording.latencyMs` with each captured audio region; the inspector displays it. This is a user-supplied correction, not automatic latency measurement or proof of physical alignment. Changing devices, drivers, buffer settings or the audio route may require a different measured value. Negative corrections and calibration signals are not implemented.
 
 Tests cover default/invalid settings and sample rounding at 44.1/48 kHz. The simulated browser recorder verifies a 100 ms shift between the MIDI schedule and AudioWorklet capture boundary, a preserved 0.6-second audio region, and saved correction metadata. Real instrument/input round-trip timing remains unverified.
+
+### Prepare another hardware take
+
+The recorded audio inspector offers **Prepare another take**. It validates the source MIDI tracks and destination audio track, stops current playback, restores the captured MIDI scope and start position, reapplies the saved input-delay correction, and selects the existing audio track as the recording destination. It leaves the project document unchanged and does not request input permission, send MIDI, or start recording. The panel identifies the originally used device and asks the user to review the currently selected output/input and tail before pressing Record device audio.
+
+The action uses the current MIDI content, including edits since capture. Arrangement scope means the current audible MIDI arrangement, not a frozen reconstruction of the original track list. Missing sources and protected/full destinations reject. It does not silently change cycle, punch, audio input, device, tail, automatic-finish or recording-mode settings. Layer mode adds an audio region; Takes mode uses the existing overlapping-take grouping workflow and retains the prior audio.
+
+Tests cover unchanged session state, restored position/destination/correction and missing/protected-source rejection. The browser check verifies no input capture during preparation, then records a new pass into the original destination and groups it with the preserved take. Hardware and audio input are simulated.
