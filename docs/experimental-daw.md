@@ -2197,3 +2197,7 @@ shows a reminder when automation is present. Each insert has its own graph; a
 combined multiband EQ display remains future work.
 
 Reference: [Logic's graphical EQ controls](https://support.apple.com/en-mide/guide/logicpro/lgcef1edc1d7/mac).
+
+## Scene foundation — 2026-09-23
+
+Apple's Live Loops overview describes track rows with shared channel-strip routing and scene columns launched together: https://support.apple.com/guide/logicpro/live-loops-overview-lgcpf46ffc88/10.7/mac/11.0 . Cuestamp now has its own saved scene/cell-reference model and shared undoable commands. This is not Live Loops parity: quantized scene/cell transport, grid UI, recording and performance capture are still unimplemented. Source regions remain authoritative; scenes retain one region reference per track with a loop/one-shot preference. Evidence is in `test/experimental-scenes.test.js` and `scripts/browser-experimental-scenes-check.cjs`.
