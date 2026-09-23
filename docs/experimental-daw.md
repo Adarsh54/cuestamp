@@ -2205,3 +2205,7 @@ Apple's Live Loops overview describes track rows with shared channel-strip routi
 ### Scene playback checkpoint
 
 The saved scene grid now supports timed auditions through the existing native audio scheduler. Cells start together, loop cells repeat at their source clip length, and one-shots play once. Manual controls and the agent `audition_scene` tool share validation and leave the arrangement intact. Audition length is bounded to 0.1–600 seconds and playback cuts off at the requested end, including tails. Track/master automation runs from scene time zero. These are timed auditions, not yet Logic-style quantized launches or performance recording. Native rendered-audio checks cover loop versus one-shot behavior, routed gain and end gating; live provider inference is still unverified.
+
+### Quantized scene switching checkpoint
+
+Timed scenes can now hand off immediately or on the next eligible beat/bar, using the project's tempo and time-signature maps. Manual Cue scene and the agent queue_scene action schedule the same Web Audio graph gates. Tests verify the audible boundary without running UI timers. One scene can be pending; Stop cancels both. New scenes restart their automation from zero and cut old tails at the handoff. Per-scene duration limits remain; independent cell transport and recording a live scene performance into the arrangement are still unfinished.

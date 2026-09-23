@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {validateScenes} from './scenes.js';
 import {audibleSources} from './routing.js';
 export const sceneAuditionSchema=z.object({sceneId:z.string().min(1).max(100),duration:z.number().finite().min(.1).max(600)}).strict();
+export const sceneQueueSchema=sceneAuditionSchema.extend({quantization:z.enum(['immediate','beat','bar'])});
 // A temporary arrangement lets scene playback share the native instruments,
 // routing and automation scheduler. Never persist these expanded regions.
 export function sceneAudition(session,values){
