@@ -26,6 +26,7 @@ export function captureViewState(root,{drafts=false,editor=false,agentFocus=fals
    if(el)el.open=saved.open;
   }
   for(const saved of fields){const el=root.querySelector(saved.selector);if(el?.tagName!==saved.tag||el.name!==saved.name)continue;if(saved.options!==null)el.innerHTML=saved.options;el.value=saved.value;if(typeof saved.checked==='boolean')el.checked=saved.checked;}
+  if(fields.length)root.querySelectorAll('form').forEach(form=>form.dispatchEvent(new Event('daw-drafts-restored')));
   if(chordPreview!==null&&root.querySelector('[data-chord-preview]'))root.querySelector('[data-chord-preview]').textContent=chordPreview;
   for(const saved of scrolls){const el=root.querySelector(saved.selector);if(el){el.scrollTop=saved.top;el.scrollLeft=saved.left;}}
   if(focus){const el=root.querySelector(focus.selector);if(el&&!el.disabled){el.focus({preventScroll:true});if(typeof focus.start==='number'&&el.setSelectionRange)try{el.setSelectionRange(focus.start,focus.end);}catch{}}}

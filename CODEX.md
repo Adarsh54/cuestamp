@@ -4601,3 +4601,10 @@ Tempo map → Fit music to a timestamp now has an endpoint format selector for s
 `tempo.fit` accepts exactly one of `targetTime` (timeline seconds) or `targetTimecode` (picture label), with existing zero-based quarter-note `startBeat`/`endBeat`. The agent prompt documents this choice. The same tempo-scaling planner keeps the passage start fixed, preserves internal tempo ratios and restores the previous tempo at the endpoint. Existing audio/video/markers stay fixed; tempo-following MIDI is retimed as before. BPM and timeline limits still apply.
 
 Tests cover drop-frame conversion, ambiguous/invalid endpoints, atomic rejection and Undo. `scripts/browser-experimental-tempo-fit-timecode-check.cjs` verifies picture-label entry, the resulting BPM, Undo, format roundtrip precision and invalid endpoint handling. All 1,153 tests and build pass. Live model inference for this request remains unverified.
+
+
+### Tempo-fit draft restoration
+
+Workspace draft restoration now notifies forms after restoring their fields (`daw-drafts-restored`). Tempo fit refreshes its format state, preview and button validation in response. Its precise converted endpoint is retained in a hidden draft field, so a temporary redraw does not round a fractional-second target to the displayed timecode frame. Editing the endpoint clears that retained value; marker selection continues to use the marker’s exact time.
+
+The tempo-fit browser check reconstructs the form through the real view-state helper and verifies exact endpoint retention, the submitted command, and disabled Fit for an invalid restored draft. All 1,153 tests and build pass.
