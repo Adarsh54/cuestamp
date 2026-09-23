@@ -4660,3 +4660,11 @@ Full-mix analysis retains the first maximum window start for momentary (400 ms) 
 `navigate_mix_analysis` also accepts `momentary_loudness` and `short_term_loudness`. Positions are validated for measurement consistency, 100 ms alignment, session revision and render bounds. The optional timestamp fields preserve compatibility with older observations; missing positions cannot be navigated.
 
 All 1,162 unit tests, the production build and the real-render browser analysis workflow pass. Browser agent checks use mocked model responses through the actual planner; live inference remains unverified. One full-suite attempt stalled in an FFmpeg reference subprocess waiting on input; that process was terminated, its isolated test passed, and the subsequent full suite passed. The existing bundle-size warning remains.
+
+### Create cue markers from selected clips
+
+The Markers panel offers **Create markers from selected regions** for one selected clip or a multiple-region selection. It copies each region’s name and exact timeline start into a marker, preserving fractional seconds. Empty names become “Marker”. Existing identical name/time pairs and duplicates within the selection are skipped; different names at the same timestamp are retained. All created markers share one Undo step. They are snapshots: later clip moves or renames do not update them. The current marker model stores positions and names, not region lengths or colors.
+
+The agent uses `markers.fromRegions` with comma-separated `values.regionIds` through the same validated command path. Invalid/missing/repeated IDs, unsupported fields, entirely duplicate requests and exceeding 1,000 markers reject without partial changes. Protected clips may supply names/positions because their contents remain unchanged. Marker creation can run during ordinary playback; existing recording and busy-operation guards apply.
+
+Reference: [Apple’s Create Markers From Regions workflow](https://support.apple.com/en-gb/guide/logicpro/lgcp564d6a94/10.7/mac/11.0). All 1,165 tests and build pass. `scripts/browser-experimental-region-markers-check.cjs` checks actual single/multiple selection, names, positions, unchanged music, empty-selection disabling and Undo/Redo. Agent planner coverage mocks the provider; live model behavior remains unverified. The existing bundle-size warning remains.
