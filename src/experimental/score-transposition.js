@@ -1,0 +1,3 @@
+export const scoreInstruments={concert:{label:'Concert pitch',semitones:0,diatonic:0,fifths:0},bb:{label:'B♭ instrument (+2)',semitones:2,diatonic:1,fifths:2},eb:{label:'E♭ alto instrument (+9)',semitones:9,diatonic:5,fifths:3},f:{label:'F instrument (+7)',semitones:7,diatonic:4,fifths:1}};
+export function scoreTransposition(track){const value=scoreInstruments[track?.scoreInstrument??'concert'];if(!value)throw Error('Choose a supported score instrument.');return value;}
+export function writtenKey(key,transposition){if(!key)return null;let sharps=key.sharps+transposition.fifths;while(sharps>7)sharps-=12;while(sharps< -7)sharps+=12;return {...key,sharps};}

@@ -1,3 +1,4 @@
+import {scoreTransposition,writtenKey} from './score-transposition.js';
 import {musicxmlRhythm,musicxmlTripletGroups} from './musicxml-rhythm.js';
 import {compileTempoMap,regionBeatTiming} from './tempo-map.js';
 import {compileKeyMap} from './key-map.js';
@@ -27,20 +28,20 @@ export function musicxmlRegionPlan(session,track,region){
  return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
 }
 function regionMeasures(session,track,region){
- const keys=compileKeyMap(session),tempo=compileTempoMap(session),origin=tempo.beatAtTime(region.start);
+ const transposition=scoreTransposition(track),keys=compileKeyMap(session),tempo=compileTempoMap(session),origin=tempo.beatAtTime(region.start);
  const plan=musicxmlRegionPlan(session,track,region),parts=[],clefs={treble:['G',2],bass:['F',4],alto:['C',3],tenor:['C',4]},clef=clefs[track.scoreClef??'treble'];if(!clef)throw Error('Choose a supported score clef.');let lastSignature='',lastKey='';
  for(const [index,m] of plan.measures.entries()){
-  const key=keys.keyAtBeat(origin+m.start/MUSICXML_DIVISIONS),keyTag=keyXml(key),startKey=keyTag!==lastKey?keyTag:'';
+  const key=keys.keyAtBeat(origin+m.start/MUSICXML_DIVISIONS),keyTag=keyXml(writtenKey(key,transposition)),startKey=keyTag!==lastKey?keyTag:'';
   lastKey=keyTag;
   const changes=new Map(keys.points.map(p=>[Math.round((p.beat-origin)*MUSICXML_DIVISIONS),p]).filter(([tick])=>tick>m.start&&tick<m.end));
   const boundaries=[m.start,...changes.keys(),m.end];
-  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions>':''}${startKey}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?`<clef><sign>${clef[0]}</sign><line>${clef[1]}</line></clef>`:''}`;lastSignature=signature;
+  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions>':''}${startKey}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?`<clef><sign>${clef[0]}</sign><line>${clef[1]}</line></clef>`:''}${index===0&&transposition.semitones?`<transpose><diatonic>${-transposition.diatonic}</diatonic><chromatic>${-transposition.semitones}</chromatic></transpose>`:''}`;lastSignature=signature;
   const music=[attributes?`<attributes>${attributes}</attributes>`:'',...m.tempos.map(t=>`<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${t.bpm}</per-minute></metronome></direction-type><offset>${t.offset}</offset><sound tempo="${t.bpm}"/></direction>`)];
   for(let voice=1;voice<=plan.voices;voice++){
    if(voice>1)music.push(`<backup><duration>${m.end-m.start}</duration></backup>`);let cursor=m.start;
    for(let segment=0;segment<boundaries.length-1;segment++){
     const left=boundaries[segment],right=boundaries[segment+1];
-    if(voice===1&&changes.has(left)){lastKey=keyXml(changes.get(left));music.push(`<attributes>${lastKey}</attributes>`);}
+    if(voice===1&&changes.has(left)){lastKey=keyXml(writtenKey(changes.get(left),transposition));music.push(`<attributes>${lastKey}</attributes>`);}
     const events=[];
     for(const n of plan.notes.filter(n=>n.voice===voice&&n.startTick<right&&n.endTick>left)){
      const start=Math.max(left,n.startTick),end=Math.min(right,n.endTick);
@@ -53,7 +54,8 @@ function regionMeasures(session,track,region){
      const tuplet=group&&group!=='member'?`<tuplet type="${group}" number="1"${group==='start'?' bracket="yes" show-number="actual"':''}/>`:'';
      if(rhythm.triplet&&!group)music.push(`<direction placement="above"><direction-type><words font-size="9">3:2</words></direction-type><voice>${voice}</voice></direction>`);
      if(!n){music.push(`<note><rest/><duration>${end-start}</duration><voice>${voice}</voice>${rhythm.duration}${tuplet?`<notations>${tuplet}</notations>`:''}</note>`);continue;}
-     const {step,alter,octave}=spelledPitch(n.pitch,keys.keyAtBeat(tempo.beatAtTime(region.start+n.start))),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
+     const writtenPitch=n.pitch+transposition.semitones;if(writtenPitch>131)throw Error('Written pitch exceeds MusicXML octave 9. Use concert pitch for this part.');
+     const {step,alter,octave}=spelledPitch(writtenPitch,writtenKey(keys.keyAtBeat(tempo.beatAtTime(region.start+n.start)),transposition)),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
      music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||tuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${tuplet}</notations>`:''}</note>`);
     }
    }

@@ -1,3 +1,4 @@
+import {scoreTransposition} from './score-transposition.js';
 import {compileTempoMap} from './tempo-map.js';
 import {scoreNoteAction} from './score-note-actions.js';
 import {scoreRestDraft} from './score-rest-insert.js';
@@ -6,14 +7,14 @@ import {bindScorePitchDrag} from './score-pitch-drag.js';
 import {musicxmlRegionPlan,scorePartRegions} from './musicxml.js';
 export function scoreNotePlans(session,track,region,scope){
  const parts=scope==='arrangement'?scorePartRegions(session):[{track,region}];
- return parts.map(({track,region})=>({trackId:track.id,regionId:region.id,notes:musicxmlRegionPlan(session,track,region).notes}));
+ return parts.map(({track,region})=>({transposition:scoreTransposition(track),trackId:track.id,regionId:region.id,notes:musicxmlRegionPlan(session,track,region).notes}));
 }
 export function resolveScoreNote(part,{pitch,tick,voice}){
  const notes=part.notes.filter(n=>n.pitch===pitch&&n.voice===voice&&n.startTick<=tick&&n.endTick>tick);
  if(notes.length!==1||!notes[0].id)return null;
  return {noteId:notes[0].id,regionId:notes[0].scoreRegionId??part.regionId};
 }
-export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label>MIDI pitch<input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-duplicate>Duplicate after</button><button type="button" data-score-note-delete>Delete note</button><button type="button" data-score-note-close>Cancel</button></div></form>`;
+export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label>Sounding MIDI pitch<input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-duplicate>Duplicate after</button><button type="button" data-score-note-delete>Delete note</button><button type="button" data-score-note-close>Cancel</button></div></form>`;
 export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
  const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null;
@@ -37,13 +38,13 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
     if(draft)for(const element of graphical.getNoteheadSVGs()||[]){element.dataset.scoreRest=draft.regionId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label','Add note at this rest');element.style.cursor='pointer';element.onclick=e=>{e.stopPropagation();select(draft);};element.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(draft);}};}
     continue;
    }
-   const reference=resolveScoreNote(plans[partIndex],{pitch:source.Pitch.getHalfTone()+12,tick:Math.round(source.getAbsoluteTimestamp().RealValue*4*960),voice:source.ParentVoiceEntry.ParentVoice.VoiceId});
+   const reference=resolveScoreNote(plans[partIndex],{pitch:source.Pitch.getHalfTone()+12-plans[partIndex].transposition.semitones,tick:Math.round(source.getAbsoluteTimestamp().RealValue*4*960),voice:source.ParentVoiceEntry.ParentVoice.VoiceId});
    if(!reference)continue;
    for(const element of graphical.getNoteheadSVGs()||[]){
     const previous=targets.get(element);
     // Some engravings merge unison heads from different voices. Never guess which note to edit.
     if(targets.has(element)&&(!previous||previous.reference.noteId!==reference.noteId))targets.set(element,null);
-    else targets.set(element,{reference,pitch:source.Pitch.getHalfTone()+12});
+    else targets.set(element,{reference,pitch:source.Pitch.getHalfTone()+12-plans[partIndex].transposition.semitones});
    }
   }}}
  }}
