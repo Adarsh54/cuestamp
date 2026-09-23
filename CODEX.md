@@ -4519,7 +4519,7 @@ Saving remains one `scene.performance` command and one undo step. It places only
 
 In Experimental → MIDI input, connect a keyboard and select **Remember MIDI** before playing. **Capture recent MIDI** inserts the most recent minute as an editable region at the current playhead and chosen destination. Notes crossing the window boundary and controller state are retained. Capture uses the normal MIDI import/save path and supports Undo/Redo; failed saves retain a retryable take. Pause memory freezes the buffer, and disconnecting the input preserves it for capture.
 
-This is opt-in, page-local memory, capped at ten minutes or 20,000 messages; reaching a cap pauses collection. Leaving Experimental discards it. Switching sessions within the page does not clear it: capture targets the current session. Capture does not recover the original transport placement or cycle takes, or send MIDI to a device. Capture or discard existing memory before normal recording. No agent capture action is exposed yet.
+This is opt-in, page-local memory, capped at ten minutes or 20,000 messages; reaching a cap pauses collection. Leaving Experimental discards it. Switching sessions within the page does not clear it: capture targets the current session. Capture does not recover the original transport placement or cycle takes, or send MIDI to a device. Capture or discard existing memory before normal recording. The agent can capture observed MIDI memory as described below.
 
 Reference: [Logic Pro capture recording](https://support.apple.com/guide/logicpro/capture-your-most-recent-midi-performance-lgcpdc0bf889/10.7/mac/11.0). Our explicit bounded buffer is a narrower workflow.
 
@@ -4531,3 +4531,12 @@ Validation: `test/experimental-midi-recent.test.js` covers window trimming, cont
 **Hear MIDI while remembering** is enabled by default. It auditions the chosen destination instrument (triangle for a new track) using the same voice engine as recording monitoring, including sampler parameters. Turn it off before starting memory to use an external keyboard’s own sound. Input channel, transpose and velocity transformations apply identically to memory and audition. Instrument settings are captured when memory starts; restart memory to hear changed settings. Monitoring bypasses mixer effects and does not start arrangement playback.
 
 Pause, capture, discard, disconnect, limits and page disposal stop monitor voices. Asynchronous sampler/context preparation cannot attach the input or start voices after cancellation. No document edits occur until capture. Tests cover transformation, monitoring disabled, release on pause, and cancellation during preparation. Browser checks exercise oscillator start/cleanup and the existing recording/count-in/monitor workflow. All 1,137 tests and build pass; physical MIDI hardware remains unverified.
+
+
+### Agent capture of recent MIDI
+
+After enabling Remember MIDI and playing a phrase, ask the agent to capture what you just played. `capture_recent_midi` is available only with observed, ready, nonempty memory and transport permission, outside editing continuations. It accepts no generated notes or custom parameters. It imports the last minute available when the request began into the selected destination at the playhead through the manual capture/save path, producing one undo step.
+
+The browser retains the observation time and memory version. New MIDI, pause/discard/restart, a changed destination, moved transport or changed session rejects a stale response. Capture does not enable MIDI access or monitoring. Save failure preserves a retryable take and reports failure rather than claiming success. Memory can contain only old events outside the window; capture then reports that nothing remains.
+
+`test/experimental-agent-midi-memory.test.js` covers capability gating, action arguments and missing destinations. Controller tests cover stale-memory rejection. `scripts/browser-experimental-agent-midi-memory-check.cjs` uses simulated MIDI and a mocked model response to test stale response rejection, retry, persisted notes/controllers, Undo/Redo and monitoring cleanup. All 1,139 tests and build pass. Live model inference and physical MIDI hardware remain unverified.

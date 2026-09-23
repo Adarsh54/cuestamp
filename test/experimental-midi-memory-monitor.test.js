@@ -17,3 +17,7 @@ test('remembered MIDI monitoring uses transformed messages and releases voices o
 test('leaving while memory monitor prepares cannot start voices or attach input afterward',async()=>{
  let resolve,started=0;const h=setup(()=>new Promise(r=>{resolve=r;}));await h.controls.get('[data-midi-connect]')();const opening=h.controls.get('[data-midi-remember]')();await Promise.resolve();h.controller.dispose();resolve({startMonitor(){started++;return {stop(){},push(){}};}});await opening;assert.equal(started,0);assert.ok(h.closed>0);assert.equal(h.controller.active,false);
 });
+
+test('agent capture uses observed memory and rejects changed performances without consuming them',async()=>{
+ const h=setup(async()=>({}));try{await h.controls.get('[data-midi-connect]')();await h.controls.get('[data-midi-remember]')();h.emit([0x90,60,100],0);h.emit([0x80,60,0],1000);const observed=h.controller.memoryObservation();h.emit([0x90,64,100],1100);assert.throws(()=>h.controller.captureRecent({agent:true,expected:observed}),/changed/);assert.equal(h.take,undefined);h.emit([0x80,64,0],1500);const latest=h.controller.memoryObservation();assert.equal(h.controller.captureRecent({agent:true,expected:latest}),true);assert.equal(h.take.notes.length,2);assert.equal(h.controller.memoryObservation(),undefined);}finally{h.controller.dispose();}
+});
