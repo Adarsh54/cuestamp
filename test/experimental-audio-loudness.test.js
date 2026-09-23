@@ -30,3 +30,19 @@ test('silence, short clips, low level gating, channel power and invalid samples'
  assert.throws(()=>integratedLoudness([new Float32Array([NaN])],48000),/non-finite/);
  assert.throws(()=>integratedLoudness([source,new Float32Array(1)],48000),/matching/);
 });
+test('loudness range passes the four synthetic EBU Tech 3342 level-sequence cases',()=>{
+ const rate=48000;
+ for(const [levels,expected] of [[[-20,-30],10],[[-20,-15],5],[[-40,-20],20],[[-50,-35,-20,-35,-50],15]]){
+  const source=Float32Array.from({length:levels.length*20*rate},(_,i)=>10**(levels[Math.floor(i/(20*rate))]/20)*Math.sin(2*Math.PI*1000*i/rate));
+  const result=integratedLoudness([source,source],rate).dynamics;
+  assert.ok(Math.abs(result.rangeLu-expected)<=1,`${levels}: ${result.rangeLu} vs ${expected}`);
+  assert.ok(Math.abs(result.momentaryMaxLufs-result.shortTermMaxLufs)<.05);
+ }
+});
+test('loudness dynamics preserve scale and distinguish silence from insufficient duration',()=>{
+ const empty=integratedLoudness([new Float32Array(48000*4)],48000).dynamics;
+ assert.deepEqual(empty,{momentaryMaxLufs:null,shortTermMaxLufs:null,rangeLu:null});
+ const brief=integratedLoudness([tone(48000,1)],48000).dynamics;assert.ok(Number.isFinite(brief.momentaryMaxLufs));assert.equal(brief.shortTermMaxLufs,null);assert.equal(brief.rangeLu,null);
+ const normal=integratedLoudness([tone(48000,10)],48000).dynamics,quiet=integratedLoudness([tone(48000,10,.01)],48000).dynamics;
+ assert.ok(Math.abs(normal.shortTermMaxLufs-quiet.shortTermMaxLufs-20)<.001);assert.ok(Math.abs(normal.rangeLu-quiet.rangeLu)<.001);
+});

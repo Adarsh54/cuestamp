@@ -38,3 +38,9 @@ test('true-peak context is optional, consistent with channel samples, and reache
  const audible={...a,channels:a.channels.map(()=>({peakDb:-1,rmsDb:-6,peakFrame:0,overSamples:0})),truePeak:{oversample:4,peaksDbtp:[-.1,.2]}};assert.ok(validateMixAnalysis(audible,s));assert.throws(()=>validateMixAnalysis({...audible,truePeak:{oversample:4,peaksDbtp:[-2,0]}},s));
  let sent;await planDawEdit({session:s,instruction:'Are there inter-sample peaks?',mixAnalysis:audible},{key:'test',model:'test',fetchImpl:async(_,request)=>{sent=JSON.parse(request.body);return {ok:true,json:async()=>({output:[]})};}});assert.deepEqual(JSON.parse(sent.input.at(-1).content).mixAnalysis.truePeak,audible.truePeak);
 });
+test('loudness dynamics reject inconsistent duration and reach agent context',async()=>{
+ const {s,a}=fixture(),dynamics={momentaryMaxLufs:null,shortTermMaxLufs:null,rangeLu:null},loudness={integratedLufs:null,blocks:7,gatedBlocks:0,dynamics};
+ assert.ok(validateMixAnalysis({...a,loudness},s));
+ for(const change of [{shortTermMaxLufs:-20},{rangeLu:2},{rangeLu:-1}])assert.throws(()=>validateMixAnalysis({...a,loudness:{...loudness,dynamics:{...dynamics,...change}}},s));
+ let sent;await planDawEdit({session:s,instruction:'What is the loudness range?',mixAnalysis:{...a,loudness}},{key:'test',model:'test',fetchImpl:async(_,request)=>{sent=JSON.parse(request.body);return {ok:true,json:async()=>({output:[]})};}});assert.deepEqual(JSON.parse(sent.input.at(-1).content).mixAnalysis.loudness.dynamics,dynamics);
+});

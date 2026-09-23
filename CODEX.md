@@ -3773,8 +3773,8 @@ with 400 ms blocks, 75% overlap, an absolute −70 gate and a relative −10 LU 
 Incomplete blocks are excluded; insufficient duration or level returns null.
 The DSP supports 8–192 kHz, ten minutes and 250 MB of PCM; mix rendering retains
 its existing limits. Filtering uses a small ring buffer instead of another full
-PCM copy. This adds integrated measurement; loudness range and a live loudness meter
-remain unimplemented. True-peak estimates are described below.
+PCM copy. This adds integrated measurement; true peaks and loudness range are described
+below. A live loudness meter remains unimplemented.
 
 References: [ITU-R BS.1770-5, Annex 1](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
 and [De Man filter parameterization](https://github.com/BrechtDeMan/loudness.py).
@@ -3845,3 +3845,25 @@ oversampling is an estimate; encoded/exported files may have different peaks.
 Tests cover an inter-sample waveform, required measurements, both planner modes,
 agent command validation, real browser rendering to a chosen dBTP ceiling,
 retained selector state and undo invalidation.
+
+### Experimental DAW: loudness variation
+
+`integratedLoudness` also returns optional `dynamics`: momentaryMaxLufs,
+shortTermMaxLufs and rangeLu. The worker shares its K-weighting pass, adds a
+three-second ring buffer, and samples short-term energy every 100 ms. Integrated
+measurement remains limited to complete 400 ms blocks in the original signal.
+Short-term/range measurement requires three seconds and processes 1.5 seconds
+of trailing zero padding through the filter; maxima use complete windows.
+
+LRA follows [EBU Tech 3342](https://tech.ebu.ch/files/live/sites/tech/files/shared/tech/tech3342.pdf):
+absolute −70 LUFS and relative −20 LU gates on short-term energy, then the
+95th-minus-10th percentile in LU. This is variation across sections, not crest
+factor. Silence/insufficient duration is null; low-level ungated maxima may
+still exist when integrated loudness and range are gated out. The UI explains
+short-program limitations. These values are available in the agent's validated
+current-revision mix analysis, with older measurements still accepted.
+
+Tests generate the four synthetic level-sequence cases specified by EBU and
+meet their ±1 LU tolerances. Browser coverage processes a forty-second stereo
+fixture in the real worker and checks the UI and agent data on a shorter mix.
+Real-program certification and live metering remain outstanding.
