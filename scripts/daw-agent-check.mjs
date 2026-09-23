@@ -1,6 +1,6 @@
 import {pathToFileURL} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
-import {dawModelConfig} from '../server/daw-model.js';
+import {DawModelError,dawModelConfig} from '../server/daw-model.js';
 import {planDawEdit} from '../server/daw-agent.js';
 import {SessionHistory,newSession} from '../src/experimental/session.js';
 import {conversationTurn} from '../src/experimental/agent-conversation.js';
@@ -23,7 +23,8 @@ export async function checkDawAgent({env=process.env,configOnly=false,plan=planD
    conversation.push(conversationTurn({before,after:history.session,instruction,summary:result.summary||'',outcome:'applied'}));
   }
   return {ok:true,stage:'complete',message:'Two live planning requests passed: set one track to -6 dB, then interpret the follow-up as -3 dB. Both plans passed shared validation and preserved the other test data. No project or media was saved.'};
- }catch{
+ }catch(error){
+  if(error instanceof DawModelError)return {ok:false,stage,message:error.message+' No project or media was saved.'};
   // Never print provider payloads, keys, error messages or stacks from this check.
   return {ok:false,stage,message:'The planning request or shared command validation failed. Check the API key, model access, network, and provider account. No project or media was saved.'};
  }

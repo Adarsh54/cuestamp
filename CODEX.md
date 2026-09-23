@@ -4408,3 +4408,9 @@ The agent shares `regions.rename` with values `regionIds`, `pattern`, optional `
 ### Preserve form inputs after rejected edits
 
 The workspace error guard preserves current form drafts on failure only when the history instance, session revision, primary region/track, selected note, mixer channel and selected-region group still match the operation's starting context. This lets users correct invalid fade/slip values without retyping the form, while avoiding restoration into a different editor after asynchronous changes. The batch-fade and source-slip browser checks assert rejected inputs remain and can be corrected without session mutation.
+
+### Agent provider failure diagnostics
+
+Provider failures now produce fixed messages for rejected credentials (401), denied access (403), missing model/endpoint (404), quota/rate limiting (429), request size (413), provider outages, invalid requests, network failures and timeouts. These remain application 503 responses so a provider authentication failure is not confused with the user's WorkOS session. Provider error bodies and raw exceptions are never displayed. `check:daw-agent` reports only trusted adapter messages and continues redacting arbitrary planning errors.
+
+Validation: provider adapter tests cover both providers, all mapped HTTP statuses, timeout/network exceptions, unreadable responses and redaction. Latest local configuration preflight still reports missing `OPENAI_API_KEY` and `DAW_AGENT_MODEL`; no live inference was performed. Set the chosen provider's server-only key and model in ignored `.env.local`, restart the API, then run `npm run check:daw-agent` to test two live planning requests.
