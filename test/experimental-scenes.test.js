@@ -26,3 +26,5 @@ test('agent can duplicate and customize a scene in one undoable batch',async()=>
  const plan=await planDawEdit({session:h.session,instruction:'Duplicate Verse as Verse variation and use a2 once'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Created variation',commands})}]})})});
  h.execute(plan.commands,plan.revision);assert.deepEqual(h.session.scenes[0],before.scenes[0]);assert.deepEqual(h.session.scenes[1].cells[0],{regionId:'a2',loop:false});h.undo();assert.deepEqual(h.session.scenes,before.scenes);
 });
+
+test('scene playback settings tolerate account project opening before workspace mount',async()=>{const {scenePlaybackSettings}=await import('../src/experimental/scene-grid.js');assert.deepEqual(scenePlaybackSettings(null,{'audition:duration':'8'}),{'audition:duration':'8'});});

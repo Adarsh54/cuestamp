@@ -12,6 +12,18 @@ export class SceneTakes {
  persist(){if(this.loadError)throw Error(this.loadError);this.epoch++;try{this.storage.setItem(this.key,JSON.stringify(this.data));this.saved=true;}catch{this.saved=false;}}
  list(sessionId){return this.data.takes.filter(t=>t.performance.sessionId===sessionId);}
  selected(sessionId){const list=this.list(sessionId);return list.find(t=>t.id===(this.data.selectedBySession[sessionId]??this.data.selectedId))??list.at(-1);}
+ mergeCloud(value,sessionId,apply=false){
+  if(this.loadError)throw Error(this.loadError);const bundle=validateSceneTakeBundle(value,sessionId),incoming=new Map(bundle.takes.map(t=>[t.id,t])),others=this.data.takes.filter(t=>t.performance.sessionId!==sessionId),result=[...bundle.takes];
+  if(others.some(t=>incoming.has(t.id)))throw Error('Account take IDs conflict with another local project.');
+  const identity=t=>JSON.stringify({createdAt:t.createdAt,events:t.performance.events.map(({sourceSignature,...event})=>event)});
+  for(const local of this.list(sessionId)){const remote=incoming.get(local.id);if(!remote){result.push(structuredClone(local));continue;}
+   if(identity(local)===identity(remote)&&local.name===remote.name){remote.placements=Math.max(remote.placements,local.placements);continue;}
+   const copy=structuredClone(local);copy.id=crypto.randomUUID();copy.name=local.name.slice(0,86)+' (device copy)';if(identity(local)===identity(remote))copy.performance=structuredClone(remote.performance);result.push(copy);
+  }
+  if(others.length+result.length>32)throw Error('Opening this project would exceed the 32-take device limit. Discard unneeded takes first.');
+  if(apply){this.data.takes=[...others,...result];if(bundle.selectedId){this.data.selectedId=bundle.selectedId;this.data.selectedBySession[sessionId]=bundle.selectedId;}this.persist();}
+  return result;
+ }
  exportBundle(sessionId){if(this.loadError)throw Error(this.loadError);return validateSceneTakeBundle({selectedId:this.selected(sessionId)?.id??null,takes:this.list(sessionId)},sessionId);}
  checkImport(bundle,sessionId){if(this.loadError)throw Error(this.loadError);const parsed=validateSceneTakeBundle(bundle,sessionId);if(this.data.takes.length+parsed.takes.length>32)throw Error('Discard unneeded takes before importing: this archive would exceed the 32-take device limit.');if(parsed.takes.some(t=>this.data.takes.some(existing=>existing.id===t.id)))throw Error('An imported take ID already exists.');return parsed;}
  importBundle(bundle,sessionId){const parsed=this.checkImport(bundle,sessionId);this.data.takes.push(...parsed.takes);if(parsed.selectedId){this.data.selectedId=parsed.selectedId;this.data.selectedBySession[sessionId]=parsed.selectedId;}this.persist();}

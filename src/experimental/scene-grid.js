@@ -37,7 +37,7 @@ export function bindScenes(root,{session,selection,select,ids,execute,guard,audi
 export function scenePlaybackSettings(root,previous={}){
  const next={...previous};
  for(const formName of ['audition','assign'])for(const name of ['duration','quantization']){
-  const element=root.querySelector(`[data-scene-${formName}] [name="${name}"]`);
+  const element=root?.querySelector(`[data-scene-${formName}] [name="${name}"]`);
   if(element)next[`${formName}:${name}`]=element.value;
  }
  return next;
