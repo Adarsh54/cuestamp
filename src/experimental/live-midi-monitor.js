@@ -1,3 +1,4 @@
+import {sampleZoneLevel,connectSampleZone} from './sampler-zone-voice.js';
 import {createPitchBendState} from './pitch-bend-state.js';
 import {pitchBendRangeSchema} from './pitch-bend.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
@@ -16,7 +17,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
  const voices=new Set(),channels=new Map();let disposed=false;
  function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false});update(channels.get(id));}return channels.get(id);}
  function update(c){c.gain.gain.setValueAtTime(c.volume*c.expression,context.currentTime);}
- function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();}
+ function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();v.zonePan?.disconnect();}
  function release(v,immediate=false){if(v.released&&!immediate)return;v.released=true;const now=context.currentTime;if(immediate){v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(0,now);v.osc.stop(now);destroy(v);}else{const duration=v.sampler?envelope.release:.03;v.gain.gain.cancelAndHoldAtTime(now);if(duration)v.gain.gain.linearRampToValueAtTime(0,now+duration);else v.gain.gain.setValueAtTime(0,now);v.osc.stop(now+duration+.005);}}
  function push(data){
   if(disposed||!data||data.length<2)return;const status=data[0],kind=status&0xf0,id=status&15,a=data[1],b=data[2];
@@ -27,8 +28,8 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
    for(const layer of layers){
    while(voices.size>=maxVoices)release(voices.values().next().value,true);
    const drum=instrument==='drumKit',sampler=instrument==='sampler',osc=(drum||sampler)?context.createBufferSource():context.createOscillator(),gain=context.createGain(),now=context.currentTime;
-   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=layer?.buffer??sampleBuffer;Object.assign(osc,layer?samplerLoop(layer.buffer,layer):loop);osc.playbackRate.value=samplerPlaybackRate(a,layer?.sampleRoot??sampleRoot,{sampleTune,sampleFineTune});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127,envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
-   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);gain.connect(c.gain);const v={group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();}
+   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=layer?.buffer??sampleBuffer;Object.assign(osc,layer?samplerLoop(layer.buffer,layer):loop);osc.playbackRate.value=samplerPlaybackRate(a,layer?.sampleRoot??sampleRoot,{sampleTune,sampleFineTune,...(layer??{})});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127*sampleZoneLevel(layer??{}),envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
+   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,c.gain,layer??{});const v={zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();}
 
   }else if(kind===0x80||(kind===0x90&&!b)){
    const v=matching().find(v=>v.pitch===a&&v.held);if(v)for(const layer of matching().filter(n=>n.group===v.group)){layer.held=false;if(!c.sustain&&!layer.drum)release(layer);}

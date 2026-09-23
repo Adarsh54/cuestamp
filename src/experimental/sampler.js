@@ -1,3 +1,4 @@
+import {sampleZoneLevel,connectSampleZone} from './sampler-zone-voice.js';
 import {upperMidiTime} from './midi-controller-timeline.js';
 import {pitchBendTimeline} from './pitch-bend-state.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
@@ -20,5 +21,5 @@ export function scheduleSampler(context,destination,buffer,root,note,events,rela
  const envelope=samplerEnvelope(settings),at=Math.max(note.start,relative),remaining=end+envelope.release-at;if(remaining<=0||note.velocity===0)return;
  const loop=samplerLoop(buffer,settings),offset=loopedSampleOffset(samplerOffset(note,root,events,at,settings,compiledPoints,compiledIntegral),loop);if(offset>=buffer.duration)return;
  const source=context.createBufferSource(),amp=context.createGain(),start=when+Math.max(0,note.start-relative);source.buffer=buffer;Object.assign(source,loop);source.playbackRate.value=samplerPlaybackRate(note.pitch,root,settings);schedulePitchBend(source,events,at,start,end+envelope.release,settings.pitchBendRange,compiledPoints);
- scheduleSamplerEnvelope(amp.gain,start,at-note.start,end-note.start,note.velocity,envelope);const filter=createSamplerFilter(context,settings,note.pitch,root);if(filter){source.connect(filter).connect(amp);nodes.push(filter);}else source.connect(amp);amp.connect(destination);source.start(start,offset);source.stop(start+remaining);nodes.push(source,amp);
+ scheduleSamplerEnvelope(amp.gain,start,at-note.start,end-note.start,note.velocity*sampleZoneLevel(settings),envelope);const filter=createSamplerFilter(context,settings,note.pitch,root);if(filter){source.connect(filter).connect(amp);nodes.push(filter);}else source.connect(amp);const pan=connectSampleZone(context,amp,destination,settings);if(pan)nodes.push(pan);source.start(start,offset);source.stop(start+remaining);nodes.push(source,amp);
 }
