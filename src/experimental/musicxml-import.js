@@ -11,7 +11,9 @@ export function parseMusicxml(source){
  const document=new DOMParser().parseFromString(source,'application/xml'),sourceRoot=document.documentElement;
  if(document.querySelector('parsererror')||!['score-partwise','score-timewise'].includes(sourceRoot.localName))throw Error('Import a valid partwise or timewise MusicXML score.');
  const timewise=sourceRoot.localName==='score-timewise',root=partwiseMusicxmlRoot(sourceRoot);
- const unsupported=root.querySelector('repeat,ending,grace,unpitched,tremolo,ornaments,octave-shift,scordatura,accordion-registration');
+ // Octave-shift directions change engraving, not the pitch data. Do not apply
+ // another octave to notes; instrument <transpose> still applies below.
+ const unsupported=root.querySelector('repeat,ending,grace,unpitched,tremolo,ornaments,scordatura,accordion-registration');
  if(unsupported)throw Error(`MusicXML ${unsupported.localName} playback is not supported yet. Export a performed MIDI file instead.`);
  const definitions=new Map(children(child(root,'part-list')??root,'score-part').map(p=>[p.id,text(p,'part-name')||'Score part']));
  const parts=children(root,'part');if(!parts.length||parts.length>128)throw Error('Import between 1 and 128 score parts.');

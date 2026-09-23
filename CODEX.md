@@ -5309,3 +5309,11 @@ Trimming and splitting MIDI regions now build pedal timelines once per channel, 
 A local synthetic four-channel fixture with 5,000 notes and 5,000 controller events measured about 215 ms before and 3 ms after for the trim helper; 20,000 notes/events measured about 7 ms after. These are individual helper measurements, not a guarantee of end-to-end UI responsiveness. `test/experimental-midi-trim-density.test.js` guards bounded event-channel reads on a 20,000-note/event fixture without flaky wall-clock assertions, and verifies channel isolation, reset release, shared-command Undo and failed-batch rollback.
 
 Verified 1,365 tests and production build for this checkpoint.
+
+### Import scores with octave-shift notation (2026-09-23)
+
+MusicXML scores containing `octave-shift` directions now import instead of being rejected. These directions describe where notes are printed relative to their performed pitch; the note pitch data already supplies that pitch. Import therefore does not add or subtract another octave. Instrument `transpose` remains independent and still converts to concert pitch. As with other source layout, the original octave lines are not retained in the generated MIDI/score preview.
+
+`scripts/browser-experimental-musicxml-octave-check.cjs` verifies up/down markings of sizes 8/15/22, continuation/stop, tied notes, independent staves, partwise/timewise scores, a transposing instrument, actual file-picker import and Undo. Reference: [MusicXML octave-shift semantics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/octave-shift/).
+
+Verified 1,365 tests and production build, plus the browser octave-import check.
