@@ -4325,3 +4325,23 @@ unsorted region ends, empty arrangements, edits between calculations and
 actual automatic playback completion including EQ decay, playhead reset, and a
 fresh end after editing duration. The existing range-audition PCM check passes.
 All 1,000 tests and the production build pass; the bundle-size warning remains.
+
+### Track colors
+
+Select a track header to show **Track color** in the inspector. Choose a named
+swatch, use the custom color picker, or restore **Default color**. The color is
+shown on the arrangement header, that track’s region/waveform styling, and its
+mixer strip. Names, track kinds, mute labels, fade handles and selection outlines
+remain independent of the color. Bus coloring does not overwrite member colors.
+
+`track.add` and `track.set` accept `color` as a six-digit hex string or `null`.
+The shared schema rejects CSS expressions and other values. Existing sessions
+without this field keep their kind-based colors. Color is metadata only: it
+survives track duplication and project JSON, supports undo, and is available to
+the agent through the same commands. Channel-settings copies leave it unchanged.
+
+Validation: `test/experimental-track-color.test.js` covers validation, defaults,
+duplication, isolation from audio controls, style sanitization and persistence.
+`scripts/browser-experimental-track-color-check.cjs` checks swatches/custom/reset,
+computed arrangement and mixer styling, undo/redo and reload. All 1,003 tests and
+the production build pass; the existing bundle-size warning remains.
