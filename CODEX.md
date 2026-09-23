@@ -3700,3 +3700,11 @@ Select one or more audio regions and open **Quantize audio timing** in the inspe
 Saved comp references move by their source region's delta. If this creates overlapping comp sections, the entire command rejects with a suggestion to use group movement or adjust the comp. Protected tracks, missing attack anchors, invalid settings and timeline overflow also reject atomically. Undo restores the original placement.
 
 Verification: `test/experimental-region-quantize.test.js` covers tempo changes, swing, partial strength, group spacing, saved/reversed attack anchors, source preservation, mixed selections, comp remapping/conflicts, protection and undo. `scripts/browser-experimental-region-quantize-check.cjs` checks the actual manual controls, group mode, mocked agent command application and undo. It uses region metadata fixtures; playback processing is unchanged. Live provider inference still needs local configuration.
+
+### Drag attack markers in the waveform
+
+Attack markers have triangular handles along the top of the detailed waveform. Drag a handle to preview a sample-aligned correction, then release to save through the existing `region.attackMarkers` command. One undo restores the previous marker set. Dragging below the handle band still selects an audio range. Hovering a handle shows a horizontal resize cursor; clicking without dragging selects its numbered entry in the marker form.
+
+Markers cannot pass their neighbors or the region edges during a drag. This preserves their order and prevents duplicate positions. Escape, pointer cancellation, or lost pointer capture cancels the preview without changing saved data. Numeric marker controls remain available for keyboard editing, including deliberate reordering. Correction changes the marker only; it does not warp or move audio.
+
+Verification: `test/experimental-waveform-marker-drag.test.js` covers handle hit testing across zoom/width and sample-boundary constraints. The browser editor regression drags a saved marker, cancels another drag with Escape, and verifies undo/redo. A rendered waveform screenshot was inspected to confirm handle placement. The complete test suite and build pass; live model-provider verification remains separate.
