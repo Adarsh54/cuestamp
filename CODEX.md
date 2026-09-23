@@ -5176,3 +5176,10 @@ Local preflight on this checkpoint found `OPENAI_API_KEY` and `DAW_AGENT_MODEL` 
 - **Download displayed score** exports the current scope and pitch display, adding `-concert` or `-written` to the MusicXML filename. Existing toolbar and agent exports continue to use the saved track notation settings. Concert exports omit instrument transposition metadata and use the project concert key.
 - Hit-testing and staff-step edits use the displayed pitch system while commands continue to target original sounding MIDI notes. Display-only session copies share original region/note data without mutating it.
 - Verified `test/experimental-score-pitch-view.test.js` and `scripts/browser-experimental-score-pitch-view-check.cjs`: switch, unchanged instrument settings, matching download, keyboard note edit, Undo and retained view preference. `/tmp/cuestamp-concert-score.musicxml` passes MusicXML XSD validation.
+
+### Selecting score parts (2026-09-23)
+
+- Arrangement score view offers **Score parts** checkboxes and **Show all parts**. Filtering retains arrangement track order and affects the preview plus **Download displayed score**, including concert/written mode. Track mute/solo and the session document remain unchanged; toolbar/agent exports keep their existing scope.
+- Part choices persist through repaint and edits in the current session. A zero-part selection displays an actionable message and clears obsolete note-edit context. Missing parts are removed from the transient selection after track changes. Show all returns to following all eligible parts.
+- Verified `test/experimental-score-parts.test.js` for filtering/order, invalid selections and escaped labels; `scripts/browser-experimental-score-parts-check.cjs` for bass-only display, correct note mapping, matching download, zero-selection and restoration. Selected-part MusicXML passes XSD validation. Concert/written browser regression also passes.
+- Browser score checks now target the outer details summary explicitly because Score parts is a nested details control.
