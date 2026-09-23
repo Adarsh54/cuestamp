@@ -31,3 +31,10 @@ test('edit plans optionally carry one validated follow-up transport with explici
  for(const afterEditTransport of [{operation:'record',position:null},{operation:'seek',position:null},{operation:'play',position:-1}])await assert.rejects(planDawEdit({session,instruction:'edit and play',transport,allowTransport:true},adapter([output({...args,afterEditTransport},'edit_session')])));
  await assert.rejects(planDawEdit({session,instruction:'edit and play',transport,allowTransport:true},adapter([output({...args,commands:[{op:'track.delete',target:'missing'}]},'edit_session')])),/not found/);
 });
+test('playback scope is validated before model calls and reaches the provider as observation',async()=>{
+ const {validateTransportState,transportPlaybackMode}=await import('../src/experimental/agent-transport.js');
+ for(const [playback,mode]of [[null,'stopped'],[{},'arrangement'],[{loop:{}},'cycle'],[{rangePreview:true},'audioRange'],[{selectionPreview:true},'regionSelection'],[{compPreview:true},'comp'],[{compPreview:true,warpPreview:true},'warp'],[{preview:true},'preview']])assert.equal(transportPlaybackMode(playback),mode);
+ assert.throws(()=>validateTransportState({...transport,mode:'regionSelection'},session),/mode/);assert.throws(()=>validateTransportState({...transport,playing:true,mode:'stopped'},session),/mode/);assert.throws(()=>validateTransportState({...transport,playing:true,mode:'cycle'},session),/Cycle/);
+ let sent;const scoped={...transport,playing:true,mode:'regionSelection'};await planDawEdit({session,instruction:'What is playing?',transport:scoped},adapter([],body=>sent=body));assert.equal(JSON.parse(sent.input.at(-1).content).transport.mode,'regionSelection');assert.match(sent.input[0].content,/temporary listening scopes/);assert.equal(transportSummary('play',scoped),'Selected clip audition at 12.00 s.');
+ let calls=0;await assert.rejects(planDawEdit({session,instruction:'play',transport:{...scoped,playing:false}},adapter([],()=>calls++)),{status:400});assert.equal(calls,0);
+});
