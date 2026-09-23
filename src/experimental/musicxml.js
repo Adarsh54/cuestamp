@@ -59,7 +59,7 @@ function regionMeasures(session,track,region){
      const noteTuplet=chordIndex===0?tuplet:'';
      const writtenPitch=n.pitch+transposition.semitones;if(writtenPitch>131)throw Error('Written pitch exceeds MusicXML octave 9. Use concert pitch for this part.');
      const {step,alter,octave}=spelledPitch(writtenPitch,writtenKey(keys.keyAtBeat(tempo.beatAtTime(region.start+n.start)),transposition)),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
-     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}">${chordIndex?'<chord/>':''}<pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
+     music.push(`<note dynamics="${(n.velocity*127/90*100).toFixed(3)}">${chordIndex?'<chord/>':''}<pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
      }
     }
    }

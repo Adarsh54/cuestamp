@@ -2394,3 +2394,7 @@ preview, using lazy-loaded OpenSheetMusicDisplay and the shared MusicXML exporte
 Browser checks verify visible rendering, zoom and no session mutation; the score
 was visually inspected. This closes the basic score-viewing gap. Direct notation
 editing, advanced engraving and MusicXML import remain unfinished.
+
+### MusicXML note interchange (2026-09-23)
+
+Partwise uncompressed MusicXML can now be imported through Import files as editable MIDI tracks, with shared MIDI tempo/signature options and atomic Undo. Chords, voices, ties, sounding-pitch transposition and explicit tempo/key/meter data are interpreted. This is note interchange, not full preservation of an engraved document: layout, expression/articulation and instrument patches are not imported, and repeat/grace/percussion/ornament playback requires a performed MIDI export. See the CODEX MusicXML import checkpoint for precise limits and evidence. Compressed/timewise scores and full engraving round-trip remain incomplete.
