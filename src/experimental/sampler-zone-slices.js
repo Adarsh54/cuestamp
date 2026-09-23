@@ -1,5 +1,5 @@
 import {samplerZoneSchema} from './sampler-zones.js';
-export function samplerSlicePlan(track,draft,markers,startKey,buffer){
+export function samplerSlicePlan(track,draft,markers,startKey,buffer,regionStart=null){
  const zone=samplerZoneSchema.parse(draft);
  if(track?.kind!=='midi'||!track.sampleZones?.some(z=>z.id===zone.id))throw Error('Save this sample zone before creating slices.');
  if(!Number.isInteger(startKey)||startKey<0||startKey>127)throw Error('Choose a starting MIDI key from 0 to 127.');
@@ -12,5 +12,14 @@ export function samplerSlicePlan(track,draft,markers,startKey,buffer){
  if(startKey+count>128)throw Error('There are not enough MIDI keys after the starting key.');
  if(track.sampleZones.length-1+count>128)throw Error('An instrument can contain up to 128 sample zones.');
  const zones=edges.slice(0,-1).map((frame,i)=>samplerZoneSchema.parse({...zone,id:crypto.randomUUID(),name:`${zone.name.slice(0,85)} · Slice ${i+1}`,sourceStart:frame/rate,sourceEnd:edges[i+1]/rate,root:startKey+i,keyLow:startKey+i,keyHigh:startKey+i,loop:false,loopStart:0,loopEnd:null}));
- return {zones,commands:[{op:'samplerZone.delete',target:track.id,values:{id:zone.id}},{op:'samplerZone.addMany',target:track.id,values:{zones:JSON.stringify(zones)}}]};
+ const commands=[{op:'samplerZone.delete',target:track.id,values:{id:zone.id}},{op:'samplerZone.addMany',target:track.id,values:{zones:JSON.stringify(zones)}}];let regionId=null;
+ if(regionStart!==null){
+  const duration=(end-start)/rate;if(!Number.isFinite(regionStart)||regionStart<0||regionStart+duration>86400)throw Error('Place the slice region within the 24-hour timeline.');
+  const articulation=zone.articulationId?[...(track.midiSwitches??[]),...(track.inputArticulation?[track.inputArticulation]:[]),...track.regions.flatMap(r=>r.notes.map(n=>n.articulation).filter(Boolean))].find(a=>a.id===zone.articulationId):null;
+  if(zone.articulationId&&!articulation)throw Error('Restore the zone articulation before creating a MIDI pattern.');
+  regionId=crypto.randomUUID();commands.push({op:'region.add',target:track.id,values:{id:regionId,name:`${zone.name} slices`,start:regionStart,duration}});
+  const notes=zones.map(z=>({id:crypto.randomUUID(),pitch:z.root,start:z.sourceStart-start/rate,duration:z.sourceEnd-z.sourceStart,velocity:Math.round((z.velocityLow+z.velocityHigh)/2)/127,...(articulation?{articulation}: {})}));
+  commands.push({op:'notes.addMany',target:regionId,values:{notes:JSON.stringify(notes)}});
+ }
+ return {zones,commands,regionId};
 }
