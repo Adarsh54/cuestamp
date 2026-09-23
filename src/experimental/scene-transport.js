@@ -21,7 +21,7 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
   catch(error){graph?.stop();output.disconnect();throw error;}
   return {plan,when,output,graph,stop(){graph.stop();output.disconnect();}};
  }
- current=prepare(preview,base);launches.push({sceneId:preview.sceneId,start:0,duration:preview.end});current.output.gain.setValueAtTime(1,base);
+ current=prepare(preview,base);launches.push({sceneId:preview.sceneId,...(preview.sourceSignature?{sourceSignature:preview.sourceSignature}:{}),start:0,duration:preview.end});current.output.gain.setValueAtTime(1,base);
  const transport={base,position:0,preview:true,recordPerformance:Boolean(preview.recordPerformance),scenePreview:preview.sceneId,
   performance(){const end=Math.max(0,(stoppedAt??context.currentTime)-base);return {sessionId:session.id,revision:session.revision,events:launches.flatMap((event,i)=>{const duration=Math.min(event.duration,end-event.start,(launches[i+1]?.start??Infinity)-event.start);return duration>1e-6?[{...event,duration}]:[];})};},
   get endPosition(){return (pending||current).when-base+(pending||current).plan.end;},
@@ -35,7 +35,7 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
    if(when>=current.when+current.plan.end)throw Error('The current audition ends before that boundary. Start a longer audition first.');
    if(position+plan.end>86400)throw Error('Scene playback exceeds the timeline.');
    const next=prepare(plan,when);
-   current.output.gain.setValueAtTime(0,when);next.output.gain.setValueAtTime(1,when);pending=next;launches.push({sceneId:plan.sceneId,start:position,duration:plan.end});
+   current.output.gain.setValueAtTime(0,when);next.output.gain.setValueAtTime(1,when);pending=next;launches.push({sceneId:plan.sceneId,...(plan.sourceSignature?{sourceSignature:plan.sourceSignature}:{}),start:position,duration:plan.end});
    return {position,sceneId:plan.sceneId};
   },
   stop(){if(stopped)return;stopped=true;stoppedAt=context.currentTime;current.stop();pending?.stop();pending=null;}
