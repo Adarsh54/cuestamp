@@ -1,12 +1,8 @@
 import {z} from 'zod';
-import {selectedRegions} from './region-selection.js';
+import {orderedSelectedRegions} from './region-selection.js';
 const options=z.object({regionIds:z.string().min(1).max(101000),position:z.number().finite().min(0).max(86400).optional(),gap:z.number().finite().min(0).max(86400).default(0),order:z.enum(['timeline','selection']).default('timeline')}).strict();
 export function sequencedRegions(session,values){
- const v=options.parse(values),regions=selectedRegions(session,v.regionIds.split(','));
- if(v.order==='timeline'){
-  const rank=new Map(session.tracks.flatMap(t=>t.regions).map((r,index)=>[r.id,index]));
-  regions.sort((a,b)=>a.start-b.start||rank.get(a.id)-rank.get(b.id));
- }
+ const v=options.parse(values),regions=orderedSelectedRegions(session,v.regionIds.split(','),v.order);
  let position=v.position??Math.min(...regions.map(r=>r.start));
  return regions.map(region=>{const start=position;if(start>86400)throw Error('Sequencing would place a region beyond the 24-hour start limit.');position+=region.duration+v.gap;return {id:region.id,start};});
 }

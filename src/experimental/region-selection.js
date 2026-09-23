@@ -30,3 +30,10 @@ export function alignedRegions(session,values){
  if(edits.some(r=>r.start<0))throw Error('Aligning region ends here would place a region before the project start.');
  return edits;
 }
+
+export function orderedSelectedRegions(session,ids,order='timeline'){
+ const regions=selectedRegions(session,ids);
+ if(order==='timeline'){const rank=new Map(session.tracks.flatMap(t=>t.regions).map((r,index)=>[r.id,index]));regions.sort((a,b)=>a.start-b.start||rank.get(a.id)-rank.get(b.id));}
+ else if(order!=='selection')throw Error('Choose timeline or selection order.');
+ return regions;
+}

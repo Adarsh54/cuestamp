@@ -4398,3 +4398,9 @@ With the pointer tool, Alt/Option-drag the body of an audio clip to slip the rec
 ### Cancel arrangement drags
 
 Escape cancels an active region move, trim, fade or Alt/Option source-slip gesture. Pointer cancellation and lost pointer capture also restore the prior view without executing an edit. Gesture keyboard listeners and capture handlers are removed on commit/cancel. The workspace shortcuts panel documents Escape. The real-WAV region-slip browser check exercises Escape in each gesture mode and verifies unchanged document/revision and restored clip position.
+
+### Batch region naming
+
+The multi-region inspector can rename selected clips with a pattern. `{n}` inserts a sequential number, `{name}` inserts the current name, and other text is literal. Set starting number, minimum digit padding, and timeline/selection order. Timeline ties use session track/region order, shared with sequencing. Existing names are inserted once, so tokens inside an original name are not expanded again. Clip IDs, source filenames, media, timing and all other region data remain unchanged.
+
+The agent shares `regions.rename` with values `regionIds`, `pattern`, optional `startNumber` (default 1), `digits` (default 2, range 1–6), and `order` (default timeline). Empty/oversized resulting names and protected edits fail atomically. Undo restores all names together. Tests: `test/experimental-region-rename.test.js` and `scripts/browser-experimental-region-rename-check.cjs` cover ordering, padding, literal names, validation, protection, displayed escaping and undo.
