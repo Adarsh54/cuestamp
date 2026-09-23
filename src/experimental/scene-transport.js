@@ -1,3 +1,4 @@
+import {createScenePerformanceLog} from './scene-performance-log.js';
 import {compileTempoMap} from './tempo-map.js';
 import {compileMeterMap} from './meter-map.js';
 import {scheduleSession} from './audio-engine.js';
@@ -13,7 +14,7 @@ export function sceneSwitchTime(session,position,quantization){
 // releases old nodes, but never determines the audible switch boundary.
 export function startSceneTransport(context,preview,buffers,{schedule=scheduleSession}={}){
  const base=context.currentTime+.1,session=preview.document;
- let current,pending=null,stopped=false,stoppedAt=null;const launches=[];
+ let current,pending=null,stopped=false,stoppedAt=null;const launches=[],performanceLog=preview.recordPerformance?createScenePerformanceLog(preview):null;
  function prepare(plan,when){
   const output=context.createGain();output.gain.value=0;output.connect(context.destination);
   let graph;
@@ -23,25 +24,23 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
  }
  current=prepare(preview,base);launches.push({sceneId:preview.sceneId,...(preview.sourceSignature?{sourceSignature:preview.sourceSignature}:{}),start:0,duration:preview.end});current.output.gain.setValueAtTime(1,base);
  const transport={base,position:0,preview:true,recordPerformance:Boolean(preview.recordPerformance),scenePreview:preview.sceneId,
-  performance(){const end=Math.max(0,(stoppedAt??context.currentTime)-base);return {sessionId:session.id,revision:session.revision,events:launches.flatMap((event,i)=>{const duration=Math.min(event.duration,end-event.start,(launches[i+1]?.start??Infinity)-event.start);return duration>1e-6?[{...event,duration}]:[];})};},
+  performance(){const end=Math.max(0,(stoppedAt??context.currentTime)-base);return {sessionId:session.id,revision:session.revision,events:performanceLog?performanceLog.events(end):launches.flatMap((event,i)=>{const duration=Math.min(event.duration,end-event.start,(launches[i+1]?.start??Infinity)-event.start);return duration>1e-6?[{...event,duration}]:[];})};},
   get endPosition(){return (pending||current).when-base+(pending||current).plan.end;},
   get meters(){return current.graph.meters;},get automation(){return current.graph.automation;},readEffectMeters:()=>current.graph.readEffectMeters?.(),
   advance(){current.graph.collectVoices?.();if(!pending||context.currentTime<pending.when)return null;current.stop();current=pending;pending=null;transport.scenePreview=current.plan.sceneId;return current.plan;},
   launchCell({plan,trackId,quantization,regions}){
    if(stopped)throw Error('Start scene playback before launching a cell.');
-   if(transport.recordPerformance)throw Error('Cell launching is not yet supported during scene performance recording.');
    transport.advance();if(pending)throw Error('Wait for the queued scene before launching a cell.');
    const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
    if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell can launch. Start a longer audition.');
-   current.graph.replaceTrackRegions(trackId,regions,{when,duration:plan.end});return {position,trackId};
+   performanceLog?.canAppend(plan);current.graph.replaceTrackRegions(trackId,regions,{when,duration:plan.end});performanceLog?.cell(plan,trackId,position);return {position,trackId};
   },
   stopCell({trackId,quantization}){
    if(stopped)throw Error('Start scene playback before stopping a cell.');
-   if(transport.recordPerformance)throw Error('Cell stopping is not yet supported during scene performance recording.');
    transport.advance();if(pending)throw Error('Wait for the queued scene before stopping a cell.');
    const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
    if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell stop.');
-   current.graph.stopTrackRegions(trackId,{when});return {position,trackId};
+   current.graph.stopTrackRegions(trackId,{when});performanceLog?.stop(trackId,position);return {position,trackId};
   },
   queue(plan,quantization){
    if(stopped)throw Error('Start scene playback before cueing another scene.');transport.advance();
@@ -50,7 +49,7 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
    const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
    if(when>=current.when+current.plan.end)throw Error('The current audition ends before that boundary. Start a longer audition first.');
    if(position+plan.end>86400)throw Error('Scene playback exceeds the timeline.');
-   const next=prepare(plan,when);
+   performanceLog?.canAppend(plan);const next=prepare(plan,when);performanceLog?.scene(plan,position);
    current.output.gain.setValueAtTime(0,when);next.output.gain.setValueAtTime(1,when);pending=next;launches.push({sceneId:plan.sceneId,...(plan.sourceSignature?{sourceSignature:plan.sourceSignature}:{}),start:position,duration:plan.end});
    return {position,sceneId:plan.sceneId};
   },
