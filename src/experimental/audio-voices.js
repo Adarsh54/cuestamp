@@ -9,7 +9,7 @@ import {scheduleMidiChannel,schedulePitchBend} from './midi-events.js';
 const linear=db=>10**(db/20);
 export function validateTrackSources(track,buffers){
  if(track.kind==='audio')for(const r of track.regions){const buffer=buffers.get(r.assetId);if(!buffer)throw Error(`Missing audio: ${r.name}. Re-import the file.`);if(r.offset+r.duration>buffer.duration+.01)throw Error(`Region exceeds its source: ${r.name}`);}
- if(track.kind==='midi'&&track.instrument==='sampler'){const sources=new Map();for(const r of track.regions)for(const n of r.notes)if(!n.mute&&n.velocity>0){for(const settings of samplesForNote(track,n))sources.set(JSON.stringify([settings.sampleAssetId,settings.sampleLoop,settings.sampleLoopStart,settings.sampleLoopEnd]),settings);}for(const settings of sources.values()){if(!buffers.has(settings.sampleAssetId))throw Error(`Missing sampler source for ${track.name}. Assign the required sample.`);samplerLoop(buffers.get(settings.sampleAssetId),settings);}}
+ if(track.kind==='midi'&&track.instrument==='sampler'){const sources=new Map();for(const r of track.regions)for(const n of r.notes)if(!n.mute&&n.velocity>0){for(const settings of samplesForNote(track,n))sources.set(JSON.stringify([settings.sampleAssetId,settings.sampleLoop,settings.sampleLoopStart,settings.sampleLoopEnd,settings.sampleStart,settings.sampleEnd]),settings);}for(const settings of sources.values()){if(!buffers.has(settings.sampleAssetId))throw Error(`Missing sampler source for ${track.name}. Assign the required sample.`);samplerLoop(buffers.get(settings.sampleAssetId),settings);}}
 }
 // Voices feed a persistent mixer input. Their gate is independent of track
 // effects, so replacing a clip does not restart bus state or other instruments.

@@ -1,3 +1,4 @@
+import {samplerSourceRange} from './sampler-source-range.js';
 import {sampleZoneLevel,connectSampleZone} from './sampler-zone-voice.js';
 import {upperMidiTime} from './midi-controller-timeline.js';
 import {pitchBendTimeline} from './pitch-bend-state.js';
@@ -10,16 +11,17 @@ export function samplerOffset(note,root,events,at,settings={},compiledPoints,com
  for(let i=upperMidiTime(points,previous);i<points.length&&points[i].time<at;i++){const point=points[i];offset+=(point.time-previous)*rate*2**(cents/1200);previous=point.time;cents=point.cents;}
  return offset+Math.max(0,at-previous)*rate*2**(cents/1200);
 }
-export function samplerLoop(buffer,{sampleLoop=false,sampleLoopStart=0,sampleLoopEnd=null}={}){
+export function samplerLoop(buffer,settings={}){
+ const {sampleLoop=false,sampleLoopStart=0,sampleLoopEnd=null}=settings,range=samplerSourceRange(buffer,settings);
  if(!sampleLoop)return {loop:false};
- const end=sampleLoopEnd??buffer.duration;
- if(!Number.isFinite(sampleLoopStart)||!Number.isFinite(end)||sampleLoopStart<0||end>buffer.duration||end-sampleLoopStart+Number.EPSILON*Math.max(1,buffer.duration)<1/buffer.sampleRate)throw Error('Sampler loop points must span at least one sample and stay inside the source file.');
+ const end=sampleLoopEnd??range.end;
+ if(!Number.isFinite(sampleLoopStart)||!Number.isFinite(end)||sampleLoopStart<range.start||end>range.end||end-sampleLoopStart+Number.EPSILON*Math.max(1,buffer.duration)<1/buffer.sampleRate)throw Error('Sampler loop points must span at least one sample and stay inside the source file.');
  return {loop:true,loopStart:sampleLoopStart,loopEnd:end};
 }
 export function loopedSampleOffset(offset,loop){return loop.loop&&offset>=loop.loopEnd?loop.loopStart+(offset-loop.loopStart)%(loop.loopEnd-loop.loopStart):offset;}
 export function scheduleSampler(context,destination,buffer,root,note,events,relative,when,end,nodes,settings={},compiledPoints,compiledIntegral){
  const envelope=samplerEnvelope(settings),at=Math.max(note.start,relative),remaining=end+envelope.release-at;if(remaining<=0||note.velocity===0)return;
- const loop=samplerLoop(buffer,settings),offset=loopedSampleOffset(samplerOffset(note,root,events,at,settings,compiledPoints,compiledIntegral),loop);if(offset>=buffer.duration)return;
+ const range=samplerSourceRange(buffer,settings),loop=samplerLoop(buffer,settings),offset=loopedSampleOffset(range.start+samplerOffset(note,root,events,at,settings,compiledPoints,compiledIntegral),loop);if(offset>=range.end)return;
  const source=context.createBufferSource(),amp=context.createGain(),start=when+Math.max(0,note.start-relative);source.buffer=buffer;Object.assign(source,loop);source.playbackRate.value=samplerPlaybackRate(note.pitch,root,settings);schedulePitchBend(source,events,at,start,end+envelope.release,settings.pitchBendRange,compiledPoints);
- scheduleSamplerEnvelope(amp.gain,start,at-note.start,end-note.start,note.velocity*sampleZoneLevel(settings),envelope);const filter=createSamplerFilter(context,settings,note.pitch,root);if(filter){source.connect(filter).connect(amp);nodes.push(filter);}else source.connect(amp);const pan=connectSampleZone(context,amp,destination,settings);if(pan)nodes.push(pan);source.start(start,offset);source.stop(start+remaining);nodes.push(source,amp);
+ scheduleSamplerEnvelope(amp.gain,start,at-note.start,end-note.start,note.velocity*sampleZoneLevel(settings),envelope);const filter=createSamplerFilter(context,settings,note.pitch,root);if(filter){source.connect(filter).connect(amp);nodes.push(filter);}else source.connect(amp);const pan=connectSampleZone(context,amp,destination,settings);if(pan)nodes.push(pan);if(loop.loop||range.end===buffer.duration)source.start(start,offset);else source.start(start,offset,range.end-offset);source.stop(start+remaining);nodes.push(source,amp);
 }
