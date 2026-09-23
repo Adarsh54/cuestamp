@@ -4567,3 +4567,12 @@ Set **Timecode at timeline zero** in Experimental scoring controls to label the 
 Drop-frame start labels use semicolons. A start that is not aligned to the current frame rate is displayed at the preceding whole frame, and parsing that label returns timeline zero. Labels can extend beyond hour 23 without wrapping; seeks still must fall within the session’s 24-hour timeline. Changing frame rate preserves the stored seconds rather than the old label. Embedded movie timecode is not read automatically.
 
 Timecode unit tests cover normal/drop-frame offsets, frame-rate changes, extended hours, before-start rejection, unchanged media and Undo/Redo. The browser drop-frame check now also sets a one-hour start, frame-steps from it and verifies persistence after reload.
+
+
+### Marker entry in timeline formats
+
+The marker panel follows **Timeline ruler**: seconds, bars/beats/ticks, or timecode. Add/edit fields and jump labels use the selected format, including session start timecode and drop-frame numbering. Markers remain stored as timeline seconds. Renaming through an unchanged rounded position field preserves the original precise time. Switching the ruler format does not move markers.
+
+`marker.add` and `marker.set` accept `values.timecode` instead of `values.time`, and reject commands containing both. The command engine resolves the label against the current session frame rate, drop-frame and start offset, rejects skipped/before-start labels, and keeps batch rollback and Undo. The agent prompt documents this path so it can pass picture timecodes directly rather than calculate seconds itself.
+
+Checks cover valid conversion, ambiguous/invalid labels, atomic rollback and preservation of subframe positions during renaming. The browser marker workflow also creates/jumps to a picture cue with a one-hour start and adds a marker at bar three, alongside existing MIDI download/import and history checks. All 1,149 tests and build pass; the existing bundle-size warning remains. Live model inference for marker requests remains unverified.

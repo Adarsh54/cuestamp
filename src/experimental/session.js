@@ -85,7 +85,7 @@ import {duplicateTrack} from './duplicate-track.js';
 import {selectedMidiNotes} from './note-selection.js';
 import {readMidi,decodeMidiImport} from './midi.js';
 import {quantizeNotes,humanizeNotes} from './note-transforms.js';
-import {frameRates,supportsDropFrame} from './timecode.js';
+import {frameRates,supportsDropFrame,parseSessionTimecode} from './timecode.js';
 import {midiEventSchema} from './midi-events.js';
 import {validateRouting} from './routing.js';
 import {trimmedRegion,trimmedMidiRegion} from './region-edit.js';
@@ -286,8 +286,8 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
    case 'automation.set':{const points=automationChains.find(points=>points.some(p=>p.id===target));need(points,'Automation point');const current=points.find(p=>p.id===target),next=automationSchema.parse({...current,...pick(v,['time','value','shape'])});if(points.some(p=>p.id!==target&&p.parameter===next.parameter&&p.time===next.time))throw Error('An automation point already exists at this time.');Object.assign(current,next);break;}
    case 'automation.delete':{const points=automationChains.find(points=>points.some(p=>p.id===target));need(points,'Automation point');points.splice(points.findIndex(p=>p.id===target),1);break;}
    case 'automation.clear':{const points=target===session.id?session.masterAutomation:need(t,'Track').automation;pick(v,['parameter']);if(!['gainDb','pan'].includes(v.parameter))throw Error('Unknown automation parameter.');for(let i=points.length-1;i>=0;i--)if(points[i].parameter===v.parameter)points.splice(i,1);break;}
-   case 'marker.add':session.markers.push({id:crypto.randomUUID(),name:'Marker',...pick(v,['id','name','time'])});break;
-   case 'marker.set':Object.assign(need(session.markers.find(m=>m.id===target),'Marker'),pick(v,['name','time']));break;
+   case 'marker.add':{const values=pick(v,['id','name','time','timecode']);if(values.timecode!==undefined){if(values.time!==undefined)throw Error('Use either marker seconds or timecode, not both.');values.time=parseSessionTimecode(String(values.timecode),session);delete values.timecode;}session.markers.push({id:crypto.randomUUID(),name:'Marker',...values});break;}
+   case 'marker.set':{const values=pick(v,['name','time','timecode']);if(values.timecode!==undefined){if(values.time!==undefined)throw Error('Use either marker seconds or timecode, not both.');values.time=parseSessionTimecode(String(values.timecode),session);delete values.timecode;}Object.assign(need(session.markers.find(m=>m.id===target),'Marker'),values);break;}
    case 'marker.delete':if(!session.markers.some(m=>m.id===target))throw Error('Marker not found.');session.markers=session.markers.filter(m=>m.id!==target);break;
   }
   pruneSceneReferences(session);
