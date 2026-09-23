@@ -5215,3 +5215,9 @@ Shift-click or Shift+Enter/Space toggles score notes in the same MIDI region. Se
 Agent requests capture every selected note ID before repaint; region ownership and stale/malformed IDs are validated. Draft notes supply no selection. A pointer click is consumed once, preventing pointer-up plus click from toggling a note twice. Empty renderer measure slots are skipped rather than breaking long excerpts with trailing rests.
 
 Verified 1,336 tests and production build; browser multi-selection checks cover mouse and keyboard toggling, duplication, deletion, Undo and mocked-agent request context. Chord insertion and pitch-drag browser regressions pass. Live model inference and multi-region score selection remain unverified/unimplemented respectively.
+
+### Score selection transposition and velocity (2026-09-23)
+
+Multi-note score selections now show **Transpose selection** (semitones or project scale steps) and **Apply selection velocity** (set to or change by). Scale-step shifts follow the key at each selected note's onset and preserve offsets above the lower scale note; they require known project keys. Pitch overflow rejects the whole edit. Relative velocity changes clamp at 0 and 1; zero makes a note silent, so it disappears from the pitched score until its velocity is restored through another editor or Undo. Timing and unselected notes remain unchanged. Each action uses the existing shared command executor and one Undo step. Selection clears on repaint, as with the earlier score actions.
+
+Verified 1,339 tests, production build and `scripts/browser-experimental-score-selection-tools-check.cjs`: selected-pitch transposition, selection velocity, Undo, duplication and deletion. Unit checks include changing project keys, MIDI channel preservation, pitch overflow and invalid/empty selections. These commands are already available to the agent; live model inference is still unverified.
