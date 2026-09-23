@@ -4631,3 +4631,12 @@ Unit tests cover chronological selection, explicit endpoints, rejection, unchang
 `navigate_markers` supports `next`, `previous`, and `jump`. Next/previous use the observed playhead and skip coincident marker timestamps; jump uses an existing `markerId`. The tool is offered only when markers and transport capability are available, outside editing continuations. The model is instructed to ask when marker names are ambiguous. Navigation resolves saved positions on the server, pauses playback through the existing seek path, and does not edit the document.
 
 Missing targets/directions and inconsistent arguments reject. Browser session/revision/transport checks still reject stale responses. Unit tests cover ordering, IDs, ambiguity in arguments and capability gating. The agent-position browser integration runs the real server planner with mocked model output, checking all three navigation actions, unchanged project data and stale response rejection. All 1,156 tests and build pass; live natural-language model behavior remains unverified.
+
+
+### Short-window stereo correlation
+
+Full-mix analysis now also scans 400 ms stereo windows every 100 ms. Both channels must exceed −60 dBFS RMS for a window to qualify. The report shows the lowest normalized cross-product correlation, its start time in timeline seconds, and the number of negative-correlation windows among eligible windows. Silence/quiet one-sided signals and renders shorter than 400 ms have no qualifying result. This uses no mean subtraction and is not a live meter.
+
+Overlapping negative windows are not separate incidents, and a negative value alone does not prove an audible problem or justify automatic polarity changes. The optional `stereoWindows` observation reaches the agent with these interpretation limits. Server validation checks window sizes, counts, eligibility/null state, timestamp bounds and negative/minimum consistency. Results become stale with session edits like existing mix analysis.
+
+Tests detect a brief polarity reversal concealed by a positive full-render average, verify quiet-channel gating and reject malformed observations. Browser checks exercise the real render/worker path, visible values and agent context alongside existing analysis, normalization and cancellation workflows. All 1,159 tests and build pass; the existing bundle-size warning remains. Live model interpretation remains unverified.
