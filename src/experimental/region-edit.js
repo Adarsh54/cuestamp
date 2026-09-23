@@ -74,8 +74,12 @@ export function bindRegions(root,{session,zoom,select,seek,execute,guard,sourceD
     }
     command={op:handle==='move'?'region.move':handle.startsWith('trim')?'region.trim':'region.set',target:region.id,values};
    };
-   const cleanup=()=>{root.querySelectorAll('.daw-region-drop,.daw-region-drop-invalid').forEach(l=>l.classList.remove('daw-region-drop','daw-region-drop-invalid'));el.onpointermove=null;el.onpointerup=null;el.onpointercancel=null;};
-   el.onpointercancel=()=>{cleanup();select(region.id,true,{preserveGroup:handle==='move'&&group.length>1});};el.onpointerup=guard(event=>{cleanup();el.releasePointerCapture(event.pointerId);if(moved&&command){select(region.id,false,{preserveGroup:handle==='move'&&group.length>1});execute([command],handle==='move'?'Moved region':handle==='slip'?'Slipped audio source':handle.startsWith('trim')?'Trimmed region':'Changed region fade',revision);}else select(region.id,true,event);});
+   const doc=root.ownerDocument;
+   const cleanup=()=>{doc.removeEventListener('keydown',cancelKey,true);root.querySelectorAll('.daw-region-drop,.daw-region-drop-invalid').forEach(l=>l.classList.remove('daw-region-drop','daw-region-drop-invalid'));el.onpointermove=null;el.onpointerup=null;el.onpointercancel=null;el.onlostpointercapture=null;};
+   const cancel=()=>{cleanup();if(el.hasPointerCapture(e.pointerId))el.releasePointerCapture(e.pointerId);if(root.isConnected&&el.isConnected)select(region.id,true,{preserveGroup:handle==='move'&&group.length>1});};
+   const cancelKey=event=>{if(event.key!=='Escape')return;event.preventDefault();event.stopPropagation();cancel();};
+   doc.addEventListener('keydown',cancelKey,true);
+   el.onpointercancel=cancel;el.onlostpointercapture=cancel;el.onpointerup=guard(event=>{cleanup();if(el.hasPointerCapture(event.pointerId))el.releasePointerCapture(event.pointerId);if(moved&&command){select(region.id,false,{preserveGroup:handle==='move'&&group.length>1});execute([command],handle==='move'?'Moved region':handle==='slip'?'Slipped audio source':handle.startsWith('trim')?'Trimmed region':'Changed region fade',revision);}else select(region.id,true,event);});
   };
  });
 }

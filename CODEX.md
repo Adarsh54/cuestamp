@@ -4394,3 +4394,7 @@ Source-backed audio regions expose Slip source in the inspector. Enter signed se
 ### Drag audio content inside a fixed clip
 
 With the pointer tool, Alt/Option-drag the body of an audio clip to slip the recording inside its unchanged timeline boundaries. Dragging right moves waveform content right, including for reversed clips. The normal arrangement snap applies; Shift bypasses snapping. Waveform and source-offset feedback preview during the drag, while the document changes only on release. Source edges clamp the movement. Pointer cancellation restores the prior view without edits. Trim/fade handles keep their existing behavior, and only the dragged clip is slipped even in a group selection. A decoded source is required; otherwise use the inspector Slip source control to load it. Tests extend the region-slip unit/browser checks for direction, clamping, real drag, cancellation and undo.
+
+### Cancel arrangement drags
+
+Escape cancels an active region move, trim, fade or Alt/Option source-slip gesture. Pointer cancellation and lost pointer capture also restore the prior view without executing an edit. Gesture keyboard listeners and capture handlers are removed on commit/cancel. The workspace shortcuts panel documents Escape. The real-WAV region-slip browser check exercises Escape in each gesture mode and verifies unchanged document/revision and restored clip position.
