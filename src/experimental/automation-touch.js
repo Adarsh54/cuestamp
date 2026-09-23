@@ -57,7 +57,7 @@ export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
     if(!state.playback||state.playback.loop||state.playback.compPreview||!state.playback.automation)throw Error('Automation recording needs normal playback with Cycle off.');
     const lane=recordingAutomationLane(state.session,target,parameter,busId),channel=lane.track;
     const owner=busId!==undefined?lane.owner:target===state.session.id?{automationMode:state.session.masterAutomationMode,automationMuted:state.session.masterAutomationMuted}:lane.owner;
-    if(lane.effect&&(!owner.enabled||(owner.kind==='tremolo'&&owner.sync&&parameter==='rate')))throw Error('Enable this effect and disable tempo sync before recording its free rate.');
+    if(lane.effect&&(!owner.enabled||(owner.sync&&parameter==='rate')))throw Error('Enable this effect and disable tempo sync before recording its free rate.');
     if(lane.effect&&!channel&&state.session.masterAutomationMode==='off')throw Error('Enable Master Read before recording effect automation.');
     if(channel?.mute||channel?.protected)throw Error('Choose an unmuted, unprotected mixer channel.');
     if(channel?.automationMode==='off'||owner.automationMode==='off'||owner.automationMuted?.includes(parameter))throw Error('Enable Read for this automation lane and its parent before recording.');

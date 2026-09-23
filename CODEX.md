@@ -4039,16 +4039,26 @@ automation commands also expose it to the agent.
 - `mix`: 0–1; default 0.5. Zero is dry; half wet produces cancellation notches.
 - `stereoPhase`: −180–180 degrees; default 90, static. Other controls support
   automation and the existing live automation controls.
+- `sync`: boolean, default false; `beats`: 0.125–16 quarter-note beats per
+  modulation cycle, default 1. These settings are static. When synced, the
+  sweep follows every project tempo change and its phase follows elapsed
+  musical beats. Free-rate values/automation are retained but ignored until
+  sync is disabled. Live free-rate gestures are disabled while synced.
 
 Playback, mix renders, and stems use the same graph. Seeking restores the LFO
 phase from project time and rate automation; filter history starts empty. Wet
-phasers reserve a conservative two seconds of render tail. No feedback, tempo
-sync, envelope follower, or configurable stage count is implemented yet.
+phasers reserve a conservative two seconds of render tail. No feedback, envelope follower, or configurable stage count is implemented yet.
 
 Validation: `node --test test/experimental-phaser.test.js` and
 `scripts/browser-experimental-phaser-check.cjs` (using the Playwright setup above).
 The browser check tests real OfflineAudioContext output against an analytical
 static notch, unity all-pass energy, dry/bypass equivalence, stereo modulation,
 seek behavior with automated rate/depth/frequency/mix, and mixer save/undo/reload.
-Full tests: 971 passing; production build passes with the existing bundle-size
+Tempo-sync checks compare PCM to equivalent stepped free-rate automation over
+two tempo changes, verify seeks and omitted live rate bindings, and exercise
+sync controls with undo/reload. Unit tests cover live capture rejection and
+mocked agent command validation.
+Full tests: 974 passing; production build passes with the existing bundle-size
 warning. Live model inference is not covered by these checks.
+
+Reference: [Apple’s Phaser controls](https://support.apple.com/en-mide/guide/logicpro/lgcef266e1ef/10.7/mac/11.0) describe tempo-synchronized modulation. Our single-LFO stereo implementation does not reproduce all of that plug-in’s controls.

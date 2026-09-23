@@ -8,7 +8,7 @@ export function createMixerReadback(session){
  const lanes=new Map();
  for(const owner of owners){const points=activeAutomation(owner);for(const parameter of ['gainDb','pan'])lanes.set(`${owner.id}:${parameter}`,{points:automationSegments(points,parameter),fallback:owner[parameter]});}
  for(const track of session.tracks)for(const send of track.sends||[])lanes.set(`${sendAutomationTarget(track.id,send.busId)}:gainDb`,{points:automationSegments(activeAutomation(send,track.automationMode==='off'),'gainDb'),fallback:send.gainDb});
- for(const parent of [...session.tracks,{effects:session.masterEffects,automationMode:session.masterAutomationMode}])for(const effect of parent.effects||[])for(const parameter of Object.keys(effectParameters[effect.kind]))lanes.set(`${effect.id}:${parameter}`,{points:automationSegments(activeAutomation(effect,parent.automationMode==='off'||!effect.enabled||(effect.kind==='tremolo'&&effect.sync&&parameter==='rate')),parameter),fallback:effect[parameter]});
+ for(const parent of [...session.tracks,{effects:session.masterEffects,automationMode:session.masterAutomationMode}])for(const effect of parent.effects||[])for(const parameter of Object.keys(effectParameters[effect.kind]))lanes.set(`${effect.id}:${parameter}`,{points:automationSegments(activeAutomation(effect,parent.automationMode==='off'||!effect.enabled||(effect.sync&&parameter==='rate')),parameter),fallback:effect[parameter]});
  return (target,parameter,time)=>{const lane=lanes.get(`${target}:${parameter}`);return lane?orderedAutomationValue(lane.points,time,lane.fallback):undefined;};
 }
 const cache=new WeakMap();
