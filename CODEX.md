@@ -5169,3 +5169,10 @@ Local preflight on this checkpoint found `OPENAI_API_KEY` and `DAW_AGENT_MODEL` 
 - Underlying MIDI notes and sound are unchanged when setting notation. Score hit-testing subtracts the written transposition; pitch dragging follows written staff steps, then maps back to concert MIDI. Numeric fields explicitly label sounding pitches. Note insertion, deletion and agent context still refer to original notes.
 - Verified persistence/Undo and unchanged notes in `test/experimental-score-transposition.test.js`; browser `scripts/browser-experimental-score-transposition-check.cjs` verifies B-flat rendering, note selection, keyboard edit and export. Visually inspected `/tmp/cuestamp-transposed-score.png`; exported XML passed MusicXML XSD validation. Third-party application round-trip remains unverified.
 - Reference: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/transpose/ .
+
+### Concert/written score view (2026-09-23)
+
+- **Pitch display** switches the selected-region or full-arrangement score between written instrument pitches and concert pitches. This is a transient view preference retained through edits/Undo, not a session change; each track's saved `scoreInstrument` remains intact.
+- **Download displayed score** exports the current scope and pitch display, adding `-concert` or `-written` to the MusicXML filename. Existing toolbar and agent exports continue to use the saved track notation settings. Concert exports omit instrument transposition metadata and use the project concert key.
+- Hit-testing and staff-step edits use the displayed pitch system while commands continue to target original sounding MIDI notes. Display-only session copies share original region/note data without mutating it.
+- Verified `test/experimental-score-pitch-view.test.js` and `scripts/browser-experimental-score-pitch-view-check.cjs`: switch, unchanged instrument settings, matching download, keyboard note edit, Undo and retained view preference. `/tmp/cuestamp-concert-score.musicxml` passes MusicXML XSD validation.

@@ -1,4 +1,4 @@
-import {scoreInstruments} from './score-transposition.js';
+import {scoreInstruments,scorePitchView} from './score-transposition.js';
 import {bindScoreSelection} from './score-agent-selection.js';
 import {indexScorePosition} from './score-position.js';
 import {scoreNoteEditorView,bindScoreNotes} from './score-note-editor.js';
@@ -10,7 +10,8 @@ export function validateScorePreviewKeys(session,region){
  const tempo=compileTempoMap(session),meter=compileMeterMap(session),start=tempo.beatAtTime(region.start),end=tempo.beatAtTime(region.start+region.duration);
  for(const key of compileKeyMap(session).points){if(key.beat<=start||key.beat>=end)continue;const bar=meter.positionAtBeat(key.beat).bar;if(Math.abs(meter.barStart(bar)-key.beat)>1e-9)throw Error('This region has a mid-bar key change that the score preview cannot display accurately. Export MusicXML to view it in notation software.');}
 }
-export function scorePreviewDocument(session,track,region,scope){
+export function scorePreviewDocument(session,track,region,scope,pitchMode='written'){
+ ({session,track}=scorePitchView(session,track,pitchMode));
  if(scope==='arrangement'){
   const tracks=scoreTracks(session);if(!tracks.length)throw Error('Add a pitched MIDI region to preview a score.');
   validateScorePreviewKeys(session,{start:0,duration:Math.max(...tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration)))});
@@ -21,22 +22,22 @@ export function scorePreviewDocument(session,track,region,scope){
 export function scorePreviewView(track,region,session){
  const hasRegion=track?.kind==='midi'&&Boolean(region),hasScore=session&&scoreTracks(session).length>0;
  if(!hasRegion&&!hasScore)return '';
- return `<details data-score-preview><summary>Score preview</summary><div class="button-row"><label>Show<select data-score-scope><option value="region" ${!hasRegion?'disabled':''}>Selected MIDI region</option><option value="arrangement" ${!hasRegion?'selected':''}>Full arrangement</option></select></label>${hasRegion?`<label>Selected track notation<select data-score-instrument>${Object.entries(scoreInstruments).map(([id,item])=>`<option value="${id}" ${id===(track.scoreInstrument??'concert')?'selected':''}>${item.label}</option>`).join('')}</select></label><label>Selected track clef<select data-score-clef>${["treble","bass","alto","tenor"].map(c=>`<option value="${c}" ${c===(track.scoreClef??"treble")?"selected":""}>${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></label>`:''}<label>Score zoom<select data-score-zoom><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label></div><p class="muted">Click a note to edit it or a rest inside a MIDI region to add a note. Drag vertically or use ↑/↓ to move by staff steps in the project key; Shift+↑/↓ moves an octave. Escape cancels a drag. Delete removes the focused note. Notation instrument changes written pitches only; note fields show sounding MIDI pitches. Blue highlights mark the transport position. Export MusicXML to continue in notation software. Full arrangement shows pitched MIDI tracks, including muted tracks and regions. Percussion and audio tracks are excluded.</p>${scoreNoteEditorView()}<output data-score-status aria-live="polite"></output><div class="daw-score-scroll"><div data-score-sheet role="group" aria-label="Score"></div></div></details>`;
+ return `<details data-score-preview><summary>Score preview</summary><div class="button-row"><label>Show<select data-score-scope><option value="region" ${!hasRegion?'disabled':''}>Selected MIDI region</option><option value="arrangement" ${!hasRegion?'selected':''}>Full arrangement</option></select></label>${hasRegion?`<label>Selected track notation<select data-score-instrument>${Object.entries(scoreInstruments).map(([id,item])=>`<option value="${id}" ${id===(track.scoreInstrument??'concert')?'selected':''}>${item.label}</option>`).join('')}</select></label><label>Selected track clef<select data-score-clef>${["treble","bass","alto","tenor"].map(c=>`<option value="${c}" ${c===(track.scoreClef??"treble")?"selected":""}>${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></label>`:''}<label>Pitch display<select data-score-pitch-view><option value="written">Written pitch</option><option value="concert">Concert pitch</option></select></label><label>Score zoom<select data-score-zoom><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label><button type="button" data-score-download>Download displayed score</button></div><p class="muted">Click a note to edit it or a rest inside a MIDI region to add a note. Drag vertically or use ↑/↓ to move by staff steps in the project key; Shift+↑/↓ moves an octave. Escape cancels a drag. Delete removes the focused note. Notation instrument changes written pitches only; note fields show sounding MIDI pitches. Blue highlights mark the transport position. Export MusicXML to continue in notation software. Full arrangement shows pitched MIDI tracks, including muted tracks and regions. Percussion and audio tracks are excluded.</p>${scoreNoteEditorView()}<output data-score-status aria-live="polite"></output><div class="daw-score-scroll"><div data-score-sheet role="group" aria-label="Score"></div></div></details>`;
 }
 const scoreViews=new WeakMap();
-export function bindScorePreview(root,{session,track,region,execute,guard}){
+export function bindScorePreview(root,{session,track,region,execute,guard,download}){
  bindScoreSelection(root);const panel=root.querySelector('[data-score-preview]');if(!panel)return;
- const sheet=panel.querySelector('[data-score-sheet]'),status=panel.querySelector('[data-score-status]'),zoom=panel.querySelector('[data-score-zoom]'),scope=panel.querySelector('[data-score-scope]');
- let view=scoreViews.get(root);if(!view||view.sessionId!==session.id){view={sessionId:session.id,scope:scope.value,zoom:zoom.value,top:0,left:0};scoreViews.set(root,view);}
- if([...scope.options].some(o=>o.value===view.scope&&!o.disabled))scope.value=view.scope;zoom.value=view.zoom;
+ const sheet=panel.querySelector('[data-score-sheet]'),status=panel.querySelector('[data-score-status]'),zoom=panel.querySelector('[data-score-zoom]'),scope=panel.querySelector('[data-score-scope]'),pitchView=panel.querySelector('[data-score-pitch-view]');
+ let view=scoreViews.get(root);if(!view||view.sessionId!==session.id){view={sessionId:session.id,scope:scope.value,zoom:zoom.value,pitchMode:'written',top:0,left:0};scoreViews.set(root,view);}
+ if([...scope.options].some(o=>o.value===view.scope&&!o.disabled))scope.value=view.scope;zoom.value=view.zoom;pitchView.value=view.pitchMode??'written';
  const scroll=panel.querySelector('.daw-score-scroll');scroll.onscroll=()=>{view.top=scroll.scrollTop;view.left=scroll.scrollLeft;};
  let renderer=null,loadedScope=null,generation=0;
  const draw=async()=>{
   if(!panel.open||!panel.isConnected)return;
-  const request=++generation,selectedScope=scope.value;status.textContent='Preparing score…';
+  const request=++generation,selectedScope=scope.value,pitchMode=pitchView.value,cacheKey=selectedScope+':'+pitchMode,display=scorePitchView(session,track,pitchMode);status.textContent='Preparing score…';
   try{
-   if(!renderer||loadedScope!==selectedScope){
-    const document=scorePreviewDocument(session,track,region,selectedScope),module=await import('opensheetmusicdisplay');
+   if(!renderer||loadedScope!==cacheKey){
+    const document=scorePreviewDocument(session,track,region,selectedScope,pitchMode),module=await import('opensheetmusicdisplay');
     if(request!==generation||!panel.isConnected)return;
     const Display=module.OpenSheetMusicDisplay??module.default?.OpenSheetMusicDisplay;
     // Load into an isolated, measurable surface so an old request cannot overwrite the active score.
@@ -44,11 +45,13 @@ export function bindScorePreview(root,{session,track,region,execute,guard}){
     const candidate=new Display(surface,{autoResize:false,backend:'svg',drawingParameters:'compacttight',drawTitle:true,drawPartNames:true});
     await candidate.load(document.xml);
     if(request!==generation||!panel.isConnected){candidate.clear();return;}
-    sheet.replaceChildren(surface);renderer=candidate;loadedScope=selectedScope;sheet.setAttribute('aria-label',document.label);
+    sheet.replaceChildren(surface);renderer=candidate;loadedScope=cacheKey;sheet.setAttribute('aria-label',document.label);
    }
-   renderer.Zoom=Number(zoom.value);renderer.render();bindScoreNotes(panel,renderer,{session,track,region,scope:selectedScope,execute,guard});indexScorePosition(root,panel);scroll.scrollTop=view.top;scroll.scrollLeft=view.left;status.textContent='Score preview ready.';
+   renderer.Zoom=Number(zoom.value);renderer.render();bindScoreNotes(panel,renderer,{session:display.session,track:display.track,region,scope:selectedScope,execute,guard});indexScorePosition(root,panel);scroll.scrollTop=view.top;scroll.scrollLeft=view.left;status.textContent='Score preview ready.';
   }catch(error){if(request!==generation||!panel.isConnected)return;sheet.replaceChildren();loadedScope=null;renderer=null;status.textContent=error.message||'Unable to render this score.';}
  };
+ pitchView.onchange=()=>{view.pitchMode=pitchView.value;void draw();};
+ panel.querySelector('[data-score-download]').onclick=guard(()=>{const display=scorePitchView(session,track,pitchView.value),xml=scope.value==='arrangement'?exportScoreMusicxml(display.session):exportRegionMusicxml(display.session,display.track,region);download(new Blob([xml],{type:'application/vnd.recordare.musicxml+xml'}),`${scope.value==='arrangement'?session.title:region.name||'Score'}-${pitchView.value}.musicxml`);});
  const instrument=panel.querySelector('[data-score-instrument]');if(instrument)instrument.onchange=guard(e=>execute([{op:'track.set',target:track.id,values:{scoreInstrument:e.target.value}}],'Changed score instrument notation'));
  const clef=panel.querySelector('[data-score-clef]');if(clef)clef.onchange=guard(e=>execute([{op:'track.set',target:track.id,values:{scoreClef:e.target.value}}],'Changed score clef'));
  panel.addEventListener('toggle',()=>{if(panel.open)void draw();});zoom.onchange=()=>{view.zoom=zoom.value;void draw();};scope.onchange=()=>{view.scope=scope.value;view.top=0;view.left=0;void draw();};if(panel.open)void draw();
