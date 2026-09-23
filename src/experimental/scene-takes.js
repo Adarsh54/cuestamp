@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {scenePerformanceSchema,scenePerformanceView} from './scene-performance.js';
+import {scenePerformanceSchema,scenePerformanceView,availableScenePerformance} from './scene-performance.js';
 const takeSchema=z.object({id:z.string().min(1).max(100),name:z.string().trim().min(1).max(100),createdAt:z.string().datetime(),performance:scenePerformanceSchema,placements:z.number().int().nonnegative().default(0)}).strict();
 const librarySchema=z.object({version:z.literal(1),selectedId:z.string().nullable(),selectedBySession:z.record(z.string(),z.string()).default({}),takes:z.array(takeSchema).max(32)}).strict().refine(v=>new Set(v.takes.map(t=>t.id)).size===v.takes.length,'Take IDs must be unique.');
 export class SceneTakes {
@@ -17,11 +17,11 @@ export class SceneTakes {
  discard(id,sessionId){if(!this.list(sessionId).some(t=>t.id===id))throw Error('Take not found.');this.data.takes=this.data.takes.filter(t=>t.id!==id);if(this.data.selectedId===id)this.data.selectedId=null;if(this.data.selectedBySession[sessionId]===id)delete this.data.selectedBySession[sessionId];this.persist();}
  placed(performance,takeId){if(this.loadError)return;const canonical=JSON.stringify(scenePerformanceSchema.parse(performance));const matches=this.data.takes.filter(t=>JSON.stringify(t.performance)===canonical),take=matches.find(t=>t.id===(takeId??this.selected(performance.sessionId)?.id))??matches[0];if(take)take.placements++;this.persist();}
 }
-export function sceneTakesView(library,session,disabled,esc){
+export function sceneTakesView(library,session,disabled,esc,playingTakeId=null){
  if(library.loadError)return `<section class="daw-scenes"><p role="alert">${esc(library.loadError)}</p></section>`;
  const selected=library.selected(session.id),off=disabled?'disabled':'',other=library.data.takes.filter(t=>t.performance.sessionId!==session.id);
  const otherView=other.length?`<details><summary>Other project takes · ${other.length}</summary><p>These recordings belong to other projects and cannot be placed here.</p><ul>${other.map(t=>`<li>${esc(t.name)} · ${esc(new Date(t.createdAt).toLocaleString())} <button type="button" data-scene-take-discard="${esc(t.id)}" aria-label="Discard ${esc(t.name)} from another project" ${off}>Discard take</button></li>`).join('')}</ul></details>`:'';
  if(!selected)return otherView?`<section class="daw-scenes">${otherView}</section>`:'';
- const header=`<form data-scene-takes><label>Recorded takes<select name="takeId" ${off}>${library.list(session.id).map(t=>`<option value="${esc(t.id)}" ${t.id===selected.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><label>Take name<input name="name" value="${esc(selected.name)}" maxlength="100" required ${off}></label><button ${off}>Rename take</button><small>Recorded ${esc(new Date(selected.createdAt).toLocaleString())}${selected.placements?' · Previously placed in arrangement':''}. Takes stay available until you discard them.</small>${library.saved?'':'<p role="alert">Device storage failed. These takes are only in memory; keep this page open.</p>'}</form>`;
+ const header=`<form data-scene-takes><label>Recorded takes<select name="takeId" ${off}>${library.list(session.id).map(t=>`<option value="${esc(t.id)}" ${t.id===selected.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><label>Take name<input name="name" value="${esc(selected.name)}" maxlength="100" required ${off}></label><button ${off}>Rename take</button><button type="button" data-scene-take-preview ${off||!availableScenePerformance(session,selected.performance)?'disabled':''}>Preview take</button>${playingTakeId?`<button type="button" data-scene-take-stop ${off}>Stop take preview</button>`:''}<small>Recorded ${esc(new Date(selected.createdAt).toLocaleString())}${selected.placements?' · Previously placed in arrangement':''}. Takes stay available until you discard them.</small>${library.saved?'':'<p role="alert">Device storage failed. These takes are only in memory; keep this page open.</p>'}</form>`;
  return scenePerformanceView(selected.performance,session,disabled,header+otherView);
 }

@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SessionHistory} from '../src/experimental/session.js';
+import {scenePerformancePreview} from '../src/experimental/scene-performance.js';
+import {sceneSourceSignature} from '../src/experimental/scene-source.js';
+import {transportPlaybackMode,transportSummary} from '../src/experimental/agent-transport.js';
+test('take preview isolates recorded clips, crops loops, preserves gaps and leaves protected sources unchanged',()=>{
+ const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',start:20,duration:1}},{op:'note.add',target:'r',values:{pitch:60,start:0,duration:1,velocity:.8}},{op:'region.add',target:'t',values:{id:'unrelated',duration:5}},{op:'scene.add',values:{id:'s',name:'Loop',regionIds:'r'}},{op:'track.set',target:'t',values:{protected:true}},{op:'session.set',values:{loopEnabled:true,metronomeEnabled:true}}]);
+ const before=structuredClone(h.session),take={sessionId:h.session.id,revision:h.session.revision,events:[{sceneId:'s',trackId:'t',sourceSignature:sceneSourceSignature(h.session,'s','t'),start:2,duration:1.5}]},preview=scenePerformancePreview(h.session,take,'Take 1','id');
+ assert.deepEqual(h.session,before);assert.equal(preview.kind,'scenePerformance');assert.equal(preview.takeId,'id');assert.equal(preview.end,3.5);assert.deepEqual(preview.document.tracks[0].regions.map(r=>[r.start,r.duration]),[[2,1],[3,.5]]);assert.equal(preview.document.tracks[0].regions[1].notes[0].duration,.5);assert.equal(preview.document.loopEnabled,false);assert.equal(preview.document.metronomeEnabled,false);assert.deepEqual(preview.document.scenes,[]);
+ h.execute([{op:'track.set',target:'t',values:{protected:false}},{op:'region.set',target:'r',values:{gainDb:-3}}]);assert.throws(()=>scenePerformancePreview(h.session,take),/source clip changed/);
+});
+test('preview bounds repetition before allocating expanded clips',()=>{const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',duration:.1}},{op:'scene.add',values:{id:'s',name:'Short',regionIds:'r'}}]);const take={sessionId:h.session.id,revision:h.session.revision,events:[{sceneId:'s',start:0,duration:600},{sceneId:'s',start:600,duration:600}]};assert.throws(()=>scenePerformancePreview(h.session,take),/too many clips/);});
+test('recorded take preview is reported separately from scene and arrangement playback',()=>{assert.equal(transportPlaybackMode({takePreview:'take',preview:true}),'scenePerformance');assert.equal(transportSummary('play',{position:1,playing:true,mode:'scenePerformance'}),'Recorded take preview at 1.00 s.');});

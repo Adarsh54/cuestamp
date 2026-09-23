@@ -2,7 +2,7 @@ import {z} from 'zod';
 import {validateScenes} from './scenes.js';
 import {trimmedRegion,trimmedMidiRegion} from './region-edit.js';
 const options=z.object({position:z.number().finite().min(0).max(86400),duration:z.number().finite().min(.1).max(600),overlap:z.enum(['reject','allow']).default('reject')}).strict();
-export function placeScene(session,sceneId,values,{recorded=false,trackId}={}){
+export function placeScene(session,sceneId,values,{recorded=false,trackId,destination=session}={}){
  const v=(recorded?options.extend({duration:z.number().finite().positive().max(600)}):options).parse(values),end=v.position+v.duration;validateScenes(session);
  if(end>86400)throw Error('The scene must fit within the timeline.');
  const scene=session.scenes.find(s=>s.id===sceneId);if(!scene)throw Error('Scene not found.');
@@ -12,7 +12,7 @@ export function placeScene(session,sceneId,values,{recorded=false,trackId}={}){
  // Check limits and collisions before allocating copies or modifying tracks.
  const selectedCells=trackId===undefined?scene.cells:scene.cells.filter(c=>sources.get(c.regionId)?.track.id===trackId);if(!selectedCells.length)throw Error('The recorded cell no longer exists on its track.');
  for(const cell of selectedCells){
-  const {track,region}=sources.get(cell.regionId),copies=cell.loop?Math.ceil(v.duration/region.duration):1;
+  const source=sources.get(cell.regionId),region=source.region,track=destination.tracks.find(t=>t.id===source.track.id);if(!track||track.kind!==source.track.kind)throw Error('Scene destination track does not match its source.');const copies=cell.loop?Math.ceil(v.duration/region.duration):1;
   if(track.protected)throw Error(`Unprotect ${track.name} before editing its contents.`);
   if(track.regions.length+copies>1000)throw Error('Placing this scene would exceed the 1,000-region track limit.');
   count+=copies;events+=copies*(region.notes.length+region.events.length);

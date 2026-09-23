@@ -16,3 +16,9 @@ test('model take tools require matching context and operation-specific arguments
  await assert.rejects(()=>planDawEdit({...request,sceneTakeLibrary:undefined},options),/Unexpected/);await assert.rejects(()=>planDawEdit({...request,editingContinuation:true},options),/Continuation/);
  for(const value of [action('select',first.id,{name:'bad'}),action('rename',first.id),action('place',first.id,{position:4}),action('discard','missing')])assert.throws(()=>resolveSceneTakeAction(value,context,h.session));
 });
+test('agent preview needs transport context and runs without changing takes or arrangement',async()=>{
+ const {planDawEdit}=await import('../server/daw-agent.js'),{h,library,first}=setup(),value=action('preview',first.id),request={session:h.session,instruction:'Preview First idea',sceneTakeLibrary:sceneTakeContext(library,h.session)},options={key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'manage_scene_take',arguments:JSON.stringify(value)}]})})};
+ await assert.rejects(()=>planDawEdit(request,options),/Transport context/);
+ const result=await planDawEdit({...request,transport:{sessionId:h.session.id,revision:h.session.revision,epoch:7,position:0,playing:false,mode:'stopped'}},options);assert.equal(result.transportEpoch,7);
+ const before=JSON.stringify(library.data);let played;const message=await performSceneTakeAction(library,h.session,value,library.epoch,()=>assert.fail('must not edit'),async take=>{played=take.id;});assert.equal(played,first.id);assert.match(message,/Previewing/);assert.equal(JSON.stringify(library.data),before);
+});
