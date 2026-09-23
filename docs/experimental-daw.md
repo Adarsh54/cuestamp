@@ -2365,3 +2365,11 @@ The recorded audio inspector offers **Prepare another take**. It validates the s
 The action uses the current MIDI content, including edits since capture. Arrangement scope means the current audible MIDI arrangement, not a frozen reconstruction of the original track list. Missing sources and protected/full destinations reject. It does not silently change cycle, punch, audio input, device, tail, automatic-finish or recording-mode settings. Layer mode adds an audio region; Takes mode uses the existing overlapping-take grouping workflow and retains the prior audio.
 
 Tests cover unchanged session state, restored position/destination/correction and missing/protected-source rejection. The browser check verifies no input capture during preparation, then records a new pass into the original destination and groups it with the preserved take. Hardware and audio input are simulated.
+
+### Agent preparation of another hardware take
+
+`prepare_hardware_take` accepts a recorded audio `regionId` and uses the same validated preparation function as **Prepare another take**. It is offered only when hardware capture records exist and transport control is available, outside editing continuations. It restores current source scope, original start, saved input correction and audio destination, without document edits, an Undo entry, MIDI playback, input permission or recording. The response tells the user to review devices/settings and press Record device audio.
+
+The server validates source/destination availability; the browser checks revision and transport epoch again before applying. Manual changes to playhead, output scope/device, recording destination, tail or input correction invalidate an outstanding preparation response. The action cannot be combined with an edit batch or follow-up playback/export.
+
+Tests cover tool capability, strict arguments, missing/protected destinations, shared browser preparation, unchanged project/input count and rejection after a manual seek during a delayed model response. Model responses and hardware are simulated; live-provider inference is not verified.

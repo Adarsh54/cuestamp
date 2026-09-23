@@ -23,6 +23,7 @@ export function hardwareLatencyFrames(sampleRate,options={}){
  return Math.round(hardwareRecordingOptions.parse(options).latencyMs*sampleRate/1000);
 }
 
+export const hardwareRetakeActionSchema=z.object({regionId:sourceId}).strict();
 export function hardwareRetakePlan(session,regionId){
  const destination=session.tracks.find(t=>t.kind==='audio'&&t.regions.some(r=>r.id===regionId)),region=destination?.regions.find(r=>r.id===regionId);
  if(!region?.hardwareRecording)throw Error('Select a recorded hardware take.');
