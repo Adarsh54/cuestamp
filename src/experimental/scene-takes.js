@@ -3,11 +3,11 @@ import {scenePerformanceSchema,scenePerformanceView} from './scene-performance.j
 const takeSchema=z.object({id:z.string().min(1).max(100),name:z.string().trim().min(1).max(100),createdAt:z.string().datetime(),performance:scenePerformanceSchema,placements:z.number().int().nonnegative().default(0)}).strict();
 const librarySchema=z.object({version:z.literal(1),selectedId:z.string().nullable(),selectedBySession:z.record(z.string(),z.string()).default({}),takes:z.array(takeSchema).max(32)}).strict().refine(v=>new Set(v.takes.map(t=>t.id)).size===v.takes.length,'Take IDs must be unique.');
 export class SceneTakes {
- constructor(storage,key){this.storage=storage;this.key=key+':scene-takes';this.legacyKey=key+':scene-performance';this.data={version:1,selectedId:null,selectedBySession:{},takes:[]};this.saved=true;this.loadError=null;
+ constructor(storage,key){this.epoch=0;this.storage=storage;this.key=key+':scene-takes';this.legacyKey=key+':scene-performance';this.data={version:1,selectedId:null,selectedBySession:{},takes:[]};this.saved=true;this.loadError=null;
   let raw,legacy;try{raw=storage.getItem(this.key);legacy=raw?null:storage.getItem(this.legacyKey);}catch{this.saved=false;return;}
   try{if(raw)this.data=librarySchema.parse(JSON.parse(raw));else if(legacy){const performance=scenePerformanceSchema.parse(JSON.parse(legacy));this.add(performance,'Recovered performance');if(this.saved)try{storage.removeItem(this.legacyKey);}catch{}}}catch(error){this.loadError='Saved scene takes could not be loaded. Existing device data has been preserved.';}
  }
- persist(){if(this.loadError)throw Error(this.loadError);try{this.storage.setItem(this.key,JSON.stringify(this.data));this.saved=true;}catch{this.saved=false;}}
+ persist(){if(this.loadError)throw Error(this.loadError);this.epoch++;try{this.storage.setItem(this.key,JSON.stringify(this.data));this.saved=true;}catch{this.saved=false;}}
  list(sessionId){return this.data.takes.filter(t=>t.performance.sessionId===sessionId);}
  selected(sessionId){const list=this.list(sessionId);return list.find(t=>t.id===(this.data.selectedBySession[sessionId]??this.data.selectedId))??list.at(-1);}
  assertCanRecord(){if(this.loadError)throw Error(this.loadError);if(this.data.takes.length>=32)throw Error('Discard an unneeded scene take before recording more than 32 takes on this device.');}
@@ -15,7 +15,7 @@ export class SceneTakes {
  select(id,sessionId){if(!this.list(sessionId).some(t=>t.id===id))throw Error('Choose a take from this project.');this.data.selectedId=id;this.data.selectedBySession[sessionId]=id;this.persist();}
  rename(id,name,sessionId){const take=this.list(sessionId).find(t=>t.id===id);if(!take)throw Error('Take not found.');take.name=takeSchema.shape.name.parse(name);this.persist();}
  discard(id,sessionId){if(!this.list(sessionId).some(t=>t.id===id))throw Error('Take not found.');this.data.takes=this.data.takes.filter(t=>t.id!==id);if(this.data.selectedId===id)this.data.selectedId=null;if(this.data.selectedBySession[sessionId]===id)delete this.data.selectedBySession[sessionId];this.persist();}
- placed(performance){if(this.loadError)return;const canonical=JSON.stringify(scenePerformanceSchema.parse(performance));const matches=this.data.takes.filter(t=>JSON.stringify(t.performance)===canonical),take=matches.find(t=>t.id===this.selected(performance.sessionId)?.id)??matches[0];if(take)take.placements++;this.persist();}
+ placed(performance,takeId){if(this.loadError)return;const canonical=JSON.stringify(scenePerformanceSchema.parse(performance));const matches=this.data.takes.filter(t=>JSON.stringify(t.performance)===canonical),take=matches.find(t=>t.id===(takeId??this.selected(performance.sessionId)?.id))??matches[0];if(take)take.placements++;this.persist();}
 }
 export function sceneTakesView(library,session,disabled,esc){
  if(library.loadError)return `<section class="daw-scenes"><p role="alert">${esc(library.loadError)}</p></section>`;
