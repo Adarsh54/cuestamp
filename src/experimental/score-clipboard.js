@@ -1,3 +1,4 @@
+import {resolveScorePasteAction} from './agent-score-clipboard.js';
 import {regionBeatTiming} from './tempo-map.js';
 import {selectedMidiNotes} from './note-selection.js';
 const clipboards=new WeakMap();
@@ -5,7 +6,7 @@ export function copyScoreNotes(session,region,ids){
  const chosen=selectedMidiNotes(region,{noteIds:ids.join(',')});
  if(!chosen.length)throw Error('Select score notes to copy.');
  const timing=regionBeatTiming(region,session),origin=Math.min(...chosen.map(n=>n.start)),beat=timing.beatAtTime(origin);
- return {sessionId:session.id,notes:chosen.map(n=>({note:structuredClone(n),seconds:n.start-origin,beats:timing.beatAtTime(n.start)-beat,length:timing.beatsInDuration(n.start,n.duration)}))};
+ return {token:crypto.randomUUID(),sessionId:session.id,notes:chosen.map(n=>({note:structuredClone(n),seconds:n.start-origin,beats:timing.beatAtTime(n.start)-beat,length:timing.beatsInDuration(n.start,n.duration)}))};
 }
 export function pasteScoreNotes(session,clipboard,{regionId,beat=0,timing='beats',extend=false}){
  if(!clipboard?.notes?.length||clipboard.sessionId!==session.id)throw Error('Copy notes in this project first.');
@@ -19,6 +20,16 @@ export function pasteScoreNotes(session,clipboard,{regionId,beat=0,timing='beats
  if(!Number.isFinite(end)||end>86400||notes.some(n=>!Number.isFinite(n.start)||n.start<0||!Number.isFinite(n.duration)||n.duration<.001||n.duration>3600))throw Error('Pasted notes exceed the supported timing range.');
  if(end>region.duration+1e-9&&!extend)throw Error('The notes do not fit. Enable Extend destination or choose an earlier beat.');
  return [...(end>region.duration?[{op:'region.set',target:region.id,values:{duration:end}}]:[]),{op:'notes.addMany',target:region.id,values:{notes:JSON.stringify(notes)}}];
+}
+export function scoreClipboardContext(root,session){
+ const clipboard=clipboards.get(root)?.clipboard;
+ if(!clipboard||clipboard.sessionId!==session.id)return undefined;
+ return {sessionId:session.id,revision:session.revision,token:clipboard.token,count:clipboard.notes.length};
+}
+export function pasteFromScoreClipboard(root,session,context,value){
+ const action=resolveScorePasteAction(session,value,context),clipboard=clipboards.get(root)?.clipboard;
+ if(!clipboard||clipboard.token!==context.token)throw Error('Copied score notes changed while planning. Run the instruction again.');
+ return pasteScoreNotes(session,clipboard,action);
 }
 export const scoreClipboardView=()=>`<form data-score-paste hidden><p data-score-clipboard-status role="status"></p><div class="button-row"><label>Paste into<select name="destination"></select></label><label>Start · beats into region<input name="beat" type="number" min="0" step="any" value="0" required></label><label>Preserve<select name="timing"><option value="beats">Musical rhythm</option><option value="seconds">Original seconds</option></select></label><label><input name="extend" type="checkbox"> Extend destination to fit</label><button type="submit">Paste notes</button><button type="button" data-score-clipboard-clear>Clear copied notes</button></div><p class="muted">Copies note pitches, velocities and articulations. Destination instruments and controllers apply; source controller events are not copied.</p></form>`;
 export function bindScoreClipboard(panel,{session,selectionRoot,selection,execute,guard}){
