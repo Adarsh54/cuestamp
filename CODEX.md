@@ -5275,3 +5275,13 @@ Printed dynamic symbols and wedges without explicit playback data are still not 
 Verified 1,355 tests and build. `scripts/browser-experimental-musicxml-dynamics-check.cjs` checks part-level changes with offsets, note-level overrides, tied-note onset velocity, isolation between parts, actual imported MIDI velocities and Undo. Unit tests cover out-of-order voice timing, equal-time changes and invalid percentages.
 
 Reference: [W3C MusicXML sound dynamics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/).
+
+### MusicXML pedal symbols (2026-09-23)
+
+Graphical damper `<pedal>` start/stop/change marks now supply CC64 events when the same direction has no explicit `<sound damper-pedal>` value. Start presses, stop lifts, and change emits lift then press at the same musical position. Continue/discontinue/resume only affect the drawn line, so they emit no controller change. Graphical marks use the direction offset; explicit sound retains its own offset precedence. Sound data in the same direction wins over the graphical mark to prevent duplicate/conflicting pedal actions.
+
+This supersedes the earlier graphical-pedal limitation for basic damper marks. Sostenuto and overlapping numbered lines other than the default number 1 still require explicit sound data or performed MIDI; continuous half-pedal synthesis remains incomplete. Score-end release and shared MIDI import/Undo behavior are unchanged.
+
+Verified 1,357 tests and build. `scripts/browser-experimental-musicxml-pedal-marks-check.cjs` checks symbol-only start/change/stop, continuation, explicit sound precedence, imported CC64 order, computed note sustain after re-pedal and Undo. Unit tests verify that older held notes release at the re-pedal position while later notes remain sustained to the next lift.
+
+Reference: [W3C pedal-type semantics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/data-types/pedal-type/).

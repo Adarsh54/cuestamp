@@ -1,5 +1,5 @@
 import {musicxmlDynamics,applyMusicxmlDynamics} from './musicxml-dynamics.js';
-import {musicxmlPedalValue,musicxmlSoundOffset,musicxmlPedalEvents} from './musicxml-pedal.js';
+import {musicxmlPedalValue,musicxmlSoundOffset,musicxmlPedalEvents,musicxmlPedalMarks} from './musicxml-pedal.js';
 import {partwiseMusicxmlRoot,validateTimewiseBoundaries} from './musicxml-timewise.js';
 import {encodeMidiImport} from './midi.js';
 const children=(node,name)=>[...node.children].filter(n=>n.localName===name),child=(node,name)=>children(node,name)[0],text=(node,name)=>child(node,name)?.textContent.trim();
@@ -35,6 +35,7 @@ export function parseMusicxml(source){
     }else if(item.localName==='direction'||item.localName==='sound'){
      const sound=item.localName==='sound'?item:child(item,'sound'),offset=musicxmlSoundOffset(sound,item,divisions);
      if(!Number.isFinite(at+cursor+offset)||at+cursor+offset<0)throw Error('MusicXML sound offset must remain inside the timeline.');
+     const pedalMarks=musicxmlPedalMarks(item,sound,at+cursor,divisions);if(events.length+pedalMarks.length>20000)throw Error('Import up to 20,000 pedal changes per part.');events.push(...pedalMarks);
      if(sound?.hasAttribute('dynamics')){if(dynamics.length>=20000)throw Error('Import up to 20,000 dynamics changes per part.');dynamics.push({start:at+cursor+offset,velocity:musicxmlDynamics(sound.getAttribute('dynamics'))});}
      if(sound?.hasAttribute('damper-pedal')){if(events.length>=20000)throw Error('Import up to 20,000 pedal changes per part.');events.push({start:at+cursor+offset,parameter:64,value:musicxmlPedalValue(sound.getAttribute('damper-pedal'))});}
      if(sound){for(const attribute of ['dacapo','dalsegno','tocoda','fine','segno','coda','forward-repeat','time-only'])if(sound.hasAttribute(attribute))throw Error('MusicXML playback jumps require a performed MIDI export.');if(sound.hasAttribute('tempo')){const bpm=number(sound.getAttribute('tempo'),'tempo');if(bpm<20||bpm>300||at+cursor+offset<0)throw Error('MusicXML tempo must be 20–300 BPM at a nonnegative position.');put(tempos,at+cursor+offset,bpm,'tempos');}}

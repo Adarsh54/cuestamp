@@ -17,3 +17,17 @@ export function musicxmlPedalEvents(track,channels){
  if(last?.value>=64)events.push({start:end,parameter:64,value:0});
  return events.flatMap(e=>[...channels].map(channel=>({tick:Math.round(e.start*960),order:0,data:[176|channel,64,e.value]})));
 }
+export function musicxmlPedalMarkValues(type,number='1'){
+ if(number!=='1')throw Error('Overlapping numbered MusicXML pedal lines require explicit sound pedal data.');
+ if(type==='start')return [127];if(type==='stop')return [0];if(type==='change')return [0,127];
+ if(['continue','discontinue','resume'].includes(type))return [];
+ throw Error('Unsupported MusicXML pedal marking. Sostenuto requires a performed MIDI export.');
+}
+export function musicxmlPedalMarks(direction,sound,at,divisions){
+ // Explicit sound data is authoritative when the same direction also has a symbol.
+ if(sound?.hasAttribute('damper-pedal'))return [];
+ const marks=[...direction.children].filter(n=>n.localName==='direction-type').flatMap(n=>[...n.children].filter(c=>c.localName==='pedal'));
+ if(!marks.length)return [];
+ const start=at+musicxmlSoundOffset(null,direction,divisions);if(!Number.isFinite(start)||start<0)throw Error('MusicXML pedal offset must remain inside the timeline.');
+ return marks.flatMap(mark=>musicxmlPedalMarkValues(mark.getAttribute('type'),mark.getAttribute('number')??'1').map(value=>({start,parameter:64,value})));
+}
