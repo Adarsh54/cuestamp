@@ -5136,3 +5136,9 @@ Verification: `test/experimental-score-clef.test.js` checks supported clefs, exa
 - Duplication starts at the original note's end and preserves its musical length through the tempo map, along with channel/velocity and other copied note metadata. A copy outside the region is rejected atomically; the region is not silently extended.
 - Score scope, zoom and score scroll are retained during document repaint, edits and Undo within the current session. These are transient view preferences, not document mutations, and reset for a different session.
 - Verified `test/experimental-score-note-actions.test.js` (tempo-aware duplicate, metadata, delete, Undo and failed-copy atomicity), plus `scripts/browser-experimental-score-note-actions-check.cjs` (duplicate/delete/Undo retaining full arrangement at 125%).
+
+### Score transport position (2026-09-23)
+
+- Rendered note/rest segments now highlight blue at the arrangement transport position, including seeks and loop rewinds. Tied note segments use their engraved intervals, so earlier segments do not remain highlighted. This indicates score position, not audibility: muted written parts can still highlight.
+- Playback, MIDI-output and recording position callbacks update an indexed event list without re-engraving. Forward ticks process only crossed boundaries; backward seeks reset the active set. Scene/take previews clear highlights because their timing may not match the written arrangement. Manual seek and ordinary repaint initialize the current position after async score loading.
+- Verified `test/experimental-score-position.test.js` (forward boundaries, overlap, backward seeks and clearing), `scripts/browser-experimental-score-position-check.cjs` (real UI seek to a tied segment plus simulated backward callback/clear). Real-time hardware clock accuracy remains unverified.
