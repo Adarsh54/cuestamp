@@ -3,7 +3,8 @@ import {draggedSourceOffset} from './region-slip.js';
 import {snapArrangementDelta,defaultArrangementSnap} from './arrangement-snap.js';
 import {selectedRegions,clampRegionMove} from './region-selection.js';
 import {regionEnvelopePoints} from './region-fades.js';
-import {chasedEvents,sustainedEnd} from './midi-events.js';
+import {chasedEvents} from './midi-events.js';
+import {compilePedalTimeline} from './pedal-timeline.js';
 // Timeline boundaries are absolute seconds. Source offsets always describe the
 // unreversed recording, even when a region is auditioned backwards.
 export function trimmedRegion(region,start,end){
@@ -25,8 +26,11 @@ export function trimmedMidiRegion(region,start,end){
   region={...region,notes:region.notes.map(n=>durations.has(n.id)?{...n,duration:durations.get(n.id)}:n),events:region.events.filter(e=>!removed.has(e.id))};
  }
  const from=start-region.start,to=end-region.start,duration=end-start;
+ const streams=new Map();
+ for(const event of region.events||[]){const channel=event.channel??0;if(!streams.has(channel))streams.set(channel,[]);streams.get(channel).push(event);}
+ const pedals=new Map([...streams].map(([channel,events])=>[channel,compilePedalTimeline(events)]));
  const notes=region.notes.flatMap(note=>{
-  const soundingEnd=sustainedEnd(note,(region.events||[]).filter(e=>e.channel===note.channel),region.duration);
+  const soundingEnd=pedals.get(note.channel??0)?.sustainedEnd(note,region.duration)??note.start+note.duration;
   if(note.start>=to||soundingEnd<=from)return [];
   // A note already released but held by the pedal must remain audible at the cut.
   // A carried gate need not span the entire pedal hold. Cap it at the MIDI

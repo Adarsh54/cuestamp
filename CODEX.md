@@ -5301,3 +5301,11 @@ Explicit `sound sostenuto-pedal` now imports as MIDI CC66 using the same yes/no/
 Verified 1,362 tests and build. `scripts/browser-experimental-musicxml-sostenuto-check.cjs` verifies XML parsing, duplicate-symbol suppression, invalid percentages, imported CC66 timing, captured-note hold through trailing rests, actual file import and Undo. Unit coverage checks independent damper release while sostenuto remains held.
 
 Reference: [MusicXML sound pedal attributes](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/).
+
+### Dense MIDI trim performance (2026-09-23)
+
+Trimming and splitting MIDI regions now build pedal timelines once per channel, instead of filtering and sorting the full event list for every note. This applies to shared `region.trim`/split operations used by manual controls and agent commands. Sustain/reset behavior, carried notes, controller chasing and Undo remain intact. Sostenuto baking still precedes cropping when necessary.
+
+A local synthetic four-channel fixture with 5,000 notes and 5,000 controller events measured about 215 ms before and 3 ms after for the trim helper; 20,000 notes/events measured about 7 ms after. These are individual helper measurements, not a guarantee of end-to-end UI responsiveness. `test/experimental-midi-trim-density.test.js` guards bounded event-channel reads on a 20,000-note/event fixture without flaky wall-clock assertions, and verifies channel isolation, reset release, shared-command Undo and failed-batch rollback.
+
+Verified 1,365 tests and production build for this checkpoint.
