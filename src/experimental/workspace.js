@@ -192,10 +192,10 @@ export function createExperimentalWorkspace({account,esc}){
   agentRequest?.signal.throwIfAborted();
   const original=history,plan=createBouncePlan(session()),snapshot=plan.entries[0].document,sampleRate=bounceSettings.sampleRate;
   busy=true;stop();const analysisTransportEpoch=transportEpoch;status='Rendering the full mix for analysis…';paint();
-  try{for(const id of plan.assets){await decode(id);agentRequest?.signal.throwIfAborted();}const frames=Math.max(1,Math.ceil(plan.duration*sampleRate)),offline=new OfflineAudioContext(2,frames,sampleRate);scheduleSession(offline,snapshot,buffers,0,{baseTime:0});const rendered=await offline.startRendering();agentRequest?.signal.throwIfAborted();status='Measuring every audio sample…';paint();const {channels,stereo,loudness}=await analyzeRender(rendered,{signal:agentRequest?.signal,loudness:true});
+  try{for(const id of plan.assets){await decode(id);agentRequest?.signal.throwIfAborted();}const frames=Math.max(1,Math.ceil(plan.duration*sampleRate)),offline=new OfflineAudioContext(2,frames,sampleRate);scheduleSession(offline,snapshot,buffers,0,{baseTime:0});const rendered=await offline.startRendering();agentRequest?.signal.throwIfAborted();status='Measuring every audio sample…';paint();const {channels,stereo,loudness,truePeak}=await analyzeRender(rendered,{signal:agentRequest?.signal,loudness:true,truePeak:true});
    agentRequest?.signal.throwIfAborted();
    if(!root?.isConnected||history!==original||session().revision!==snapshot.revision)throw Error('The session changed during analysis. Analyze the mix again.');
-   mixAnalysis=validateMixAnalysis({sessionId:snapshot.id,revision:snapshot.revision,measuredAt:Date.now(),sampleRate,frames,channels,stereo,loudness},session());status='Full mix analysis ready.';return {transportEpoch:analysisTransportEpoch};
+   mixAnalysis=validateMixAnalysis({sessionId:snapshot.id,revision:snapshot.revision,measuredAt:Date.now(),sampleRate,frames,channels,stereo,loudness,truePeak},session());status='Full mix analysis ready.';return {transportEpoch:analysisTransportEpoch};
   }finally{busy=false;paint();}
  }
  async function bounce(mode='mix',prepared=null,request=null){

@@ -3773,8 +3773,8 @@ with 400 ms blocks, 75% overlap, an absolute −70 gate and a relative −10 LU 
 Incomplete blocks are excluded; insufficient duration or level returns null.
 The DSP supports 8–192 kHz, ten minutes and 250 MB of PCM; mix rendering retains
 its existing limits. Filtering uses a small ring buffer instead of another full
-PCM copy. This adds integrated measurement; true-peak, loudness range, and a live
-loudness meter remain unimplemented.
+PCM copy. This adds integrated measurement; loudness range and a live loudness meter
+remain unimplemented. True-peak estimates are described below.
 
 References: [ITU-R BS.1770-5, Annex 1](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
 and [De Man filter parameterization](https://github.com/BrechtDeMan/loudness.py).
@@ -3804,3 +3804,25 @@ obtain fresh measurements first. Returned gain commands go through the shared
 command engine and require post-edit mix verification. Tests cover ceiling caps,
 invalid inputs, revision checks and undo. The browser test verifies a real LUFS
 change and a fresh measurement, retained form settings and undo invalidation.
+
+### Experimental DAW: estimated true peaks
+
+Full-mix analysis additionally runs the four-phase interpolation FIR from
+[BS.1770-5 Annex 2](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
+in the cancelable worker. The UI displays left/right estimates in dBTP. The
+agent receives optional `mixAnalysis.truePeak = {oversample: 4, peaksDbtp}` with
+the same revision checks as the other measurements. Silence is null; estimates
+cannot be lower than the channel sample peaks. Older clients may omit the field.
+
+`audio-true-peak.js` supports the mix renderer's 44.1/48/96 kHz rates. It includes
+original samples, zero padding and the full FIR tail, and allocates no upsampled
+PCM array. Four-times oversampling means 176.4/192/384 kHz respectively. These
+are finite-filter estimates, not certified meter readings or continuous-time
+peak guarantees. Peak/LUFS adjustments still use a **sample-peak** ceiling;
+this change does not add limiting or change those controls.
+
+Regression tests compare windowed 1 kHz and quarter-sample-rate sine waves at
+all three rates with FFmpeg within 0.3 dB, including inter-sample overs. Further
+tests cover file boundaries, independent stereo channels, silence and invalid
+PCM. Browser coverage exercises the real analysis worker, UI, silence and agent
+context; model responses remain mocked.

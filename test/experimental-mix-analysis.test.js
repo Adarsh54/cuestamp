@@ -32,3 +32,9 @@ test('loudness context validates block counts, gates and current revision',async
  let sent;await planDawEdit({session:s,instruction:'What is the loudness?',mixAnalysis:{...a,loudness}},{key:'test',model:'test',fetchImpl:async(_,request)=>{sent=JSON.parse(request.body);return {ok:true,json:async()=>({output:[]})};}});
  assert.deepEqual(JSON.parse(sent.input.at(-1).content).mixAnalysis.loudness,loudness);
 });
+test('true-peak context is optional, consistent with channel samples, and reaches the agent',async()=>{
+ const {s,a}=fixture(),truePeak={oversample:4,peaksDbtp:[null,null]};assert.deepEqual(validateMixAnalysis({...a,truePeak},s).truePeak,truePeak);
+ for(const t of [{...truePeak,oversample:8},{...truePeak,peaksDbtp:[0,null]},{...truePeak,peaksDbtp:[null]}])assert.throws(()=>validateMixAnalysis({...a,truePeak:t},s));
+ const audible={...a,channels:a.channels.map(()=>({peakDb:-1,rmsDb:-6,peakFrame:0,overSamples:0})),truePeak:{oversample:4,peaksDbtp:[-.1,.2]}};assert.ok(validateMixAnalysis(audible,s));assert.throws(()=>validateMixAnalysis({...audible,truePeak:{oversample:4,peaksDbtp:[-2,0]}},s));
+ let sent;await planDawEdit({session:s,instruction:'Are there inter-sample peaks?',mixAnalysis:audible},{key:'test',model:'test',fetchImpl:async(_,request)=>{sent=JSON.parse(request.body);return {ok:true,json:async()=>({output:[]})};}});assert.deepEqual(JSON.parse(sent.input.at(-1).content).mixAnalysis.truePeak,audible.truePeak);
+});
