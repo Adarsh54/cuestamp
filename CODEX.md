@@ -4216,8 +4216,8 @@ extra frequencies around the center and bandwidth, including the exact center,
 so narrow notches are visible between the normal logarithmic plot samples.
 The graph remains a static frequency response, not a live spectral analyzer.
 These are native second-order filters, not linear-phase or variable-slope EQ.
-As with the existing EQ modes, the export duration does not add a separate EQ
-ring-down tail; leave space after the audio when that decay needs to be retained.
+EQ ring-down is included in shared render duration estimates; see the EQ-tail
+notes below for range-export behavior and limits.
 
 References: [Apple’s single-band EQ](https://support.apple.com/en-gb/guide/logicpro/lgcef1edd13d/mac)
 and [band-stop filter definition](https://developer.apple.com/documentation/avfaudio/avaudiouniteqfiltertype/bandstop).
@@ -4228,3 +4228,31 @@ undo, drag/keyboard behavior, exact notch-center inclusion in the plot, and
 rendered PCM versus displayed response across all seven types. The notch test
 requires over 100 dB center attenuation. All 990 tests and the production build
 pass, with the existing bundle-size warning.
+
+
+### EQ ring-down in playback and exports
+
+Enabled EQs now contribute a pole-decay estimate to the shared effect-tail
+calculation. The estimate considers static values and active automation extrema,
+including muted lanes and parent automation Off. Identity peaking/shelf filters
+at zero gain and bypassed filters add no time. Decay estimates add along the
+track/bus/master path; the existing 30-second-per-effect-chain cap remains.
+
+This feeds ordinary playback duration, mix analysis, full mix/stem exports, and
+region/track bounce-in-place through existing shared planners. Exact range
+exports and cycle playback continue to end at their selected boundaries.
+
+`eq-tail.js` uses the denominator coefficients from the
+[Web Audio filter specification](https://www.w3.org/TR/webaudio/#filters-characteristics),
+estimates the slowest pole over the supported export rates (44.1/48/96 kHz), and
+adds decay margin. This is a bounded estimate, not a guarantee for arbitrarily
+fast parameter modulation, extreme serial processing or other device rates.
+The overall ten-minute offline-render limit still applies, including tails.
+
+Validation: `test/experimental-eq-tail.test.js` covers resonance/frequency,
+automation enablement, identity/bypass, routing, chain caps and export planning.
+`scripts/browser-experimental-eq-tail-check.cjs` renders 252 native-filter impulse
+responses across seven types, Q/frequency/gain extremes and three sample rates,
+checking that ring-down is retained and decays below the test threshold by the
+planned end. All 993 tests and the production build pass; the existing
+large-bundle warning remains.
