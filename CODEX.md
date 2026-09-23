@@ -4361,3 +4361,9 @@ Workspace panel restoration uses its original DOM position when still valid, the
 ### Reveal mixer channel in arrangement
 
 The selected track's mixer detail has a Show in arrangement button. It clears the transient track filter, selects/focuses the track header, scrolls it into view, and expands ancestor buses through the existing undoable `track.set` commands. Master has no arrangement track and does not show this action. Expanding groups uses the regular edit path and pauses playback; revealing an already expanded track only changes the view. The action is blocked during loading, recording, and agent work. The track-search browser check covers filter clearing, focus, collapsed ancestors, and undo.
+
+### Align selected regions
+
+Multi-region inspector controls align each selected region's start or end to the playhead. The shared `regions.align` operation takes comma-separated `regionIds`, absolute `position` in seconds, and `edge` (`start` or `end`). It changes starts only: duration, source offsets, MIDI, fades, track automation, and routing remain unchanged. Unlike `regions.move`, it does not preserve spacing. End alignment fails atomically if any resulting start is negative; protected tracks remain protected. Undo restores all selected regions together. The agent is instructed to use this same command.
+
+Validation: `test/experimental-region-align.test.js` covers mixed-track preservation, undo/redo, invalid IDs/options/positions, protection, and mocked-provider command validation. `scripts/browser-experimental-region-align-check.cjs` covers both controls, playhead position, undo, and failure feedback. Real model inference is not established by the mocked-provider test.
