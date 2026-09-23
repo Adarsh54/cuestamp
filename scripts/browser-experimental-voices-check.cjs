@@ -21,5 +21,21 @@ const assert=require('node:assert/strict');
  assert.ok(Math.abs(result.left[4])<1e-8,'cell duration ends its voices while letting delay finish');
  assert.ok(result.right[0]>.01);assert.ok(Math.abs(result.right[0]-result.right[1])<1e-6,'other MIDI track must continue unchanged');
  assert.equal(result.unchanged,true);assert.match(result.errors[0],/Missing audio/);assert.match(result.errors[1],/pending clip/);assert.match(result.errors[2],/audio or MIDI/);assert.match(result.errors[3],/stopped/);
+ const stopped=await page.evaluate(async()=>{
+  const {SessionHistory}=await import('/src/experimental/session.js'),{scheduleSession}=await import('/src/experimental/audio-engine.js'),h=new SessionHistory();
+  h.execute([{op:'track.add',values:{id:'a',kind:'audio'}},{op:'track.add',values:{id:'b',kind:'audio'}},{op:'track.set',target:'a',values:{pan:-1}},{op:'track.set',target:'b',values:{pan:1}},{op:'effect.add',target:'a',values:{kind:'delay',time:.2,feedback:0,mix:1}},{op:'region.add',target:'a',values:{id:'ar',assetId:'positive',duration:2}},{op:'region.add',target:'b',values:{id:'br',assetId:'positive',duration:2}}]);
+  const c=new OfflineAudioContext(2,96000,48000),buffers=new Map();for(const [id,value] of [['positive',.2],['negative',-.2]]){const b=c.createBuffer(1,96000,48000);b.getChannelData(0).fill(value);buffers.set(id,b);}
+  const graph=scheduleSession(c,h.session,buffers,0,{baseTime:0,endPosition:2}),source=h.session.tracks[0].regions[0];
+  graph.replaceTrackRegions('a',[{...source,assetId:'negative'}],{when:.5});
+  graph.stopTrackRegions('a',{when:.2});
+  const suspended=c.suspend(.3),rendering=c.startRendering();await suspended;
+  graph.collectVoices();graph.replaceTrackRegions('a',[{...source,assetId:'negative'}],{when:.8,duration:.2});
+  await c.resume();const rendered=await rendering,at=(channel,t)=>rendered.getChannelData(channel)[Math.floor(t*48000)];graph.stop();
+  return {left:[.3,.45,.75,1.1,1.3].map(t=>at(0,t)),right:[.3,1.1].map(t=>at(1,t))};
+ });
+ assert.ok(stopped.left[0]>.01,'old effect tail survives the track stop');
+ assert.ok(Math.abs(stopped.left[1])<1e-8&&Math.abs(stopped.left[2])<1e-8,'pending launch must remain canceled');
+ assert.ok(stopped.left[3]<-.01,'track can launch again after stop cleanup');assert.ok(Math.abs(stopped.left[4])<1e-8);
+ assert.ok(stopped.right[0]>.01);assert.ok(Math.abs(stopped.right[0]-stopped.right[1])<1e-8);
  console.log('PASS independent track voice replacement, persistent delay/bus state, unaffected MIDI playback, failed/pending launch guards and cleanup.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

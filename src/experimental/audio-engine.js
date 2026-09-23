@@ -31,8 +31,8 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
  for(const track of session.tracks.filter(t=>t.kind!=='video')){const input=context.createGain(),gain=context.createGain(),pan=context.createStereoPanner();const preFader=connectEffects(context,input,track.effects,nodes,{position,base,tempo:session.tempo,tempoChanges:session.tempoChanges,register:track.mute?undefined:register,registerMeter});preFader.connect(gain);if(track.mute)gain.gain.value=0;else scheduleAutomation(gain.gain,track.automation||[],'gainDb',position,base,track.gainDb);scheduleAutomation(pan.pan,track.automation||[],'pan',position,base,track.pan);gain.connect(pan);nodes.push(input,gain,pan);channels.set(track.id,{input,preFader,gain,pan});meters?.add(track.id,pan);}
  for(const track of session.tracks.filter(t=>t.kind!=='video')){const {pan,gain,preFader}=channels.get(track.id);pan.connect(track.output?channels.get(track.output).input:master);for(const send of track.sends||[]){const amount=context.createGain();sendNodes.set(sendAutomationTarget(track.id,send.busId),amount);if(track.mute)amount.gain.value=0;else scheduleAutomation(amount.gain,send.automation||[],'gainDb',position,base,send.gainDb);(send.tap==='preFader'?preFader:send.tap==='postFader'?gain:pan).connect(amount).connect(channels.get(send.busId).input);nodes.push(amount);}}
  const voices=new Map(),retired=new Set();let stopped=false;
- for(const track of active){const group=scheduleTrackVoices(context,track,buffers,channels.get(track.id).input,position,base);group.open(base);voices.set(track.id,{group,when:base,queued:false});}
- const collectVoices=()=>{for(const entry of retired)if(context.currentTime>=entry.when){entry.group.stop();retired.delete(entry);}};
+ for(const track of active){const group=scheduleTrackVoices(context,track,buffers,channels.get(track.id).input,position,base);group.open(base);voices.set(track.id,{trackId:track.id,group,when:base,queued:false});}
+ const collectVoices=()=>{for(const entry of retired)if(context.currentTime>=entry.when){entry.group.stop();retired.delete(entry);const current=voices.get(entry.trackId);if(current?.group===entry.group&&current.stopping)voices.delete(entry.trackId);}};
  const replaceTrackRegions=(trackId,regions,{when,position:clipPosition=0,duration}={})=>{
   if(stopped)throw Error('Playback has stopped.');
   if(!Number.isFinite(when)||when<=context.currentTime||!Number.isFinite(clipPosition)||clipPosition<0)throw Error('Choose a future audio-clock time and a nonnegative clip position.');
@@ -41,10 +41,20 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
   if(!Array.isArray(regions)||regions.length>10000)throw Error('Choose at most 10,000 clip repetitions.');
   const source=session.tracks.find(t=>t.id===trackId&&['audio','midi'].includes(t.kind));if(!source)throw Error('Choose an audio or MIDI track.');
   const track=audibleSources({...session,tracks:session.tracks.map(t=>t.id===trackId?{...t,regions}:t)}).find(t=>t.id===trackId);if(!track)throw Error('This track is muted or excluded by solo.');
-  collectVoices();const previous=voices.get(trackId);if(previous?.queued&&previous.when>context.currentTime)throw Error('This track already has a pending clip launch.');
+  collectVoices();const previous=voices.get(trackId);if(previous?.queued&&previous.when>context.currentTime)throw Error('This track already has a pending clip launch or stop.');
   const group=scheduleTrackVoices(context,track,buffers,channels.get(trackId).input,clipPosition,when);
   if(context.currentTime>=when){group.stop();throw Error('Clip preparation missed its launch time. Try again.');}
-  group.open(when);if(duration!==undefined)group.cutAt(when+duration);if(previous){previous.group.cutAt(when);retired.add({...previous,when});}voices.set(trackId,{group,when,queued:true});return {trackId,when};
+  group.open(when);if(duration!==undefined)group.cutAt(when+duration);if(previous){previous.group.cutAt(when);retired.add({...previous,when});}voices.set(trackId,{trackId,group,when,queued:true});return {trackId,when};
+ };
+ const stopTrackRegions=(trackId,{when}={})=>{
+  if(stopped)throw Error('Playback has stopped.');
+  if(!Number.isFinite(when)||when<=context.currentTime)throw Error('Choose a future audio-clock stop time.');
+  if(options.endPosition!==undefined&&when>=base+options.endPosition-position)throw Error('Playback ends before the requested cell stop.');
+  if(!session.tracks.some(t=>t.id===trackId&&['audio','midi'].includes(t.kind)))throw Error('Choose an audio or MIDI track.');
+  collectVoices();const current=voices.get(trackId);
+  for(const entry of retired)if(entry.trackId===trackId){entry.when=Math.min(entry.when,when);entry.group.silenceAt(entry.when);}
+  if(current){const stopTime=current.stopping?Math.min(current.when,when):when;current.group.silenceAt(stopTime);retired.add({...current,when:stopTime});voices.set(trackId,{...current,when:stopTime,queued:true,stopping:true});}
+  return {trackId,when};
  };
  const lanes=new Map(effectLanes);
  const addLane=(id,parameter,param,points,fallback)=>lanes.set(`${id}:${parameter}`,{param,points:structuredClone(points||[]),fallback});
@@ -57,6 +67,6 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
   for(const send of track.sends||[]){const id=sendAutomationTarget(track.id,send.busId);addLane(id,'gainDb',sendNodes.get(id).gain,send.automation,send.gainDb);}
  }
  const automation=createLiveAutomation({context,base,position,lanes});
- return {base,meters,automation,replaceTrackRegions,collectVoices,readEffectMeters:()=>effectMeters?.read(),stop(){if(stopped)return;stopped=true;for(const {group} of voices.values())group.stop();for(const {group} of retired)group.stop();voices.clear();retired.clear();effectMeters?.stop();automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
+ return {base,meters,automation,replaceTrackRegions,stopTrackRegions,collectVoices,readEffectMeters:()=>effectMeters?.read(),stop(){if(stopped)return;stopped=true;for(const {group} of voices.values())group.stop();for(const {group} of retired)group.stop();voices.clear();retired.clear();effectMeters?.stop();automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
 }
 export {encodeWav} from './wav.js';

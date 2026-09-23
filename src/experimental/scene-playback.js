@@ -32,3 +32,6 @@ export function sceneCellPlan(session,values){
  const document={...session,scenes:session.scenes.map(s=>s.id===sceneId?{...s,cells:[cell]}:s)},plan=sceneAudition(document,{sceneId,duration}),regions=plan.document.tracks.find(t=>t.id===trackId).regions;
  return {plan,trackId,quantization,regions};
 }
+
+export const sceneCellStopSchema=z.object({trackId:z.string().min(1).max(100),quantization:z.enum(['immediate','beat','bar'])}).strict();
+export function validateSceneCellStop(session,value){const v=sceneCellStopSchema.parse(value);if(!session.tracks.some(t=>t.id===v.trackId&&['audio','midi'].includes(t.kind)))throw Error('Choose an audio or MIDI track.');return v;}

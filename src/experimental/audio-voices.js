@@ -22,5 +22,5 @@ export function scheduleTrackVoices(context,track,buffers,input,position,base){
   }
 
  }catch(error){stop();throw error;}
- return {open(when){gate.gain.setValueAtTime(1,when);},cutAt(when){gate.gain.setValueAtTime(0,when);},stop};
+ return {open(when){gate.gain.setValueAtTime(1,when);},cutAt(when){gate.gain.setValueAtTime(0,when);},silenceAt(when){gate.gain.cancelScheduledValues(when);gate.gain.setValueAtTime(0,when);},stop};
 }

@@ -2216,4 +2216,8 @@ Manual Record performance now captures the audio-clock scene launch sequence, in
 
 ### Independent cell launch checkpoint
 
-A selected scene cell can now launch on its own track during scene audition, immediately or on a beat/bar. Voices switch before the persistent track effects, preserving shared mixer routing and other instruments. Duration is bounded by the current scene window. Manual controls and launch_scene_cell use the same validation. Native audio tests verify preserved delay history, bus gain and unaffected MIDI playback. Cell Stop, independent indefinite cell transport and cell-level performance recording remain unfinished; whole-scene performance recording still rejects individual cell launches.
+A selected scene cell can now launch on its own track during scene audition, immediately or on a beat/bar. Voices switch before the persistent track effects, preserving shared mixer routing and other instruments. Duration is bounded by the current scene window. Manual controls and launch_scene_cell use the same validation. Native audio tests verify preserved delay history, bus gain and unaffected MIDI playback. Independent indefinite cell transport and cell-level performance recording remain unfinished; whole-scene performance recording still rejects individual cell launches.
+
+### Cell Stop checkpoint
+
+Stop track clip and the agent stop_scene_cell action now schedule an immediate/beat/bar stop for one scene track. They cancel pending clip opens while preserving downstream effects and other tracks. Native audio checks include stop-before-launch, cleanup, and a subsequent relaunch. Cell-level performance recording and indefinite transport are still unfinished.

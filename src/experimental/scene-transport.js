@@ -35,6 +35,14 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
    if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell can launch. Start a longer audition.');
    current.graph.replaceTrackRegions(trackId,regions,{when,duration:plan.end});return {position,trackId};
   },
+  stopCell({trackId,quantization}){
+   if(stopped)throw Error('Start scene playback before stopping a cell.');
+   if(transport.recordPerformance)throw Error('Cell stopping is not yet supported during scene performance recording.');
+   transport.advance();if(pending)throw Error('Wait for the queued scene before stopping a cell.');
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell stop.');
+   current.graph.stopTrackRegions(trackId,{when});return {position,trackId};
+  },
   queue(plan,quantization){
    if(stopped)throw Error('Start scene playback before cueing another scene.');transport.advance();
    if(launches.length>=100)throw Error('Stop and save this performance before launching more than 100 scenes.');
