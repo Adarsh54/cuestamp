@@ -4269,8 +4269,8 @@ compressor nodes. The meter does not measure makeup/output gain or loudness.
 `connectEffects` optionally registers compressor nodes with the live schedule’s
 `createEffectMeters` instance. Reads do not change the session, and Stop clears
 node references. Offline rendering does not create the live meter registry.
-These readings are currently UI-only; the agent’s existing level-meter context
-does not yet include compressor reduction.
+These readings also populate the agent’s validated playback context, as
+described below.
 
 Validation: `test/experimental-compressor-meter.test.js` covers current readings,
 nonfinite values, stop cleanup and initial display states.
@@ -4278,3 +4278,26 @@ nonfinite values, stop cleanup and initial display states.
 compression, checks a nonzero reduction readout without document edits, and
 verifies stop, bypass and cycle behavior. All 995 tests and the production build
 pass; the existing large-bundle warning remains.
+
+
+### Compressor reduction in agent context
+
+`meterObservation.compressors` optionally contains `{ id, reductionDb }` for
+enabled compressor inserts during ordinary playback. Values are finite,
+nonpositive dB: zero is no reduction. The observation timestamp, project ID and
+revision describe when and where they were measured. They are instantaneous
+readings, not whole-song averages or output loudness. No such readings are sent
+for pre-rendered cycle playback.
+
+Validation requires each ID to refer to an enabled compressor whose owner
+channel is in the same observation. Unknown IDs, duplicate entries, positive or
+nonfinite reduction, bypassed effects, cycle telemetry and stale observations
+are rejected before the provider is invoked. The existing two-minute age bound
+and revision checks apply; readings are not persisted in the project. Agent
+instructions require replay after edits and prohibit inventing missing values.
+
+Validation extends `test/experimental-meter-context.test.js` and the compressor
+meter browser check. The browser uses real live compression and verifies the
+outgoing request with a mocked provider reply; it does not test live model
+inference. All 997 tests and the production build pass, with the existing
+bundle-size warning.

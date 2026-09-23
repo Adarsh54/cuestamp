@@ -20,3 +20,19 @@ test('agent receives recent master LUFS separately from full-mix analysis',async
  await planDawEdit({instruction:'What is the current short-term loudness?',session:s,meterObservation:m},{key:'test',model:'test',fetchImpl:async(_,request)=>{sent=JSON.parse(request.body);return {ok:true,json:async()=>({output:[]})};}});
  const context=JSON.parse(sent.input.at(-1).content);assert.deepEqual(context.meterObservation.loudness,loudness);assert.equal(context.mixAnalysis,undefined);assert.equal(context.meterObservation.mode,'cycle');
 });
+test('compressor telemetry validates enabled effects, parent channels, mode and duplicates',()=>{
+ const s=applyCommands(fixture(),[{op:'effect.add',target:'t',values:{id:'c',kind:'compressor'}},{op:'effect.add',target:'t',values:{id:'e',kind:'eq'}}]);
+ const values=new Map([['t',{left:.1,right:.1,peak:.1}]]),options={position:1,mode:'linear',sampleRate:48000,now:10000,effectValues:new Map([['c',{reductionDb:-9}]])},m=captureMeterObservation(s,values,options);
+ assert.deepEqual(m.compressors,[{id:'c',reductionDb:-9}]);assert.equal(s.compressors,undefined);
+ for(const compressors of [[{id:'missing',reductionDb:-1}],[{id:'e',reductionDb:-1}],[{id:'c',reductionDb:1}],[{id:'c',reductionDb:NaN}],[...m.compressors,...m.compressors]])assert.throws(()=>validateMeterObservation({...m,compressors},s,10000));
+ assert.throws(()=>validateMeterObservation(m,{...s,tracks:s.tracks.map(t=>({...t,effects:t.effects.map(e=>({...e,enabled:false}))}))},10000),/compressor/);
+ assert.throws(()=>validateMeterObservation({...m,channels:[{id:s.id,leftPeakDb:null,rightPeakDb:null,heldPeakDb:null}]},s,10000),/compressor/);
+ const masterValues=new Map([[s.id,{left:.1,right:.1,peak:.1}]]);assert.equal(captureMeterObservation(s,masterValues,{...options,mode:'cycle'}).compressors,undefined);
+ assert.throws(()=>validateMeterObservation({...m,mode:'cycle',channels:[{id:s.id,leftPeakDb:null,rightPeakDb:null,heldPeakDb:null}]},s,10000),/cycle/);
+});
+test('agent gets compressor reduction and rejects invalid effects before provider invocation',async()=>{
+ const s=applyCommands(fixture(),[{op:'effect.add',target:'t',values:{id:'c',kind:'compressor'}}]),m={...capture(s),measuredAt:Date.now(),compressors:[{id:'c',reductionDb:-7}]};let body,calls=0;
+ const options={key:'test',model:'test',fetchImpl:async(_,opts)=>{calls++;body=JSON.parse(opts.body);return {ok:true,json:async()=>({output:[{type:'message',content:[{type:'output_text',text:'Recent reduction is 7 dB.'}]}]})};}};
+ await planDawEdit({session:s,instruction:'How much compression?',meterObservation:m},options);assert.deepEqual(JSON.parse(body.input[1].content).meterObservation.compressors,m.compressors);
+ await assert.rejects(planDawEdit({session:s,instruction:'How much?',meterObservation:{...m,compressors:[{id:'missing',reductionDb:-7}]}},options));assert.equal(calls,1);
+});
