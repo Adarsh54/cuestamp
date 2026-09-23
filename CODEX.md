@@ -5317,3 +5317,11 @@ MusicXML scores containing `octave-shift` directions now import instead of being
 `scripts/browser-experimental-musicxml-octave-check.cjs` verifies up/down markings of sizes 8/15/22, continuation/stop, tied notes, independent staves, partwise/timewise scores, a transposing instrument, actual file-picker import and Undo. Reference: [MusicXML octave-shift semantics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/octave-shift/).
 
 Verified 1,365 tests and production build, plus the browser octave-import check.
+
+### Score note clipboard (2026-09-23)
+
+Select one or more engraved notes and use **Copy notes**. A paste panel remains available after closing the note editor, with MIDI destination region, start in beats, musical-rhythm/original-seconds timing and optional destination extension. It supports both same-region and cross-region pastes. The clipboard captures note data and musical timing at copy time, so later source edits/deletion do not change the copied phrase. Each paste creates independent IDs and uses shared `notes.addMany`, with `region.set` for extension in the same atomic Undo batch.
+
+The clipboard is transient per workspace root and project; it survives score redraws and Undo but is cleared on project changes or reload. It is not the operating-system clipboard. Pitch, velocity, channel, mute and articulation data are copied; source controller events are not. Destination instrument/controller settings apply. The UI clipboard itself is not yet exposed as agent context; agent edits still have the shared bulk-note and transfer commands. Invalid destinations, timing, capacity and insufficient-space requests reject; shared command validation also applies.
+
+Verified 1,368 tests and build. `test/experimental-score-clipboard.test.js` covers snapshot isolation, tempo-aware rhythm, seconds, same-region copying, extension, Undo and invalid input. `scripts/browser-experimental-score-clipboard-check.cjs` verifies engraved multi-selection, copying, paste after Cancel, same/cross-region paste, retained clipboard across redraws, extension, clear and Undo. The paste controls were visually inspected in the browser.
