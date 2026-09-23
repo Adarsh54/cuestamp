@@ -1,4 +1,4 @@
-import {musicxmlRhythm} from './musicxml-rhythm.js';
+import {musicxmlRhythm,musicxmlTripletGroups} from './musicxml-rhythm.js';
 import {compileTempoMap,regionBeatTiming} from './tempo-map.js';
 import {compileKeyMap} from './key-map.js';
 import {compileMeterMap} from './meter-map.js';
@@ -38,17 +38,24 @@ function regionMeasures(session,track,region){
   const music=[attributes?`<attributes>${attributes}</attributes>`:'',...m.tempos.map(t=>`<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${t.bpm}</per-minute></metronome></direction-type><offset>${t.offset}</offset><sound tempo="${t.bpm}"/></direction>`)];
   for(let voice=1;voice<=plan.voices;voice++){
    if(voice>1)music.push(`<backup><duration>${m.end-m.start}</duration></backup>`);let cursor=m.start;
-   const rest=duration=>`<note><rest/><duration>${duration}</duration><voice>${voice}</voice></note>`;
    for(let segment=0;segment<boundaries.length-1;segment++){
     const left=boundaries[segment],right=boundaries[segment+1];
     if(voice===1&&changes.has(left)){lastKey=keyXml(changes.get(left));music.push(`<attributes>${lastKey}</attributes>`);}
+    const events=[];
     for(const n of plan.notes.filter(n=>n.voice===voice&&n.startTick<right&&n.endTick>left)){
-     const start=Math.max(left,n.startTick),end=Math.min(right,n.endTick);if(start>cursor)music.push(rest(start-cursor));
+     const start=Math.max(left,n.startTick),end=Math.min(right,n.endTick);
+     if(start>cursor)events.push({start:cursor,end:start});events.push({start,end,n});cursor=end;
+    }
+    if(cursor<right){events.push({start:cursor,end:right});cursor=right;}
+    const groups=musicxmlTripletGroups(events);
+    for(const event of events){
+     const {start,end,n}=event,rhythm=musicxmlRhythm(end-start),group=groups.get(event);
+     const tuplet=group&&group!=='member'?`<tuplet type="${group}" number="1"${group==='start'?' bracket="yes" show-number="actual"':''}/>`:'';
+     if(rhythm.triplet&&!group)music.push(`<direction placement="above"><direction-type><words font-size="9">3:2</words></direction-type><voice>${voice}</voice></direction>`);
+     if(!n){music.push(`<note><rest/><duration>${end-start}</duration><voice>${voice}</voice>${rhythm.duration}${tuplet?`<notations>${tuplet}</notations>`:''}</note>`);continue;}
      const {step,alter,octave}=spelledPitch(n.pitch,keys.keyAtBeat(tempo.beatAtTime(region.start+n.start))),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
-     const rhythm=musicxmlRhythm(end-start);
-     if(rhythm.triplet)music.push(`<direction placement="above"><direction-type><words font-size="9">3:2</words></direction-type><voice>${voice}</voice></direction>`);
-     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||rhythm.notation?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${rhythm.notation}</notations>`:''}</note>`);cursor=end;
-    }if(cursor<right){music.push(rest(right-cursor));cursor=right;}
+     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||tuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${tuplet}</notations>`:''}</note>`);
+    }
    }
   }parts.push(`<measure number="${index+1}"${m.partial?' implicit="yes"':''}>${music.join('')}</measure>`);
  }

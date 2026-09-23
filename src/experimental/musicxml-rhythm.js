@@ -7,3 +7,13 @@ export function musicxmlRhythm(ticks){
  }
  return {duration:'',notation:''};
 }
+// Group complete runs only. Gaps are explicit rest events; groups never cross a bar/key boundary.
+export function musicxmlTripletGroups(events){
+ const groups=new Map();
+ for(let index=0;index+2<events.length;index++){
+  const run=events.slice(index,index+3),duration=run[0].end-run[0].start;
+  if(!musicxmlRhythm(duration).triplet||run.some(e=>e.end-e.start!==duration)||run[0].end!==run[1].start||run[1].end!==run[2].start)continue;
+  groups.set(run[0],'start');groups.set(run[1],'member');groups.set(run[2],'stop');index+=2;
+ }
+ return groups;
+}

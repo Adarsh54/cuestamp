@@ -5116,3 +5116,9 @@ Verification: `test/experimental-score-clef.test.js` checks supported clefs, exa
 - Applying a written length uses `note.set` and Undo. Lengths beyond the region end are rejected with inline feedback; there is no silent truncation or implicit region extension.
 - MusicXML now supplies explicit note types, dots and 3:2 time modification for recognized durations. Single triplet notes display individual **3:2** direction labels because OSMD did not render single-note tuplet brackets; automatic grouping/brackets across multiple triplet notes remain pending. Unrecognized performed durations retain the existing duration-based rendering.
 - Verified dotted/triplet editing, Undo, browser rendering and MusicXML XSD validation (`/tmp/cuestamp-score-triplet.musicxml`). Tests: `test/experimental-score-rhythm.test.js`, browser `scripts/browser-experimental-score-rhythm-check.cjs`. MusicXML reference: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/time-modification/ .
+
+### Shared triplet brackets (2026-09-23)
+
+- Complete runs of three equal triplet-duration events now share a bracket and number in preview and MusicXML. Explicit rests can participate. Runs are grouped per voice within a bar/key segment; incomplete runs keep the individual 3:2 ratio labels. Mixed-length, nested and cross-bar tuplets remain ungrouped.
+- Rest notation also receives explicit type/dot/time-modification metadata when its length is recognized. All grouping is an export/engraving operation: source note pitches, timing and session data stay unchanged.
+- Checked `test/experimental-score-tuplets.test.js`, `scripts/browser-experimental-score-tuplet-check.cjs`, visually inspected `/tmp/cuestamp-score-tuplet.png`, and validated `/tmp/cuestamp-score-tuplet.musicxml` against MusicXML 4.0 XSD. The browser fixture contains a triplet note–rest–note group and zooms to 125%.
