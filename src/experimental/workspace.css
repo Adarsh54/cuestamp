@@ -169,3 +169,14 @@ form.daw-note-editor{margin-top:8px}
 .daw-group-shaping { grid-column: 1 / -1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .daw-group-shaping small { grid-column: 1 / -1; }
 [data-sampler-presets] > label, [data-sampler-preset-save] > label, [data-sampler-preset-save] > .button-row { grid-column: 1 / -1; }
+
+.daw-inspector form[data-sampler-automap]{display:block;margin:16px 0}
+[data-sampler-automap] fieldset{min-width:0;margin:0;padding:12px;border:1px solid var(--line);border-radius:8px;display:grid;gap:12px}
+[data-sampler-automap] legend{padding:0 5px;font-size:12px;font-weight:600}
+[data-sampler-automap] .button-row{display:flex;flex-wrap:wrap;gap:8px}
+[data-sampler-automap] .button-row>label{flex:1;min-width:75px}
+[data-sampler-automap] input[type=number],[data-sampler-automap] select{width:100%;min-width:0}
+[data-sampler-automap] .daw-map-zone-list{display:grid;gap:8px;max-height:200px;overflow:auto}
+[data-sampler-automap] .daw-map-zone-list label{display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
+[data-sampler-automap] input[type=checkbox]{width:16px;height:16px;flex:none;margin:0}
+[data-sampler-automap] p{margin:0}

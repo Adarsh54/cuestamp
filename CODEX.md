@@ -4828,3 +4828,17 @@ The general media picker also recognizes this filename suffix. Dedicated import 
 The agent may use `export_sampler_preset` with an observed preset ID when the user requests a download. Export is a separate action, requires export capability and is unavailable during editing continuation. The browser checks cancellation and session changes before downloading. Import remains a local file-picker operation; model instructions prohibit inventing imported media references.
 
 Verification: `test/experimental-sampler-preset-file.test.js` covers archive contents, remapped identities, malformed files, shared import/Undo and mocked agent capability validation. `scripts/browser-experimental-sampler-preset-file-check.cjs` checks downloads, cross-project import, unchanged destination tracks, rendered stereo PCM, duplicate names, Undo/Redo and reload. Agent responses in the browser test are mocked; live provider inference remains unverified.
+
+## Batch sampler zone mapping
+
+Experimental → instrument track → Sample zones → **Map multiple zones** maps checked zones in one undoable edit. Select all / Clear selection controls affect the checkbox list; the graphical map's single-zone selection remains independent.
+
+- **Spread by root pitch** fills the requested inclusive MIDI key range around existing roots, placing boundaries halfway between neighboring roots (ties go to the lower root). Each group/articulation/velocity-range combination maps independently. Equal roots stay layered. The requested range must include all selected roots.
+- **Consecutive keys** assigns one key per checked zone in displayed order, starting at From. It changes each root to its assigned key, preserving original sample playback pitch at that key. Through bounds the available keys; remaining keys are unused.
+- **Velocity layers** divides the inclusive velocity range (1–127) evenly in displayed order, separately for each group/articulation/key-range combination. Roots and key ranges stay unchanged. This does not analyze sample loudness.
+
+Only selected zones change. Unselected zones may overlap the mapped ranges, and existing group key/velocity restrictions still apply. Media, loops, level, pan, tuning and instrument settings are preserved. Mapping does not detect pitches or infer filenames.
+
+The agent uses the same `samplerZone.automap` operation, targeting an instrument track with `{mode: 'roots' | 'chromatic' | 'velocity', zoneIds: '["zone-id", ...]', low, high}`. Explicit zone ID order controls consecutive keys and velocity ordering; the UI uses the displayed zone order. Empty, duplicate, unknown or excessive selections, invalid ranges, and insufficient key/velocity ranges are rejected atomically.
+
+Verification: `test/experimental-sampler-automap.test.js` covers exhaustive key/velocity selection, equal-root layers, separate performance lanes, preserved sound settings, atomic rejection, Undo/Redo and mocked agent plans. `scripts/browser-experimental-sampler-automap-check.cjs` covers all three mapping controls, subset selection, errors, persistence, mocked agent edits and downloaded WAV PCM proving different notes select the intended two sources. Physical MIDI output and live model inference are not exercised by this check.
