@@ -3644,3 +3644,15 @@ The audition snapshot retains the complete source region so seeks preserve rever
 The agent can request `audition_audio_range` with a captured selection or explicit absolute start/end seconds. The server validates region bounds and capability; the client revalidates session revision and transport epoch before starting playback. The tool is unavailable during an editing continuation. Model-provider execution still requires configured credentials; the browser regression uses a mocked response with real playback.
 
 Verification: `test/experimental-audio-range-audition.test.js` covers isolation, validation and tool guards. `scripts/browser-experimental-range-audition-check.cjs` uses native offline audio rendering to verify identical samples before the boundary and exact silence after it, including reverse source, fades and bus gain. The existing silence browser regression now also checks manual/agent range playback, automatic stop, early stop, cursor return and unchanged saved session.
+
+### Zero-crossing selection
+
+The detailed waveform editor offers **Cursor to zero crossing** and **Range to zero crossings**. Each searches up to 5 ms on either side for the nearest integer sample boundary where every channel crosses or touches zero. Channels remain aligned; opposite-polarity stereo is inspected separately rather than summed. Equidistant candidates prefer the lower maximum adjacent amplitude. Trim offsets and reversed regions use source-boundary mapping. Whole-region range edges are retained.
+
+If no shared crossing exists, or snapping both ends would collapse the selection, the operation fails without changing the cursor/range. This selects a cut point only: it does not change audio samples, region geometry, project revision or undo history. Crossing a steep waveform can still click; use fades as needed. This is an explicit control, not automatic snapping on every drag or split.
+
+The agent tool `snap_audio_range_to_zero_crossings` accepts the captured waveform range or explicit absolute boundaries. Server validation checks the requested audio region and bounds; browser-side analysis uses the actual decoded samples. Session revision, cancellation and transport epoch are checked after decoding, before updating the selection. The tool cannot be combined with document edits or run as an editing continuation. The resulting selection can subsequently be auditioned or split through the shared controls/commands. Live provider inference remains separate from the mocked tool-response browser regression.
+
+Tests: `test/experimental-zero-crossing.test.js` checks bounded searches, stereo polarity, channel mismatch, offset/reversal mapping, invalid samples, collapsed ranges and agent capability/context guards. `scripts/browser-experimental-silence-check.cjs` checks manual and agent selection controls against imported WAV samples and unchanged saved project state.
+
+Reference: [Apple Logic Pro zero-crossing editing](https://support.apple.com/guide/logicpro/snap-edits-to-zero-crossings-lgcp76a73399/10.7/mac/11.0).

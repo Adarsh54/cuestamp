@@ -1,0 +1,17 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {nearestZeroCrossing,snapWaveformRange} from '../src/experimental/audio-zero-crossing.js';
+const buffer=(arrays,rate=1000)=>({sampleRate:rate,length:arrays[0].length,numberOfChannels:arrays.length,getChannelData:c=>arrays[c]});
+const region={offset:0,duration:.02,reverse:false};
+const data=Float32Array.from({length:20},(_,i)=>i<8?-.2:.2);
+test('nearest crossing searches bounded PCM without changing samples',()=>{const original=data.slice();assert.equal(nearestZeroCrossing(buffer([data]),region,.01),.008);assert.deepEqual(data,original);assert.throws(()=>nearestZeroCrossing(buffer([data]),region,.018),/No shared/);});
+test('stereo uses shared crossings and never cancels opposing channels into false silence',()=>{assert.equal(nearestZeroCrossing(buffer([data,data.map(v=>-v)]),region,.01),.008);assert.throws(()=>nearestZeroCrossing(buffer([data,new Float32Array(20).fill(.3)]),region,.01),/No shared/);});
+test('offset and reverse map boundaries without a one-sample shift',()=>{const padded=new Float32Array(30);padded.set(data,5);assert.equal(nearestZeroCrossing(buffer([padded]),{...region,offset:.005},.01),.008);assert.equal(nearestZeroCrossing(buffer([padded]),{...region,offset:.005,reverse:true},.01),.012);});
+test('range preserves source edges and rejects collapsing selections atomically',()=>{assert.deepEqual(snapWaveformRange(buffer([data]),region,{start:0,end:.01}),{start:0,end:.008});assert.deepEqual(snapWaveformRange(buffer([data]),region,{start:.01,end:.02}),{start:.008,end:.02});assert.throws(()=>snapWaveformRange(buffer([data]),region,{start:.007,end:.01}),/collapse/);});
+test('invalid PCM and invalid searches fail explicitly',()=>{const invalid=data.slice();invalid[8]=NaN;assert.throws(()=>nearestZeroCrossing(buffer([invalid]),region,.008),/invalid samples/);assert.throws(()=>nearestZeroCrossing(buffer([data]),region,NaN));assert.throws(()=>nearestZeroCrossing(buffer([data]),{...region,offset:1},.008));});
+
+test('agent search validates captured ranges and requires capability and transport',async()=>{
+ const {SessionHistory}=await import('../src/experimental/session.js'),{planDawEdit}=await import('../server/daw-agent.js');const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'t'}},{op:'region.add',target:'t',values:{id:'r',assetId:'a',duration:2}}]);
+ const range={regionId:'r',start:.3,end:1.2},input={session:h.session,instruction:'Snap selection to zero crossings',audioRange:range,allowZeroCrossing:true,transport:{sessionId:h.session.id,revision:h.session.revision,epoch:3,position:0,playing:false}};
+ let schema;const adapter={key:'test',model:'test',fetchImpl:async(_,options)=>{schema=JSON.parse(options.body).tools.find(t=>t.name==='snap_audio_range_to_zero_crossings');return {ok:true,json:async()=>({output:[{type:'function_call',name:'snap_audio_range_to_zero_crossings',arguments:JSON.stringify({regionId:null,start:null,end:null})}]})};}};
+ const result=await planDawEdit(input,adapter);assert.equal(schema.strict,true);assert.deepEqual(result.range,range);assert.equal(result.transportEpoch,3);assert.deepEqual(result.commands,[]);await assert.rejects(planDawEdit({...input,allowZeroCrossing:false},adapter));await assert.rejects(planDawEdit({...input,transport:undefined},adapter));await assert.rejects(planDawEdit({...input,editingContinuation:true},adapter));await assert.rejects(planDawEdit({...input,audioRange:undefined},adapter));
+});
