@@ -808,3 +808,7 @@ audio { width: 100%; height: 36px; margin-bottom: 12px; }
 .cue-wave-preview .library-wave-play { width: 28px; height: 28px; padding: 5px; }
 .cue-wave-preview .library-wave-seek, .cue-wave-preview .library-wave-volume { height: 60px; }
 .cue-wave-preview .library-wave-time { font-size: 10px; }
+
+[data-zone-attacks] > label { display: grid; gap: 4px; margin: 8px 0; }
+[data-zone-attacks] > small { display: block; margin: 8px 0; line-height: 1.5; }
+[data-zone-attacks] > output { display: block; margin-top: 8px; }
