@@ -4615,3 +4615,12 @@ The tempo-fit browser check reconstructs the form through the real view-state he
 **Add marker at playhead** and the workspace **M** shortcut place a marker using the current transport position. Names use the next available `Cue N`; markers can then be renamed normally. Marker-only add/set/delete batches no longer stop ordinary playback because they do not change scheduled audio. Mixed batches retain normal stop-before-edit behavior. Audio/MIDI recording and scene performance capture still block these edits. Undo retains the usual stop-before-history behavior.
 
 The shortcut respects text inputs, composition, dialogs, disabled shortcuts and key repeat. It does not replace typing M in a field. `scripts/browser-experimental-live-markers-check.cjs` verifies live timing from an advancing audio transport, consecutive button/keyboard captures, unique naming, continued playback, native text input, unchanged musical content and Undo. All 1,153 tests and build pass.
+
+
+### Cycle between cue markers
+
+Each marker’s **Loop to next marker** button sets the cycle from that marker to the next strictly later timestamp, skipping coincident markers. The last marker and ranges longer than ten minutes have disabled buttons with explanatory titles. This prepares the range and stops existing playback; press Play to rehearse it. Clips and annotations remain unchanged, and Undo restores the previous cycle.
+
+The agent can use `marker.cycle`, targeting the start marker ID, with optional `values.endMarkerId` to choose another later marker. Missing/reversed/coincident endpoints, unknown fields and overly long ranges reject. The cycle is a snapshot of the marker times; moving markers later does not automatically move the saved cycle. Existing cycle rendering/tail behavior applies.
+
+Unit tests cover chronological selection, explicit endpoints, rejection, unchanged markers and Undo. The live-marker browser workflow verifies actual cycle playback remains within the chosen markers and Undo restores Cycle off. All 1,155 tests and build pass. Live model inference remains unverified.
