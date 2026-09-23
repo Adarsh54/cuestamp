@@ -4956,3 +4956,11 @@ The zone waveform provides **Start to zero crossing** and **End to zero crossing
 Adjustments remain drafts until **Save sample zone**. Moving a loop edge enables looping. Existing zone commands expose saved numerical boundaries to the agent; these buttons do not rewrite PCM or introduce a separate persistence path. Apple's sampler describes analogous waveform zero-crossing controls: https://www.apple.com/by/logic-pro/plugins-and-sounds/.
 
 Verification: `test/experimental-sampler-zone-zero.test.js` checks shared stereo crossings, source/opposite-edge bounds, search radius, invalid ranges and immutable failure. `scripts/browser-experimental-sampler-zone-zero-check.cjs` checks both editing modes, unchanged saved state before Save, failed-search preservation, loop enabling and persisted values. Controls were visually inspected. These checks establish boundary selection and persistence, not a guarantee of inaudible loop seams.
+
+## Agent sampler-zone zero-crossing edits
+
+The capability-gated `snap_sampler_zone_to_zero_crossings` tool accepts observed `trackId`, `zoneId`, `mode` (`sample` or `loop`) and `edge` (`start`, `end` or `both`). The server validates the saved zone; the browser decodes its source and uses the same boundary search as the waveform buttons. Unlike manual draft buttons, the requested agent operation commits a single undoable `samplerZone.set` after all searches and source/loop validation succeed. Loop mode enables looping. Missing crossings, invalid containment or a failed second-edge search apply no changes.
+
+The browser checks abort state, session identity and revision after decoding. This tool runs separately from other edits, transport and exports, and is unavailable in editing continuations. It reads saved values, not unsaved zone-form drafts. Zero crossings do not guarantee click-free seams.
+
+Verification: `test/experimental-sampler-zone-zero-agent.test.js` covers planning without mutation, atomic failure, enabled-loop containment, Undo, capability gating, continuation rejection and invalid IDs/options. `scripts/browser-experimental-sampler-zone-zero-agent-check.cjs` verifies the browser request capability, real decoded PCM boundary results, preserved source trim and Undo using a mocked agent response. Live model selection of the tool remains unverified.
