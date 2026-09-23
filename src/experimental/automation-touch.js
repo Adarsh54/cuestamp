@@ -54,7 +54,7 @@ export function createTouchRecording({getState,commit,getMode=()=> 'touch'}){
    if(['touch','trimTouch'].includes(mode)&&active.size&&!active.has(id)){finish();state=getState();}
    try{
     if(!['touch','latch','write','trimTouch','trimLatch'].includes(mode))throw Error('Choose Touch, Latch or Write recording.');
-    if(!state.playback||state.playback.loop||state.playback.compPreview||!state.playback.automation)throw Error('Automation recording needs normal playback with Cycle off.');
+    if(!state.playback||state.playback.loop||state.playback.preview||state.playback.compPreview||state.playback.rangePreview||state.playback.selectionPreview||!state.playback.automation)throw Error('Automation recording needs normal playback with Cycle off.');
     const lane=recordingAutomationLane(state.session,target,parameter,busId),channel=lane.track;
     const owner=busId!==undefined?lane.owner:target===state.session.id?{automationMode:state.session.masterAutomationMode,automationMuted:state.session.masterAutomationMuted}:lane.owner;
     if(lane.effect&&(!owner.enabled||(owner.sync&&parameter==='rate')))throw Error('Enable this effect and disable tempo sync before recording its free rate.');

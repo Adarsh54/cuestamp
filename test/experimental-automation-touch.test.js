@@ -1,9 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createTouchRecording} from '../src/experimental/automation-touch.js';
 import {newSession,SessionHistory} from '../src/experimental/session.js';
-function setup(){
+function setup(mode='touch'){
  const history=new SessionHistory(newSession());history.execute([{op:'track.add',values:{id:'t',kind:'audio'}}]);const calls=[],state={session:history.session,epoch:1,position:1,playback:{automation:Object.fromEntries(['set','replace','release','cancel'].map(name=>[name,(...args)=>calls.push([name,...args])]))}};
- const touch=createTouchRecording({getState:()=>({...state,session:history.session}),commit:(commands,revision)=>history.execute(commands,revision)});return {touch,history,state,calls};
+ const touch=createTouchRecording({getMode:()=>mode,getState:()=>({...state,session:history.session}),commit:(commands,revision)=>history.execute(commands,revision)});return {touch,history,state,calls};
 }
 test('Touch commits an undoable gesture, preserves static value and continues playback',()=>{
  const {touch,history,state,calls}=setup(),before=structuredClone(history.session);touch.input('t','gainDb',-6);state.position=2;touch.input('t','gainDb',-12);state.position=3;assert.equal(touch.finish(),true);
@@ -22,4 +22,12 @@ test('Touch rejects failed commits and restores audio without partial project ch
 });
 test('Touch can record master and consecutive gestures with refreshed revisions',()=>{
  const {touch,history,state}=setup();touch.input(history.session.id,'pan',.3);state.position=2;touch.finish();touch.input('t','gainDb',-10);state.position=3;touch.finish();assert.ok(history.session.masterAutomation.length);assert.ok(history.session.tracks[0].automation.length);
+});
+
+test('all automation recording modes reject every temporary audition without edits or live overrides',()=>{
+ for(const mode of ['touch','latch','write','trimTouch','trimLatch'])for(const flag of ['preview','compPreview','rangePreview','selectionPreview']){
+  const {touch,history,state,calls}=setup(mode),before=structuredClone(history.session);state.playback[flag]=true;
+  assert.throws(()=>mode==='write'?touch.beginWrite('t'):touch.input('t','gainDb',-6),/normal playback/);
+  assert.equal(touch.active,false);assert.deepEqual(calls,[]);assert.deepEqual(history.session,before);
+ }
 });
