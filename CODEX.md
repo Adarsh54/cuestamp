@@ -4583,3 +4583,12 @@ Checks cover valid conversion, ambiguous/invalid labels, atomic rollback and pre
 `seek_timeline_position` accepts `format` (`timecode` or `musical`) and a string `position`. The server uses the same session-aware parser as manual navigation: frame rate, drop-frame, timecode start, tempo changes and meter changes are applied in code. The model can pass the requested label directly. The result uses the existing validated transport seek path, pauses playback, leaves the document unchanged and creates no undo step. It requires transport capability and is not offered during editing continuations.
 
 Invalid labels, skipped drop-frame numbers, before-start positions, extra arguments and missing capability reject. Browser revision/transport checks prevent a delayed response from overriding newer navigation. `scripts/browser-experimental-agent-position-check.cjs` runs the actual server planner with mocked provider output and checks timecode/musical seeks, unchanged document and stale transport rejection. All 1,150 tests and build pass; live provider behavior remains unverified.
+
+
+### Movie frame strip
+
+The video monitor has **Show movie frames** for the selected movie region, falling back to the movie under the playhead or the first movie clip. It decodes eight 160-pixel-wide JPEG thumbnails across that clip, respecting source trim and reverse. Each frame has a session-timecode label and seeks the timeline when clicked. A single-clip cache lets navigation reuse decoded thumbnails; changed source/timing invalidates it. Decode work is canceled on repaint/navigation/disposal, with explicit Cancel and Retry controls.
+
+Thumbnail decoding uses an offscreen HTML video element and canvas, keeps the original file unchanged, and requires a browser-decodable attached movie. Decode/seek waits have timeouts. The strip samples eight points rather than showing every frame or detecting scene cuts; reverse thumbnail timing uses the selected session frame rate.
+
+Unit checks cover trimmed/reversed/subframe sample positions. The real-WebM browser check verifies eight JPEG thumbnails, frame navigation, cancellation and retry alongside movie playback checks. The scoring browser regression also passes. All 1,152 tests and build pass; the existing bundle-size warning remains.
