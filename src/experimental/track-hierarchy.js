@@ -11,3 +11,17 @@ export function descendantTracks(session,id){const children=new Map();for(const 
 export function revealTrackCommands(session,id){const byId=new Map(session.tracks.map(t=>[t.id,t])),commands=[],seen=new Set();let t=byId.get(id);while(t?.output&&!seen.has(t.output)){seen.add(t.output);t=byId.get(t.output);if(t?.collapsed)commands.push({op:'track.set',target:t.id,values:{collapsed:false}});}return commands;}
 export function groupFoldButton(track,hasChildren,esc,attribute='data-mix-fold'){return track.kind==='bus'&&hasChildren?`<button type="button" class="daw-group-fold" ${attribute}="${track.id}" aria-expanded="${!track.collapsed}" aria-label="${track.collapsed?'Expand':'Collapse'} ${esc(track.name)}">${track.collapsed?'▸':'▾'}</button>`:'';}
 export function collapsedGroupOverview(session,track,zoom,esc){if(track.kind!=='bus'||!track.collapsed)return '';const descendants=descendantTracks(session,track.id),regions=descendants.flatMap(t=>t.regions.map(r=>({track:t,region:r})));return `<div class="daw-group-overview" role="img" aria-label="${esc(track.name)}: ${descendants.length} tracks, ${regions.length} ${regions.length===1?'region':'regions'}. Expand group to edit.">${regions.slice(0,512).map(({track:t,region:r},i)=>`<span style="left:${r.start*zoom}px;width:${Math.max(3,r.duration*zoom)}px;top:${8+(i%4)*15}px" title="${esc(t.name)} · ${esc(r.name)}"></span>`).join('')}<small>${descendants.length} tracks · ${regions.length} ${regions.length===1?'region':'regions'}${regions.length>512?' · showing first 512':''}</small></div>`;}
+
+// Search expands groups in the view only. Matching a bus includes its descendants.
+export function filteredTrackHierarchy(session,query=''){
+ const term=query.trim().toLowerCase();if(!term)return trackHierarchy(session);
+ const byId=new Map(session.tracks.map(t=>[t.id,t])),included=new Set();
+ for(const track of session.tracks){
+  if(!`${track.name} ${track.kind}`.toLowerCase().includes(term))continue;
+  included.add(track.id);
+  if(track.kind==='bus')for(const child of descendantTracks(session,track.id))included.add(child.id);
+  const seen=new Set();let parent=byId.get(track.output);
+  while(parent?.kind==='bus'&&!seen.has(parent.id)){seen.add(parent.id);included.add(parent.id);parent=byId.get(parent.output);}
+ }
+ return trackHierarchy({...session,tracks:session.tracks.filter(t=>included.has(t.id)).map(t=>({...t,collapsed:false}))});
+}

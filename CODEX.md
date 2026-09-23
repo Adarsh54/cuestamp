@@ -4345,3 +4345,9 @@ duplication, isolation from audio controls, style sanitization and persistence.
 `scripts/browser-experimental-track-color-check.cjs` checks swatches/custom/reset,
 computed arrangement and mixer styling, undo/redo and reload. All 1,003 tests and
 the production build pass; the existing bundle-size warning remains.
+
+### Arrangement track search
+
+The Experimental arrangement has a Find tracks field for names and track types. Search includes ancestor buses, temporarily reveals collapsed groups, and includes descendants when a bus matches. Clearing search restores the saved collapsed layout. The filter is transient and arrangement-only; mixer channels, playback, routing, export, and session history are unchanged. Group folding is hidden while searching. New sessions reset the filter.
+
+Validation: `node --test test/experimental-track-search.test.js` and `scripts/browser-experimental-track-search-check.cjs` cover hierarchy/nonmutation, input focus, clearing, no matches, and uninterrupted playback. The browser check uses the Playwright environment variables documented above.
