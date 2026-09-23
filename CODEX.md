@@ -4744,3 +4744,9 @@ Assigned notes now show a clipped technique label plus the full name in their to
 Shared command filters accept `articulationId` as a string, null for unassigned, or omission for any. `notes.velocity` and `notes.articulation` now support `values.filter` alongside the existing filterable operations. Filters and explicit note IDs remain mutually exclusive. Agent prompts describe this, allowing edits such as adjusting only one technique’s velocity or assigning an articulation to unassigned notes. Matching uses stable IDs, not snapshot names or MIDI switch payloads.
 
 All 1,191 tests pass. The final build passes with the existing bundle warning. Unit tests cover ID distinction, null/combined conditions, filtered edits, Undo and mocked-provider agent commands. The browser check verifies real piano labels, HTML escaping, color grouping, assigned/unassigned selection, reset and unchanged session data. The rendered piano-roll screenshot was visually inspected. Live model behavior remains unverified.
+
+### Preserve articulations through note editing
+
+Arpeggiation now copies each source note’s articulation snapshot independently into its generated notes. Joining fragments stops when the articulation changes, including when the permitted gap could otherwise bridge another technique. Duplicate cleanup preserves different articulation IDs or MIDI mappings in both comparison modes. Names are display-only: renamed snapshots with the same ID and mapping remain equivalent. IDs matter because they select sampler sources.
+
+All 1,195 tests and the production build pass. Regression tests cover technique boundaries, duplicate cleanup, independent arpeggio snapshots, split/repeat preservation and Undo. The browser arpeggio workflow verifies assigned and unassigned generated notes, selection, Undo/Redo, reload and actual gated PCM. The existing bundle-size warning remains; physical MIDI devices and live agent inference were not tested for this change.
