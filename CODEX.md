@@ -4540,3 +4540,12 @@ After enabling Remember MIDI and playing a phrase, ask the agent to capture what
 The browser retains the observation time and memory version. New MIDI, pause/discard/restart, a changed destination, moved transport or changed session rejects a stale response. Capture does not enable MIDI access or monitoring. Save failure preserves a retryable take and reports failure rather than claiming success. Memory can contain only old events outside the window; capture then reports that nothing remains.
 
 `test/experimental-agent-midi-memory.test.js` covers capability gating, action arguments and missing destinations. Controller tests cover stale-memory rejection. `scripts/browser-experimental-agent-midi-memory-check.cjs` uses simulated MIDI and a mocked model response to test stale response rejection, retry, persisted notes/controllers, Undo/Redo and monitoring cleanup. All 1,139 tests and build pass. Live model inference and physical MIDI hardware remain unverified.
+
+
+### Drop-frame scoring timecode
+
+Experimental scoring controls now include Timecode format: Non-drop or Drop-frame. Drop-frame supports 29.97 and 59.94 fps, uses a semicolon before the frame number, and skips 2 or 4 labels respectively at each minute except every tenth minute. No video frames or timeline seconds are removed. The scoring display, timecode ruler and position parser all use the session setting. Existing sessions default to non-drop.
+
+`session.set` accepts `dropFrame` together with `frameRate`, so the agent uses the same validated, undoable setting. Invalid rate/format combinations reject atomically. Manually switching to an incompatible frame rate also switches to non-drop in the same undo step. Timecode entry rejects skipped frame labels. This changes timeline numbering only; it does not read a movie’s embedded source timecode or alter media playback.
+
+Reference: [Apple timecode technical note](https://developer.apple.com/library/archive/technotes/tn2310/_index.html). Unit checks exercise every frame across ten-minute transitions at both supported rates, hour boundaries, inverse conversion and settings history. `scripts/browser-experimental-drop-frame-check.cjs` covers minute-boundary frame stepping, invalid entry, reload, rate switching and Undo. All 1,141 tests and build pass; the existing bundle-size warning remains.
