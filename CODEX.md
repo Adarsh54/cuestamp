@@ -5207,3 +5207,11 @@ Verified with 1,331 passing tests, a production build, MusicXML schema validatio
 Select a score note and choose **Add chord tone** to open an unsaved draft. It retains the source timing, velocity, MIDI channel and articulation. The initial pitch is a diatonic third above in the project key (below at the top of the MIDI range); the sounding-pitch field remains editable. Apply uses the shared `notes.addMany` executor, so validation, playback, persistence and Undo follow ordinary MIDI edits. Cancel does not change the document. Duplicate pitch/start/duration combinations are rejected. Changing the draft timing is allowed and may produce a separate voice rather than a shared chord stem.
 
 Verified 1,334 passing tests and build; the score chord browser check now covers Cancel, adding a selectable tied chord tone, retained duration, and Undo. Live agent inference remains unverified; this action uses commands already exposed to the agent.
+
+### Score multi-note selection (2026-09-23)
+
+Shift-click or Shift+Enter/Space toggles score notes in the same MIDI region. Selecting another region starts a new selection. All tied heads highlight together. Multi-selection hides individual-note fields and offers **Duplicate selection after** (offset by the full selected phrase's musical span) and **Delete selected notes**. Delete/Backspace on a selected note deletes the selection; on an unselected note it deletes only that note. Pitch dragging/arrows still edit the focused note only. Edits use existing shared commands and one Undo step. Cancel/repaint clears the transient selection.
+
+Agent requests capture every selected note ID before repaint; region ownership and stale/malformed IDs are validated. Draft notes supply no selection. A pointer click is consumed once, preventing pointer-up plus click from toggling a note twice. Empty renderer measure slots are skipped rather than breaking long excerpts with trailing rests.
+
+Verified 1,336 tests and production build; browser multi-selection checks cover mouse and keyboard toggling, duplication, deletion, Undo and mocked-agent request context. Chord insertion and pitch-drag browser regressions pass. Live model inference and multi-region score selection remain unverified/unimplemented respectively.

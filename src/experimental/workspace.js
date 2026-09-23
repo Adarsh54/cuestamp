@@ -592,7 +592,7 @@ export function createExperimentalWorkspace({account,esc}){
    const original=history,before=structuredClone(session()),draftTicket=instructionDrafts.begin(before.id),revision=before.revision,request=new AbortController();agentController=request;const recent=structuredClone(conversation);trace.push({role:'user',text:instruction});agentBusy=true;paint();
    let outcome='failed',summary='',applied=false,appliedSession,verifying=false,transportTouched=false,followingTransport=false,followingExport=false;const timer=setTimeout(()=>request.abort(new Error('The agent request timed out.')),300000);
    try{
-    const capturedWaveformRange=scoreFocus?null:currentWaveformSelection(),capturedRegions=scoreFocus?[scoreFocus.regionId]:[...regionSelection],capturedSelection=scoreFocus?.noteId??(region()?.notes.some(n=>n.id===selectedNote)?selectedNote:selected),capturedNotes=scoreFocus?[scoreFocus.noteId]:noteTools.selectionRegion===region()?.id?[...(noteTools.selectedIds||[])]:[];
+    const capturedWaveformRange=scoreFocus?null:currentWaveformSelection(),capturedRegions=scoreFocus?[scoreFocus.regionId]:[...regionSelection],capturedSelection=scoreFocus?.noteId??(region()?.notes.some(n=>n.id===selectedNote)?selectedNote:selected),capturedNotes=scoreFocus?(scoreFocus.noteIds??[scoreFocus.noteId]):noteTools.selectionRegion===region()?.id?[...(noteTools.selectedIds||[])]:[];
     for(let editStep=0;editStep<3;editStep++){
     request.signal.throwIfAborted();if(editStep&&(history!==original||!root?.isConnected||session().revision!==appliedSession?.revision))throw Error('The session changed before the next editing step.');
     if(busy||recordAbort||midiInput.active)throw Error('Finish the current operation before continuing edits.');
