@@ -2349,3 +2349,11 @@ New hardware capture records include a SHA-256 fingerprint of their planned MIDI
 The comparison does not inspect hardware patches, audio cables, physical device settings, microphone/input configuration, or the captured audio bytes. It therefore says **Source MIDI is unchanged**, not that the hardware sound or recording is identical. Existing captures without a fingerprint remain readable and explicitly report unavailable comparison data.
 
 The server supplies `hardwareCaptures` observations to the agent with current status for up to 16 takes, prioritizing selected regions and reporting the total capture count. The agent must not infer statuses for omitted takes or claim to re-record automatically. Tests cover MIDI/controller changes, rename/mixer stability, Undo, serialization, legacy/missing/muted sources, bounded observations and browser status changes after editing and Undo.
+
+### Manual input-delay correction
+
+**Input delay · ms** in the MIDI recording controls accepts a measured positive delay from 0–2000 ms, defaulting to 0. For hardware recordings only, the recorder advances its capture start/end frames by the rounded delay in samples while leaving MIDI scheduling and the saved region's project start unchanged. This removes the corresponding delayed lead-in and keeps the intended captured duration, including the release tail. A value that exceeds the actual input delay can remove wanted opening audio. Ordinary microphone recordings are unaffected.
+
+The value is a transient recording preference and is saved as `hardwareRecording.latencyMs` with each captured audio region; the inspector displays it. This is a user-supplied correction, not automatic latency measurement or proof of physical alignment. Changing devices, drivers, buffer settings or the audio route may require a different measured value. Negative corrections and calibration signals are not implemented.
+
+Tests cover default/invalid settings and sample rounding at 44.1/48 kHz. The simulated browser recorder verifies a 100 ms shift between the MIDI schedule and AudioWorklet capture boundary, a preserved 0.6-second audio region, and saved correction metadata. Real instrument/input round-trip timing remains unverified.
