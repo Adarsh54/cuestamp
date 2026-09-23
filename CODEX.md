@@ -5237,3 +5237,11 @@ Import reuses the shared atomic `midi.import` command, inserts at the playhead a
 Verified 1,345 tests and build, plus `scripts/browser-experimental-musicxml-import-check.cjs`: actual file-picker import/Undo, multipart exported-score round trip, chord/tie durations, tempo changes, transposed keys/pitches, velocity precision and malformed/unsupported input rejection. An independent XML fixture covers pickups, changing divisions, voice backup/forward and dotted metronome tempo. Pure MIDI conversion tests verify overlapping unisons and shared-command Undo.
 
 References: W3C MusicXML 4.0 [backup](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/backup/), [transpose](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/transpose/), [tie](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/tie/), [note dynamics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/note/).
+
+### Compressed MusicXML import (2026-09-23)
+
+**Import files** now accepts `.mxl` archives, superseding the compressed-file limitation above. The reader follows the first rootfile in `META-INF/container.xml`, including nested score paths; alternate PDF/audio/image contents are not inflated. Older archives without `mimetype` are accepted. Compressed input and expanded score are each limited to 8 MB, the manifest to 64 KB, and archive entries to 1,024. Streaming extraction enforces actual expanded byte limits. Missing/malformed manifests, invalid root paths, invalid UTF-8 and unsupported ZIPs fail before project mutation. The existing partwise parser, tempo/signature options and atomic MIDI import handle the extracted score. Import placement is captured before asynchronous reads/decompression.
+
+Verified 1,348 tests and build; `scripts/browser-experimental-mxl-import-check.cjs` tests manifest-directed nested-score selection rather than decoy XML, legacy archives, invalid manifest rejection, actual file-picker import and Undo. Unit tests exercise expanded-size limits, invalid text and root paths. Full notation/layout import and timewise/opus scores remain pending.
+
+Reference: [W3C compressed MusicXML container specification](https://www.w3.org/2021/06/musicxml40/tutorial/compressed-mxl-files/).

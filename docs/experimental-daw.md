@@ -2398,3 +2398,5 @@ editing, advanced engraving and MusicXML import remain unfinished.
 ### MusicXML note interchange (2026-09-23)
 
 Partwise uncompressed MusicXML can now be imported through Import files as editable MIDI tracks, with shared MIDI tempo/signature options and atomic Undo. Chords, voices, ties, sounding-pitch transposition and explicit tempo/key/meter data are interpreted. This is note interchange, not full preservation of an engraved document: layout, expression/articulation and instrument patches are not imported, and repeat/grace/percussion/ornament playback requires a performed MIDI export. See the CODEX MusicXML import checkpoint for precise limits and evidence. Compressed/timewise scores and full engraving round-trip remain incomplete.
+
+Compressed `.mxl` note import is now implemented (2026-09-23): resolve the container's first rootfile, extract within byte limits and reuse the partwise MIDI conversion. Embedded alternate media is ignored. Browser import/Undo and bounded extraction tests pass; timewise/opus and full engraving interchange remain incomplete.
