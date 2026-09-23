@@ -162,3 +162,7 @@ form.daw-note-editor{margin-top:8px}
 .daw-sample-zone-map [data-zone-handle] { fill: var(--text); stroke: var(--bg); cursor: ew-resize; }
 .daw-sample-zone-map [data-zone-handle^="velocity"] { cursor: ns-resize; }
 .daw-sample-zone-map [data-zone-shape]:focus, .daw-sample-zone-map [data-zone-handle]:focus { outline: 2px solid currentColor; }
+.daw-sampler-group-members { grid-column: 1 / -1; min-width: 0; }
+.daw-sampler-group-members label { display: flex; align-items: center; gap: 8px; }
+[data-sampler-group] > .button-row { grid-column: 1 / -1; }
+.daw-sampler-group-members { max-height: 220px; overflow: auto; }

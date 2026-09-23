@@ -1,4 +1,4 @@
-import {sampleZoneLevel,connectSampleZone} from './sampler-zone-voice.js';
+import {sampleZoneLevel,connectSampleZone,sampleGroupDestination} from './sampler-zone-voice.js';
 import {createPitchBendState} from './pitch-bend-state.js';
 import {pitchBendRangeSchema} from './pitch-bend.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
@@ -14,7 +14,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
  if(instrument==='sampler'&&!sampleBuffer&&!sampleResolver)throw Error('Assign a sampler source before monitoring MIDI.');
  const loop=instrument==='sampler'&&!sampleResolver?samplerLoop(sampleBuffer,{sampleLoop:loopEnabled,sampleLoopStart,sampleLoopEnd}):null;
  const envelope=samplerEnvelope({sampleAttack,sampleDecay,sampleSustain,sampleRelease});
- const voices=new Set(),channels=new Map();let disposed=false;
+ const voices=new Set(),channels=new Map(),groups=new Map();let disposed=false;
  function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false});update(channels.get(id));}return channels.get(id);}
  function update(c){c.gain.gain.setValueAtTime(c.volume*c.expression,context.currentTime);}
  function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();v.zonePan?.disconnect();}
@@ -29,7 +29,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
    while(voices.size>=maxVoices)release(voices.values().next().value,true);
    const drum=instrument==='drumKit',sampler=instrument==='sampler',osc=(drum||sampler)?context.createBufferSource():context.createOscillator(),gain=context.createGain(),now=context.currentTime;
    if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=layer?.buffer??sampleBuffer;Object.assign(osc,layer?samplerLoop(layer.buffer,layer):loop);osc.playbackRate.value=samplerPlaybackRate(a,layer?.sampleRoot??sampleRoot,{sampleTune,sampleFineTune,...(layer??{})});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127*sampleZoneLevel(layer??{}),envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
-   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,c.gain,layer??{});const v={zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();}
+   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,sampleGroupDestination(context,c.gain,layer??{},groups,id),layer??{});const v={zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();}
 
   }else if(kind===0x80||(kind===0x90&&!b)){
    const v=matching().find(v=>v.pitch===a&&v.held);if(v)for(const layer of matching().filter(n=>n.group===v.group)){layer.held=false;if(!c.sustain&&!layer.drum)release(layer);}
@@ -44,5 +44,5 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
    if(a===121){c.expression=1;c.sustain=false;update(c);for(const v of matching()){if(!v.drum)v.osc.detune.setValueAtTime(c.bendState.cents,context.currentTime);if(!v.held&&!v.drum)release(v);}}
   }
  }
- return {push,get voiceCount(){return voices.size;},stop(){if(disposed)return;disposed=true;for(const v of [...voices])release(v,true);for(const c of channels.values()){c.gain.disconnect();c.pan.disconnect();}channels.clear();}};
+ return {push,get voiceCount(){return voices.size;},stop(){if(disposed)return;disposed=true;for(const v of [...voices])release(v,true);for(const c of channels.values()){c.gain.disconnect();c.pan.disconnect();}channels.clear();for(const node of groups.values())node.disconnect();groups.clear();}};
 }
