@@ -26,7 +26,15 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
   performance(){const end=Math.max(0,(stoppedAt??context.currentTime)-base);return {sessionId:session.id,revision:session.revision,events:launches.flatMap((event,i)=>{const duration=Math.min(event.duration,end-event.start,(launches[i+1]?.start??Infinity)-event.start);return duration>1e-6?[{...event,duration}]:[];})};},
   get endPosition(){return (pending||current).when-base+(pending||current).plan.end;},
   get meters(){return current.graph.meters;},get automation(){return current.graph.automation;},readEffectMeters:()=>current.graph.readEffectMeters?.(),
-  advance(){if(!pending||context.currentTime<pending.when)return null;current.stop();current=pending;pending=null;transport.scenePreview=current.plan.sceneId;return current.plan;},
+  advance(){current.graph.collectVoices?.();if(!pending||context.currentTime<pending.when)return null;current.stop();current=pending;pending=null;transport.scenePreview=current.plan.sceneId;return current.plan;},
+  launchCell({plan,trackId,quantization,regions}){
+   if(stopped)throw Error('Start scene playback before launching a cell.');
+   if(transport.recordPerformance)throw Error('Cell launching is not yet supported during scene performance recording.');
+   transport.advance();if(pending)throw Error('Wait for the queued scene before launching a cell.');
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell can launch. Start a longer audition.');
+   current.graph.replaceTrackRegions(trackId,regions,{when,duration:plan.end});return {position,trackId};
+  },
   queue(plan,quantization){
    if(stopped)throw Error('Start scene playback before cueing another scene.');transport.advance();
    if(launches.length>=100)throw Error('Stop and save this performance before launching more than 100 scenes.');

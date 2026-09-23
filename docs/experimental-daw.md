@@ -2213,3 +2213,7 @@ Timed scenes can now hand off immediately or on the next eligible beat/bar, usin
 ### Scene performance capture checkpoint
 
 Manual Record performance now captures the audio-clock scene launch sequence, including quantized handoffs. A stopped take survives local refresh and can be placed as editable regions in one undoable edit, manually or through the agent's shared scene.performance command. It does not render the mix or capture restarted automation/tail behavior. Saving checks captured scene/source fingerprints; legacy takes without fingerprints require their source session revision. Independent cell launching, editable performance-take management and full scene/arrangement automation parity remain unfinished.
+
+### Independent cell launch checkpoint
+
+A selected scene cell can now launch on its own track during scene audition, immediately or on a beat/bar. Voices switch before the persistent track effects, preserving shared mixer routing and other instruments. Duration is bounded by the current scene window. Manual controls and launch_scene_cell use the same validation. Native audio tests verify preserved delay history, bus gain and unaffected MIDI playback. Cell Stop, independent indefinite cell transport and cell-level performance recording remain unfinished; whole-scene performance recording still rejects individual cell launches.

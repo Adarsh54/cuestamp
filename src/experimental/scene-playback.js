@@ -24,3 +24,11 @@ export function sceneAudition(session,values){
  document.scenes=[];document.loopEnabled=false;document.metronomeEnabled=false;
  return {kind:'scene',sceneId,sourceSignature:sceneSourceSignature(session,sceneId),document,position:0,end:duration,label:`Auditioning scene “${scene.name}” for ${duration} s`};
 }
+
+export const sceneCellLaunchSchema=sceneQueueSchema.extend({trackId:z.string().min(1).max(100)});
+export function sceneCellPlan(session,values){
+ const {sceneId,trackId,duration,quantization}=sceneCellLaunchSchema.parse(values),scene=session.scenes.find(s=>s.id===sceneId),track=session.tracks.find(t=>t.id===trackId);
+ const cell=scene?.cells.find(c=>track?.regions.some(r=>r.id===c.regionId));if(!cell)throw Error('Assign a clip to this cell before launching it.');
+ const document={...session,scenes:session.scenes.map(s=>s.id===sceneId?{...s,cells:[cell]}:s)},plan=sceneAudition(document,{sceneId,duration}),regions=plan.document.tracks.find(t=>t.id===trackId).regions;
+ return {plan,trackId,quantization,regions};
+}
