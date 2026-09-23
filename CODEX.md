@@ -5201,3 +5201,9 @@ Local preflight on this checkpoint found `OPENAI_API_KEY` and `DAW_AGENT_MODEL` 
 Simultaneous pitched notes with equal notated start/end ticks share a MusicXML voice and chord stem. Unequal overlapping durations retain separate voices. Each chord member keeps its velocity and bar-crossing ties; chord members advance measure time only once. Preview hit-testing uses the renderer's individual VexFlow note index because OSMD returns all chord heads for each note. Ambiguous source notes remain uneditable rather than guessing. This does not modify MIDI timing or playback.
 
 Verified with 1,331 passing tests, a production build, MusicXML schema validation, and `scripts/browser-experimental-score-chord-check.cjs` (independent chord-note selection, tied-note edits and Undo). The existing large-chunk build warning remains. Broader DAW parity and live model inference remain incomplete.
+
+### Add chord tones from notation (2026-09-23)
+
+Select a score note and choose **Add chord tone** to open an unsaved draft. It retains the source timing, velocity, MIDI channel and articulation. The initial pitch is a diatonic third above in the project key (below at the top of the MIDI range); the sounding-pitch field remains editable. Apply uses the shared `notes.addMany` executor, so validation, playback, persistence and Undo follow ordinary MIDI edits. Cancel does not change the document. Duplicate pitch/start/duration combinations are rejected. Changing the draft timing is allowed and may produce a separate voice rather than a shared chord stem.
+
+Verified 1,334 passing tests and build; the score chord browser check now covers Cancel, adding a selectable tied chord tone, retained duration, and Undo. Live agent inference remains unverified; this action uses commands already exposed to the agent.
