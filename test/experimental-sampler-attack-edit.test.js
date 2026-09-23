@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {editSampleAttacks} from '../src/experimental/sampler-attack-edit.js';
+const buffer={sampleRate:1000,length:1000};
+test('manual attacks add, move and remove at exact source frames without mutating input',()=>{const markers=[.2,.7];assert.deepEqual(editSampleAttacks(markers,'add',.4001,0,buffer),[.2,.4,.7]);assert.deepEqual(editSampleAttacks(markers,'move',.8,.2,buffer),[.7,.8]);assert.deepEqual(editSampleAttacks(markers,'remove',NaN,.2,buffer),[.7]);assert.deepEqual(markers,[.2,.7]);assert.deepEqual(editSampleAttacks([],'add',.3,0,buffer),[.3]);});
+test('manual attacks reject endpoints, missing selections and duplicate sample boundaries',()=>{for(const [op,time,selected] of [['add',0,0],['add',1,0],['add',NaN,0],['add',.2001,0],['move',.7,.2],['remove',0,.5]])assert.throws(()=>editSampleAttacks([.2,.7],op,time,selected,buffer));});
