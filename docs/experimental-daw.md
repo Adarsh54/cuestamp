@@ -2373,3 +2373,16 @@ Tests cover unchanged session state, restored position/destination/correction an
 The server validates source/destination availability; the browser checks revision and transport epoch again before applying. Manual changes to playhead, output scope/device, recording destination, tail or input correction invalidate an outstanding preparation response. The action cannot be combined with an edit batch or follow-up playback/export.
 
 Tests cover tool capability, strict arguments, missing/protected destinations, shared browser preparation, unchanged project/input count and rejection after a manual seek during a delayed model response. Model responses and hardware are simulated; live-provider inference is not verified.
+
+## Notation interchange checkpoint — 2026-09-23
+
+The earlier status table is an initial checkpoint, not a current inventory; later
+implementation notes in CODEX.md supersede its pending entries. The full capability
+groups remain required.
+
+Selected pitched MIDI regions now export MusicXML 4.0 with project tempo/meter,
+polyphonic voices, partial measures and cross-bar ties. Unit and browser download
+checks pass, and the downloaded fixture validates against the official 4.0 XSD.
+This adds notation interchange, not an interactive score editor. Percussion,
+engraving controls, lyrics, MusicXML import and external notation-app verification
+remain incomplete. Agent-triggered MusicXML export is also not implemented yet.

@@ -1,0 +1,32 @@
+import {compileTempoMap,regionBeatTiming} from './tempo-map.js';
+import {compileMeterMap} from './meter-map.js';
+export const MUSICXML_DIVISIONS=960;
+const xml=value=>String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+const pitches=[['C',0],['C',1],['D',0],['D',1],['E',0],['F',0],['F',1],['G',0],['G',1],['A',0],['A',1],['B',0]];
+export function musicxmlRegionPlan(session,track,region){
+ if(track?.kind!=='midi'||!track.regions.some(r=>r.id===region?.id))throw Error('Select a MIDI region to export notation.');
+ if(track.instrument==='drumKit'||region.notes.some(n=>n.channel===9))throw Error('Percussion notation is not supported yet. Select a pitched MIDI region.');
+ const timing=regionBeatTiming(region,session),tempo=compileTempoMap(session),meter=compileMeterMap(session),origin=tempo.beatAtTime(region.start),endBeat=tempo.beatAtTime(region.start+region.duration),tick=beat=>Math.round((beat-origin)*MUSICXML_DIVISIONS),total=tick(endBeat);
+ if(total<1)throw Error('The region is shorter than one notation tick.');
+ const notes=region.notes.filter(n=>!n.mute&&n.velocity>0).map(n=>({...n,startTick:Math.round(timing.beatAtTime(n.start)*MUSICXML_DIVISIONS),endTick:Math.round(timing.beatAtTime(n.start+n.duration)*MUSICXML_DIVISIONS)})).sort((a,b)=>a.startTick-b.startTick||b.pitch-a.pitch);
+ const voiceEnds=[];for(const n of notes){if(n.endTick<=n.startTick||n.startTick<0||n.endTick>total)throw Error('A note is too short or outside the region at 1/960-quarter-note resolution.');let voice=voiceEnds.findIndex(end=>end<=n.startTick);if(voice<0)voice=voiceEnds.length;if(voice>=128)throw Error('Notation export supports at most 128 simultaneous voices.');voiceEnds[voice]=n.endTick;n.voice=voice+1;}
+ const measures=[];let bar=meter.positionAtBeat(origin).bar,at=origin;
+ while(at<endBeat-1e-9){if(measures.length>=2048)throw Error('Export up to 2,048 measures at a time.');const next=Math.min(endBeat,meter.barStart(bar+1)),signature=meter.signatureAtBar(bar),start=tick(at),end=tick(next);if(end>start)measures.push({bar,start,end,signature,partial:at>meter.barStart(bar)+1e-9||next<meter.barStart(bar+1)-1e-9,tempos:[...(measures.length===0?[{beat:at,bpm:tempo.tempoAtBeat(at)}]:[]),...tempo.points.filter(p=>p.beat>=at&&p.beat<next&&(measures.length>0||p.beat>at))].map(p=>({offset:tick(p.beat)-start,bpm:p.bpm}))});at=next;bar++;}
+ return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
+}
+export function exportRegionMusicxml(session,track,region){
+ const plan=musicxmlRegionPlan(session,track,region),parts=[];let lastSignature='';
+ for(const [index,m] of plan.measures.entries()){
+  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions><key><fifths>0</fifths></key>':''}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?'<clef><sign>G</sign><line>2</line></clef>':''}`;lastSignature=signature;
+  const music=[attributes?`<attributes>${attributes}</attributes>`:'',...m.tempos.map(t=>`<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${t.bpm}</per-minute></metronome></direction-type><offset>${t.offset}</offset><sound tempo="${t.bpm}"/></direction>`)];
+  for(let voice=1;voice<=plan.voices;voice++){
+   if(voice>1)music.push(`<backup><duration>${m.end-m.start}</duration></backup>`);let cursor=m.start;
+   const rest=duration=>`<note><rest/><duration>${duration}</duration><voice>${voice}</voice></note>`;
+   for(const n of plan.notes.filter(n=>n.voice===voice&&n.startTick<m.end&&n.endTick>m.start)){
+    const start=Math.max(m.start,n.startTick),end=Math.min(m.end,n.endTick);if(start>cursor)music.push(rest(start-cursor));const [step,alter]=pitches[n.pitch%12],ties=[...(n.startTick<m.start?['stop']:[]),...(n.endTick>m.end?['start']:[])];
+    music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${Math.floor(n.pitch/12)-1}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${ties.length?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}</notations>`:''}</note>`);cursor=end;
+   }if(cursor<m.end)music.push(rest(m.end-cursor));
+  }parts.push(`<measure number="${index+1}"${m.partial?' implicit="yes"':''}>${music.join('')}</measure>`);
+ }
+ return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(region.name||session.title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list><score-part id="P1"><part-name>${xml(track.name)}</part-name></score-part></part-list><part id="P1">${parts.join('')}</part></score-partwise>`;
+}
