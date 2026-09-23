@@ -1,9 +1,10 @@
+import {snappedBeat} from './musical-quantize.js';
 import {z} from 'zod';
 import {selectedRegions} from './region-selection.js';
 import {compileTempoMap} from './tempo-map.js';
 import {localAttackMarkers} from './attack-markers.js';
 const options=z.object({regionIds:z.string().min(1).max(101000),grid:z.number().finite().min(.01).max(16),strength:z.number().finite().min(0).max(1).default(1),swing:z.number().finite().min(0).max(.75).default(0),anchor:z.enum(['start','firstAttack']).default('start'),mode:z.enum(['individual','group']).default('individual')}).strict();
-function snappedBeat(beat,grid,swing){const pair=Math.floor(beat/(2*grid)),points=[];for(let p=Math.max(0,pair-1);p<=pair+1;p++)points.push(p*2*grid,(p*2+1+swing)*grid);return points.reduce((best,p)=>Math.abs(p-beat)<Math.abs(best-beat)?p:best,points[0]);}
+
 export function quantizeAudioRegions(session,values){
  const v=options.parse(values),selected=selectedRegions(session,v.regionIds.split(',')),ids=new Set(selected.map(r=>r.id)),regions=session.tracks.filter(t=>t.kind==='audio').flatMap(t=>t.regions.filter(r=>ids.has(r.id)));
  if(!regions.length)throw Error('Select at least one audio region.');const map=compileTempoMap(session),anchors=new Map();

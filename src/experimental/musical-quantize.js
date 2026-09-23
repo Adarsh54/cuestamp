@@ -1,0 +1,1 @@
+export function snappedBeat(beat,grid,swing){const pair=Math.floor(beat/(2*grid)),points=[];for(let p=Math.max(0,pair-1);p<=pair+1;p++)points.push(p*2*grid,(p*2+1+swing)*grid);return points.reduce((best,p)=>Math.abs(p-beat)<Math.abs(best-beat)?p:best,points[0]);}
