@@ -1,4 +1,4 @@
-import {hardwareRecordingOptions} from './hardware-recording.js';
+import {hardwareRecordingOptions,hardwareRecordingSource} from './hardware-recording.js';
 import {channelAllocationView} from './midi-channel-allocation.js';
 import {midiOutputPlaybackPlan} from './midi-output-plan.js';
 export function createMidiOutput({session,position,beforePlay,onChange,onPosition=()=>{},onRecord=null,requestAccess=()=>navigator.requestMIDIAccess({sysex:false}),clock=()=>performance.now(),schedule=setInterval,unschedule=clearInterval}){
@@ -37,7 +37,7 @@ export function createMidiOutput({session,position,beforePlay,onChange,onPositio
   beforePlay({agent,recording});const token=++epoch;opening=true;notice='Opening MIDI output…';changed();
   try{await output.open();if(disposed||epoch!==token){if(port!==output)await output.close();throw Error('MIDI output preparation canceled.');}if(output.state!=='connected')throw Error('MIDI output disconnected.');port=output;
    const start=(startAt=clock()+50)=>{if(disposed||epoch!==token||!opening)throw Error('MIDI output preparation canceled.');if(!Number.isFinite(startAt)||startAt<clock())throw Error('MIDI output start time has passed.');plan={...prepared,releaseTail:recording,onFailure};index=0;base=startAt;origin=base;lastTick=clock();notice=(plan.cycle?'Cycling on ':'Playing on ')+(output.name||'MIDI output');opening=false;tick();if(plan)timer=schedule(tick,25);changed();};
-   return Object.assign(start,{duration:prepared.end-prepared.start,cycle:prepared.cycle});
+   return Object.assign(start,{duration:prepared.end-prepared.start,cycle:prepared.cycle,...(recording?{hardwareRecording:hardwareRecordingSource(session(),prepared,output.name||'MIDI output',scope)}:{})});
   }catch(error){if(epoch===token){stop(error.message);changed();}throw error;}
  }
  async function play(options={}){if(opening||plan)return;try{const start=await prepare(options);start();}catch(error){if(!opening&&!plan){notice=error.message;changed();}}}

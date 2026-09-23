@@ -8,10 +8,10 @@ export function mediaDestination(session,trackId,kind='audio'){
  if(destination.regions.length>=1000)throw Error('This track already has 1,000 regions. Choose another track.');
  return destination;
 }
-export function mediaImportPlan(session,{trackId,kind='audio',assetId,name,start,duration}){
+export function mediaImportPlan(session,{trackId,kind='audio',assetId,name,start,duration,hardwareRecording}){
  const destination=mediaDestination(session,trackId,kind),id=destination?.id||crypto.randomUUID(),regionId=crypto.randomUUID(),commands=[];
  if(!destination)commands.push({op:'track.add',values:{id,name:name.replace(/\.[^.]+$/,'').slice(0,200),kind}});
- commands.push({op:'region.add',target:id,values:{id:regionId,name:name.slice(0,200),assetId,start,duration}});
+ commands.push({op:'region.add',target:id,values:{id:regionId,name:name.slice(0,200),assetId,start,duration,...(hardwareRecording?{hardwareRecording:JSON.stringify(hardwareRecording)}:{})}});
  // Validate before storing new media. Execution still revalidates against current state.
  applyCommands(session,commands);
  return {commands,trackId:id,regionId};
