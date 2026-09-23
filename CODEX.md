@@ -5074,3 +5074,10 @@ Verification: `scripts/browser-experimental-score-preview-check.cjs` opens a pol
 The score preview now offers Treble, Bass, Alto and Tenor clefs. This persists as optional track `scoreClef`; legacy tracks use treble. Manual changes execute `track.set`, so Undo/Redo and agent edits use the same validation. `track.add` also accepts the setting. Changing clef does not transpose pitches or alter MIDI timing/playback. MusicXML export and in-app rendering read the same track setting (G/2, F/4, C/3 or C/4 respectively).
 
 Verification: `test/experimental-score-clef.test.js` checks supported clefs, exact MusicXML attributes, persistence, invalid-value rejection, unchanged notes and Undo. `scripts/browser-experimental-score-clef-check.cjs` changes the rendered preview to bass, downloads the matching XML, and restores treble with Undo. The bass score was visually inspected and its downloaded file validates against MusicXML 4.0. Full suite: 1,296 passing; build passes.
+
+### Score key signatures (2026-09-23)
+
+- Score preview and MusicXML use the project key map, including the key active when an excerpt begins. Unknown keys no longer assert C major. Diatonic spelling follows sharps/flats, including octave-sensitive B-sharp/C-flat; MIDI notes are unchanged.
+- MusicXML exports key changes at their musical position. Sustained notes split into tied notation segments while preserving onset spelling. Attributes follow MusicXML score-order semantics: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/attributes/ .
+- OSMD 2.1.3 incorrectly places mid-bar key changes at the bar start in the tested preview. The preview explicitly refuses these passages and directs users to export; bar-boundary changes render correctly. Export is schema-validated, but opening these changes in third-party notation editors remains unverified.
+- Regression: `node --test test/experimental-musicxml-key.test.js`; browser: `scripts/browser-experimental-score-key-check.cjs` with the documented Playwright environment. Browser check renders/zooms a two-key passage and exports without mutating session data.
