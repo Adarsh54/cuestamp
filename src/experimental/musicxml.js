@@ -5,7 +5,7 @@ export const MUSICXML_DIVISIONS=960;
 const xml=value=>String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const pitches=[['C',0],['C',1],['D',0],['D',1],['E',0],['F',0],['F',1],['G',0],['G',1],['A',0],['A',1],['B',0]];
 const natural={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-function spelledPitch(pitch,key){
+export function spelledPitch(pitch,key){
  const count=key?.sharps??0,order=count<0?'BEADGCF':'FCGDAEB',altered=new Set(order.slice(0,Math.abs(count)));
  const diatonic=Object.entries(natural).map(([step,pc])=>[step,altered.has(step)?Math.sign(count):0,pc]);
  const match=diatonic.find(([,alter,pc])=>(pc+alter+12)%12===pitch%12);

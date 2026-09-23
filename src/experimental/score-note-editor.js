@@ -1,3 +1,4 @@
+import {bindScorePitchDrag} from './score-pitch-drag.js';
 import {musicxmlRegionPlan,scorePartRegions} from './musicxml.js';
 export function scoreNotePlans(session,track,region,scope){
  const parts=scope==='arrangement'?scorePartRegions(session):[{track,region}];
@@ -35,7 +36,7 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
  for(const [element,target] of targets){
   if(!target)continue;const {reference,pitch}=target;
   element.dataset.scoreNote=reference.noteId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label',`Edit MIDI note ${pitch}`);element.style.cursor='pointer';
-  element.onclick=e=>{e.stopPropagation();select(reference);};element.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(reference);}};
+  bindScorePitchDrag(element,{session,reference,zoom:renderer.Zoom,execute,guard,onSelect:()=>select(reference)});
  }
  form.onsubmit=guard(e=>{e.preventDefault();if(!selected)throw Error('Select a score note first.');const values=Object.fromEntries(['pitch','start','duration','velocity'].map(key=>[key,Number(form.elements.namedItem(key).value)]));execute([{op:'note.set',target:selected.id,values}],'Edited score note');});
  form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
