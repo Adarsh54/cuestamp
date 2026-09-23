@@ -5022,3 +5022,11 @@ The attack panel now accepts a **Marker position · source seconds** for **Add m
 Successful edits stop any pending detection, update waveform lines and recompute the slice preview. They do not modify the session or source file. Create playable slices applies the edited marker layout through the existing planner. Running detection again or changing its settings replaces/clears manual markers; source/zone changes also clear them. Invalid edits retain the existing marker list.
 
 Verification: `test/experimental-sampler-attack-edit.test.js` checks nonmutating add/move/remove, frame alignment, endpoint rejection, missing selection and duplicate prevention. `scripts/browser-experimental-sampler-attack-edit-check.cjs` exercises the controls, live slice counts, rejection without changes, creation from the edited layout, native rendered slice audio and Undo. Controls were visually inspected. Full suite: 1,287 passing; build passes.
+
+## Place attack markers directly on the waveform
+
+Enable **Place attack markers** above the zone waveform, then click to insert an attack at that source position. The toggle reports its pressed state and shows an instruction while active. Pointer coordinates follow the current zoomed interval and markers snap to source frames through the same validation as timestamp entry. This mode does not drag/change source or loop boundaries; turn it off to resume range editing. Inserting a marker opens the attack panel and selects it for precise timestamp adjustment or removal.
+
+Source endpoints and duplicate marker positions are rejected without changing the list. The mode resets on waveform refresh/source selection; markers remain temporary until used to create slices. Numeric entry remains available without pointer interaction.
+
+Verification: `scripts/browser-experimental-sampler-marker-placement-check.cjs` adds markers at known positions in a zoomed source view, verifies unchanged range/loop/session values, rejects a duplicate, disables placement mode, refines timestamps, creates slices, renders their source ranges and checks Undo. Existing loop gesture browser checks and production build pass. The resulting waveform/editor was visually inspected.
