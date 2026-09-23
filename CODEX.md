@@ -3773,8 +3773,8 @@ with 400 ms blocks, 75% overlap, an absolute −70 gate and a relative −10 LU 
 Incomplete blocks are excluded; insufficient duration or level returns null.
 The DSP supports 8–192 kHz, ten minutes and 250 MB of PCM; mix rendering retains
 its existing limits. Filtering uses a small ring buffer instead of another full
-PCM copy. This adds integrated measurement, not automatic LUFS normalization,
-true-peak, loudness range, or a live loudness meter.
+PCM copy. This adds integrated measurement; true-peak, loudness range, and a live
+loudness meter remain unimplemented.
 
 References: [ITU-R BS.1770-5, Annex 1](https://www.itu.int/dms_pubrec/itu-r/rec/bs/R-REC-BS.1770-5-202311-I!!PDF-E.pdf)
 and [De Man filter parameterization](https://github.com/BrechtDeMan/loudness.py).
@@ -3784,3 +3784,23 @@ coefficients and compare gated mono/stereo fixtures at 44.1/48/96 kHz within
 0.11 LU of FFmpeg's rounded output. This is regression coverage, not certification.
 The browser mix-analysis script checks actual worker/render output, stale-result
 rejection and the measurement passed to a mocked agent provider.
+
+### Experimental DAW: measured loudness adjustment
+
+The Mix analysis panel includes a LUFS target and sample-peak ceiling. Both the
+manual control and `normalize_mix_loudness` agent tool use
+`loudnessNormalizationPlan`: target minus measured LUFS, capped at the measured
+sample-peak headroom. The adjustment offsets master gain and its active volume
+curve after inserts, in one undo step, then renders and analyzes again. A ceiling
+can prevent reaching the requested target; the UI and agent report that limit.
+Gating changes may also change the resulting integrated loudness, so the initial
+estimate is not a guarantee. There is no iterative gain loop, limiter, compressor,
+or true-peak guarantee. Bounds are −60..−5 LUFS and −60..0 dBFS, subject to the
+existing master volume/automation bounds. Defaults are editable −14 LUFS / −1 dBFS.
+
+Missing, silent and stale measurements disable the manual action. The agent tool
+is offered only with current non-null integrated loudness; `analyze_mix` can
+obtain fresh measurements first. Returned gain commands go through the shared
+command engine and require post-edit mix verification. Tests cover ceiling caps,
+invalid inputs, revision checks and undo. The browser test verifies a real LUFS
+change and a fresh measurement, retained form settings and undo invalidation.
