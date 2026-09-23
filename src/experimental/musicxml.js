@@ -1,3 +1,4 @@
+import {musicxmlRhythm} from './musicxml-rhythm.js';
 import {compileTempoMap,regionBeatTiming} from './tempo-map.js';
 import {compileKeyMap} from './key-map.js';
 import {compileMeterMap} from './meter-map.js';
@@ -44,7 +45,9 @@ function regionMeasures(session,track,region){
     for(const n of plan.notes.filter(n=>n.voice===voice&&n.startTick<right&&n.endTick>left)){
      const start=Math.max(left,n.startTick),end=Math.min(right,n.endTick);if(start>cursor)music.push(rest(start-cursor));
      const {step,alter,octave}=spelledPitch(n.pitch,keys.keyAtBeat(tempo.beatAtTime(region.start+n.start))),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
-     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${ties.length?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}</notations>`:''}</note>`);cursor=end;
+     const rhythm=musicxmlRhythm(end-start);
+     if(rhythm.triplet)music.push(`<direction placement="above"><direction-type><words font-size="9">3:2</words></direction-type><voice>${voice}</voice></direction>`);
+     music.push(`<note dynamics="${(n.velocity*100).toFixed(3)}"><pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||rhythm.notation?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${rhythm.notation}</notations>`:''}</note>`);cursor=end;
     }if(cursor<right){music.push(rest(right-cursor));cursor=right;}
    }
   }parts.push(`<measure number="${index+1}"${m.partial?' implicit="yes"':''}>${music.join('')}</measure>`);

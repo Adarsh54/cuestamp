@@ -22,7 +22,7 @@ export function scorePreviewView(track,region,session){
 }
 export function bindScorePreview(root,{session,track,region,execute,guard}){
  const panel=root.querySelector('[data-score-preview]');if(!panel)return;
- const sheet=panel.querySelector('[data-score-sheet]'),status=panel.querySelector('output'),zoom=panel.querySelector('[data-score-zoom]'),scope=panel.querySelector('[data-score-scope]');
+ const sheet=panel.querySelector('[data-score-sheet]'),status=panel.querySelector('[data-score-status]'),zoom=panel.querySelector('[data-score-zoom]'),scope=panel.querySelector('[data-score-scope]');
  let renderer=null,loadedScope=null,generation=0;
  const draw=async()=>{
   if(!panel.open||!panel.isConnected)return;
