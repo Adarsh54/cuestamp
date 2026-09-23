@@ -1,0 +1,7 @@
+import {z} from 'zod';
+export const attackMarkersSchema=z.array(z.number().finite().nonnegative().max(86400)).max(10000).refine(values=>values.every((v,i)=>!i||v>values[i-1]),'Attack markers must be ordered and distinct.');
+export function localAttackMarkers(region){return (region.attackMarkers||[]).map(t=>region.reverse?region.offset+region.duration-t:t-region.offset).filter(t=>t>1e-9&&t<region.duration-1e-9).sort((a,b)=>a-b);}
+export function setAttackMarkers(track,region,values){const v=z.object({times:z.string().max(250000)}).strict().parse(values),times=attackMarkersSchema.parse(JSON.parse(v.times));if(track.kind!=='audio'||!region.assetId)throw Error('Select an audio region with a source file.');if(times.some(t=>t<=0||t>=region.duration))throw Error('Attack markers must be inside the region.');region.attackMarkers=attackMarkersSchema.parse(times.map(t=>region.reverse?region.offset+region.duration-t:region.offset+t).sort((a,b)=>a-b));}
+export function editAttackMarkers(markers,operation,time,index){
+ const result=[...markers];if(operation==='add')result.push(time);else if(operation==='move'||operation==='delete'){if(!Number.isInteger(index)||index<0||index>=result.length)throw Error('Choose an existing marker number.');if(operation==='move')result[index]=time;else result.splice(index,1);}else if(operation!=='save')throw Error('Unknown marker edit.');return attackMarkersSchema.parse(result.sort((a,b)=>a-b));
+}

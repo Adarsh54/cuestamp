@@ -20,6 +20,7 @@ export function stretchedRegionTrack(session,regionId,values){
  if(v.assetId===r.assetId)throw Error('Stretching must create a new audio asset.');
  const copy=duplicateTrack(plan.source,{name:plan.name,includeRegions:false}),duration=v.frames/v.sampleRate,scale=duration/r.duration;
  copy.regions=[{...structuredClone(r),id:crypto.randomUUID(),name:plan.name,assetId:v.assetId,offset:0,reverse:false,duration,fadeIn:r.fadeIn*scale,fadeOut:r.fadeOut*scale}];
+ delete copy.regions[0].attackMarkers;
  return {track:copy,sourceTrackId:plan.source.id};
 }
 export function audioPitchPlan(session,regionId,semitones){
