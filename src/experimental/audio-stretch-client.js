@@ -1,3 +1,4 @@
+import {audioWarpPlan} from './audio-warp-options.js';
 import {validateAudioPitch} from './audio-pitch-options.js';
 import {validateAudioStretch} from './audio-stretch-options.js';
 // Worker input is copied; cancellation never detaches or changes the source audio.
@@ -8,6 +9,9 @@ export async function renderAudioStretch(buffer,ratio,{signal,onProgress=()=>{}}
 export async function renderAudioPitch(buffer,semitones,{signal,onProgress=()=>{}}={}){
  validateAudioPitch({sampleRate:buffer.sampleRate,frames:buffer.length,channels:buffer.numberOfChannels,semitones});
  return renderAudioWorker(buffer,{semitones,mode:'pitch'},{signal,onProgress});
+}
+export async function renderAudioWarp(buffer,anchors,{signal,onProgress=()=>{}}={}){
+ audioWarpPlan({sampleRate:buffer.sampleRate,frames:buffer.length,channels:buffer.numberOfChannels,anchors});return renderAudioWorker(buffer,{mode:'warp',anchors},{signal,onProgress});
 }
 function renderAudioWorker(buffer,options,{signal,onProgress}){
  if(signal?.aborted)throw new DOMException('Audio rendering canceled.','AbortError');
