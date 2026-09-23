@@ -1,3 +1,4 @@
+import {bindScoreSelection} from './score-agent-selection.js';
 import {indexScorePosition} from './score-position.js';
 import {scoreNoteEditorView,bindScoreNotes} from './score-note-editor.js';
 import {compileTempoMap} from './tempo-map.js';
@@ -23,7 +24,7 @@ export function scorePreviewView(track,region,session){
 }
 const scoreViews=new WeakMap();
 export function bindScorePreview(root,{session,track,region,execute,guard}){
- const panel=root.querySelector('[data-score-preview]');if(!panel)return;
+ bindScoreSelection(root);const panel=root.querySelector('[data-score-preview]');if(!panel)return;
  const sheet=panel.querySelector('[data-score-sheet]'),status=panel.querySelector('[data-score-status]'),zoom=panel.querySelector('[data-score-zoom]'),scope=panel.querySelector('[data-score-scope]');
  let view=scoreViews.get(root);if(!view||view.sessionId!==session.id){view={sessionId:session.id,scope:scope.value,zoom:zoom.value,top:0,left:0};scoreViews.set(root,view);}
  if([...scope.options].some(o=>o.value===view.scope&&!o.disabled))scope.value=view.scope;zoom.value=view.zoom;

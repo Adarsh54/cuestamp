@@ -17,9 +17,10 @@ export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p dat
 export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
  const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null;
- form.hidden=true;
+ form.hidden=true;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;
  const select=reference=>{
   const sourceRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=reference.note??sourceRegion?.notes.find(n=>n.id===reference.noteId);if(!note)return;
+  if(note.id){panel.dataset.selectedScoreNote=note.id;panel.dataset.selectedScoreRegion=sourceRegion.id;}else{delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;}
   selected=note;selectedRegion=sourceRegion;const rhythm=identifyScoreRhythm(session,sourceRegion,note);form.elements.namedItem('scoreLength').value=rhythm.length;form.elements.namedItem('scoreRhythm').value=rhythm.variant;form.elements.namedItem('scoreRhythm').disabled=rhythm.length==='custom';form.querySelector('[data-score-rhythm-status]').textContent='';form.hidden=false;form.querySelector('[data-score-note-label]').textContent=reference.note?`Add note to ${sourceRegion.name||'MIDI region'}`:`Edit note in ${sourceRegion.name||'MIDI region'} · changes all tied segments`;form.querySelector('[type=submit]').textContent=reference.note?'Add note':'Apply note edit';
   for(const action of ['duplicate','delete'])form.querySelector(`[data-score-note-${action}]`).hidden=!note.id;
   for(const key of ['pitch','start','duration','velocity'])form.elements.namedItem(key).value=note[key];
@@ -56,5 +57,5 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
  length.onchange=updateRhythm;rhythm.onchange=updateRhythm;start.oninput=updateRhythm;duration.oninput=()=>{length.value='custom';rhythm.disabled=true;rhythmStatus.textContent='';};
  form.onsubmit=guard(e=>{e.preventDefault();if(!selected)throw Error('Select a score note first.');const values=Object.fromEntries(['pitch','start','duration','velocity'].map(key=>[key,Number(form.elements.namedItem(key).value)]));if(length.value!=='custom')values.duration=scoreRhythmDuration(session,selectedRegion,values.start,length.value,rhythm.value);execute([{op:selected.id?'note.set':'note.add',target:selected.id??selectedRegion.id,values}],selected.id?'Edited score note':'Added score note');});
  for(const action of ['duplicate','delete'])form.querySelector(`[data-score-note-${action}]`).onclick=guard(()=>execute([scoreNoteAction(session,selectedRegion,selected,action)],action==='delete'?'Deleted score note':'Duplicated score note'));
- form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
+ form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
 }

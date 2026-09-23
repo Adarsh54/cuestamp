@@ -1,3 +1,4 @@
+import {selectedScoreNote} from './score-agent-selection.js';
 import {updateScorePosition} from './score-position.js';
 import {scorePreviewView,bindScorePreview} from './score-preview.js';
 import {exportRegionMusicxml,resolveMusicxmlRegion,exportScoreMusicxml,scoreTracks} from './musicxml.js';
@@ -585,10 +586,11 @@ export function createExperimentalWorkspace({account,esc}){
   root.querySelector('#daw-agent-form').onsubmit=guard(async event=>{
    event.preventDefault();if(agentBusy||busy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');
    const instruction=root.querySelector('#daw-instruction').value.trim();if(!instruction)return;
+   const scoreFocus=selectedScoreNote(root,session());
    const original=history,before=structuredClone(session()),draftTicket=instructionDrafts.begin(before.id),revision=before.revision,request=new AbortController();agentController=request;const recent=structuredClone(conversation);trace.push({role:'user',text:instruction});agentBusy=true;paint();
    let outcome='failed',summary='',applied=false,appliedSession,verifying=false,transportTouched=false,followingTransport=false,followingExport=false;const timer=setTimeout(()=>request.abort(new Error('The agent request timed out.')),300000);
    try{
-    const capturedWaveformRange=currentWaveformSelection(),capturedRegions=[...regionSelection],capturedSelection=region()?.notes.some(n=>n.id===selectedNote)?selectedNote:selected,capturedNotes=noteTools.selectionRegion===region()?.id?[...(noteTools.selectedIds||[])]:[];
+    const capturedWaveformRange=scoreFocus?null:currentWaveformSelection(),capturedRegions=scoreFocus?[scoreFocus.regionId]:[...regionSelection],capturedSelection=scoreFocus?.noteId??(region()?.notes.some(n=>n.id===selectedNote)?selectedNote:selected),capturedNotes=scoreFocus?[scoreFocus.noteId]:noteTools.selectionRegion===region()?.id?[...(noteTools.selectedIds||[])]:[];
     for(let editStep=0;editStep<3;editStep++){
     request.signal.throwIfAborted();if(editStep&&(history!==original||!root?.isConnected||session().revision!==appliedSession?.revision))throw Error('The session changed before the next editing step.');
     if(busy||recordAbort||midiInput.active)throw Error('Finish the current operation before continuing edits.');
@@ -597,7 +599,7 @@ export function createExperimentalWorkspace({account,esc}){
     const selectedRegionIds=capturedRegions.filter(id=>liveRegions.has(id)),selectedNoteIds=capturedNotes.filter(id=>liveNotes.has(id)),selection=liveRegions.has(capturedSelection)||liveNotes.has(capturedSelection)||before.tracks.some(t=>t.id===capturedSelection)?capturedSelection:null;
     const historySnapshot=historyContext(history);
     const audioRange=capturedWaveformRange?.revision===revision?{regionId:capturedWaveformRange.regionId,start:before.tracks.flatMap(t=>t.regions).find(r=>r.id===capturedWaveformRange.regionId).start+capturedWaveformRange.start,end:before.tracks.flatMap(t=>t.regions).find(r=>r.id===capturedWaveformRange.regionId).start+capturedWaveformRange.end}:undefined;
-    const exportContext={sessionId:before.id,revision,regionId:region()?.id||null,settings:{...bounceSettings}};
+    const exportContext={sessionId:before.id,revision,regionId:scoreFocus&&liveRegions.has(scoreFocus.regionId)?scoreFocus.regionId:region()?.id||null,settings:{...bounceSettings}};
     let result,transportSnapshot,clipboardSnapshot,takeSnapshot;
     for(let attempt=0;attempt<2;attempt++){
      request.signal.throwIfAborted();
