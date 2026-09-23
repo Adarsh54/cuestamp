@@ -3818,11 +3818,30 @@ cannot be lower than the channel sample peaks. Older clients may omit the field.
 original samples, zero padding and the full FIR tail, and allocates no upsampled
 PCM array. Four-times oversampling means 176.4/192/384 kHz respectively. These
 are finite-filter estimates, not certified meter readings or continuous-time
-peak guarantees. Peak/LUFS adjustments still use a **sample-peak** ceiling;
-this change does not add limiting or change those controls.
+peak guarantees. The separate peak-target control uses sample peaks; loudness adjustment can
+choose either measurement, as described below. This does not add limiting.
 
 Regression tests compare windowed 1 kHz and quarter-sample-rate sine waves at
 all three rates with FFmpeg within 0.3 dB, including inter-sample overs. Further
 tests cover file boundaries, independent stereo channels, silence and invalid
 PCM. Browser coverage exercises the real analysis worker, UI, silence and agent
 context; model responses remain mocked.
+
+### Experimental DAW: loudness ceiling measurement
+
+Loudness adjustment now has a Peak measurement selector: Sample peak (the
+existing default) or Estimated true peak. `loudnessNormalizationPlan` accepts
+`peakMode` (`sample` / `true`); true mode requires current `truePeak` measurements
+and caps the volume offset using the largest channel dBTP estimate. It never
+falls back to sample peaks when true-peak data is missing. The selected mode and
+numeric values survive UI rerenders; labels switch between dBFS and dBTP.
+
+The agent's `normalize_mix_loudness` tool accepts the same mode. Both paths still
+perform a reversible master gain offset and fresh full-mix analysis. Agent
+verification includes the new estimated true peak. This preserves dynamics and
+may leave loudness below the requested target: there is no limiter. Four-times
+oversampling is an estimate; encoded/exported files may have different peaks.
+
+Tests cover an inter-sample waveform, required measurements, both planner modes,
+agent command validation, real browser rendering to a chosen dBTP ceiling,
+retained selector state and undo invalidation.

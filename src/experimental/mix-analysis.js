@@ -41,30 +41,32 @@ export function bindPeakNormalization(root,{session,analysis,target,onTarget,app
 
 function stereoAnalysisView(value){if(!value)return '';const db=value=>value===null?'Silence':value.toFixed(2)+' dBFS',correlation=value.correlation;return `<div class="daw-analysis-values"><div><span>Stereo correlation</span><strong>${correlation===null?'Not defined':(correlation>=0?'+':'')+correlation.toFixed(3)}</strong>${correlation===null?'':`<meter min="-1" max="1" low="0" high="0" optimum="1" value="${correlation}" aria-label="Full-mix stereo correlation"></meter>`}</div><div><span>Mono average · RMS</span><strong>${db(value.midRmsDb)}</strong></div><div><span>Stereo difference · RMS</span><strong>${db(value.sideRmsDb)}</strong></div></div><p class="muted">Correlation compares left and right over the full render: +1 means matching shapes, 0 means no overall correlation, and negative values indicate possible cancellation in mono. It is undefined when either channel is silent. A full-mix average can hide brief problems. Mono average is (L + R) / 2; stereo difference is (L − R) / 2.</p>`;}
 
-export function loudnessNormalizationPlan(session,analysis,targetLufs,ceilingDb){
+export function loudnessNormalizationPlan(session,analysis,targetLufs,ceilingDb,peakMode='sample'){
+ if(!['sample','true'].includes(peakMode))throw Error('Choose sample or estimated true peaks.');
  if(!analysis)throw Error('Analyze the mix before setting a loudness target.');
  validateMixAnalysis(analysis,session);
  if(!Number.isFinite(targetLufs)||targetLufs<-60||targetLufs>-5)throw Error('Enter a loudness target between −60 and −5 LUFS.');
- if(!Number.isFinite(ceilingDb)||ceilingDb<-60||ceilingDb>0)throw Error('Enter a sample-peak ceiling between −60 and 0 dBFS.');
+ if(!Number.isFinite(ceilingDb)||ceilingDb<-60||ceilingDb>0)throw Error('Enter a peak ceiling between −60 and 0 dB.');
  const measured=analysis.loudness?.integratedLufs;
  if(!Number.isFinite(measured))throw Error('This mix has no measured integrated loudness. Analyze at least 400 ms of audible audio.');
- const peak=Math.max(...analysis.channels.map(c=>c.peakDb??-Infinity));
+ if(peakMode==='true'&&!analysis.truePeak)throw Error('Analyze the mix again to measure estimated true peaks.');
+ const peak=Math.max(...(peakMode==='true'?analysis.truePeak.peaksDbtp:analysis.channels.map(c=>c.peakDb)).map(value=>value??-Infinity));
  if(!Number.isFinite(peak))throw Error('A silent mix cannot be normalized.');
  const requestedDelta=targetLufs-measured,deltaDb=Math.min(requestedDelta,ceilingDb-peak);
  offsetMasterGain(session,deltaDb);
- return {targetLufs,ceilingDb,deltaDb,limited:deltaDb<requestedDelta-1e-6,estimatedLufs:measured+deltaDb,commands:[{op:'master.gain.offset',target:session.id,values:{deltaDb}}]};
+ return {targetLufs,ceilingDb,peakMode,deltaDb,limited:deltaDb<requestedDelta-1e-6,estimatedLufs:measured+deltaDb,commands:[{op:'master.gain.offset',target:session.id,values:{deltaDb}}]};
 }
-function loudnessPreview(session,analysis,target,ceiling){
- try{const plan=loudnessNormalizationPlan(session,analysis,target,ceiling);return {plan,changed:Math.abs(plan.deltaDb)>=.001,text:`${plan.deltaDb>=0?'+':''}${plan.deltaDb.toFixed(2)} dB on master volume and active volume automation. ${plan.limited?'The sample-peak ceiling limits the adjustment. ':''}Estimated ${plan.estimatedLufs.toFixed(2)} LUFS; the mix will be measured again. Gating can change the result.`};}
+function loudnessPreview(session,analysis,target,ceiling,peakMode){
+ try{const plan=loudnessNormalizationPlan(session,analysis,target,ceiling,peakMode);return {plan,changed:Math.abs(plan.deltaDb)>=.001,text:`${plan.deltaDb>=0?'+':''}${plan.deltaDb.toFixed(2)} dB on master volume and active volume automation. ${plan.limited?`The ${plan.peakMode==='true'?'estimated true-peak':'sample-peak'} ceiling limits the adjustment. `:''}Estimated ${plan.estimatedLufs.toFixed(2)} LUFS; the mix will be measured again. Gating can change the result.`};}
  catch(error){return {changed:false,text:error.message};}
 }
 function loudnessNormalizationView(session,analysis,busy,settings){
- const preview=loudnessPreview(session,analysis,settings.target,settings.ceiling),escape=text=>String(text).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
- return `<form data-loudness-normalize><label>Target loudness · LUFS<input name="target" type="number" min="-60" max="-5" step="any" value="${Number.isFinite(settings.target)?settings.target:''}" required></label><label>Sample-peak ceiling · dBFS<input name="ceiling" type="number" min="-60" max="0" step="any" value="${Number.isFinite(settings.ceiling)?settings.ceiling:''}" required></label><button ${busy||!preview.changed?'disabled':''}>Apply loudness target</button></form><output data-loudness-preview>${escape(preview.text)}</output><p class="muted">Adjusts volume without limiting or compression. The ceiling protects sample peaks; it does not measure true peaks.</p>`;
+ const preview=loudnessPreview(session,analysis,settings.target,settings.ceiling,settings.peakMode),escape=text=>String(text).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+ return `<form data-loudness-normalize><label>Target loudness · LUFS<input name="target" type="number" min="-60" max="-5" step="any" value="${Number.isFinite(settings.target)?settings.target:''}" required></label><label>Peak measurement<select name="peakMode"><option value="sample" ${settings.peakMode!=='true'?'selected':''}>Sample peak</option><option value="true" ${settings.peakMode==='true'?'selected':''}>Estimated true peak</option></select></label><label><span data-ceiling-label>${settings.peakMode==='true'?'True-peak ceiling · dBTP':'Sample-peak ceiling · dBFS'}</span><input name="ceiling" type="number" min="-60" max="0" step="any" value="${Number.isFinite(settings.ceiling)?settings.ceiling:''}" required></label><button ${busy||!preview.changed?'disabled':''}>Apply loudness target</button></form><output data-loudness-preview>${escape(preview.text)}</output><p class="muted">Adjusts volume without limiting or compression. Estimated true peaks use 4× oversampling; encoded exports can have different peaks.</p>`;
 }
 export function bindLoudnessNormalization(root,{session,analysis,settings,onSettings,apply,guard,busy}){
  const form=root.querySelector('[data-loudness-normalize]');if(!form)return;
- const update=()=>{settings={target:form.elements.target.value===''?NaN:Number(form.elements.target.value),ceiling:form.elements.ceiling.value===''?NaN:Number(form.elements.ceiling.value)};onSettings(settings);const preview=loudnessPreview(session,analysis,settings.target,settings.ceiling);root.querySelector('[data-loudness-preview]').textContent=preview.text;form.querySelector('button').disabled=busy||!preview.changed;return preview;};
+ const update=()=>{settings={peakMode:form.elements.peakMode.value,target:form.elements.target.value===''?NaN:Number(form.elements.target.value),ceiling:form.elements.ceiling.value===''?NaN:Number(form.elements.ceiling.value)};onSettings(settings);form.querySelector('[data-ceiling-label]').textContent=settings.peakMode==='true'?'True-peak ceiling · dBTP':'Sample-peak ceiling · dBFS';const preview=loudnessPreview(session,analysis,settings.target,settings.ceiling,settings.peakMode);root.querySelector('[data-loudness-preview]').textContent=preview.text;form.querySelector('button').disabled=busy||!preview.changed;return preview;};
  form.oninput=update;form.onsubmit=guard(async event=>{event.preventDefault();const preview=update();if(busy||!preview.changed)return;await apply(preview.plan);});
 }
 

@@ -22,3 +22,23 @@ test('agent uses shared measured gain planner and requires fresh verification',a
  await assert.rejects(planDawEdit({session,instruction:'Normalize'},options),/Unexpected/);
  await assert.rejects(planDawEdit({session,mixAnalysis:{...analysis,revision:12},instruction:'Normalize'},options),/does not match/);
 });
+test('true-peak ceiling uses the larger inter-sample peak and never falls back silently',()=>{
+ const {session,analysis}=fixture(),measured={...analysis,truePeak:{oversample:4,peaksDbtp:[-3,-4]}};
+ const sample=loudnessNormalizationPlan(session,measured,-14,-1,'sample'),truePeak=loudnessNormalizationPlan(session,measured,-14,-1,'true');
+ assert.equal(sample.deltaDb,5);assert.equal(truePeak.deltaDb,2);assert.equal(truePeak.peakMode,'true');assert.equal(truePeak.limited,true);
+ assert.throws(()=>loudnessNormalizationPlan(session,analysis,-14,-1,'true'),/measure estimated true peaks/);
+ assert.throws(()=>loudnessNormalizationPlan(session,measured,-14,-1,'invalid'),/Choose/);
+});
+test('agent true-peak action shares the measured ceiling and reanalysis requirement',async()=>{
+ const {session,analysis}=fixture(),measured={...analysis,truePeak:{oversample:4,peaksDbtp:[-3,-4]}},options={key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'normalize_mix_loudness',arguments:JSON.stringify({targetLufs:-14,ceilingDb:-1,peakMode:'true'})}]})})};
+ const plan=await planDawEdit({session,mixAnalysis:measured,instruction:'Set -14 LUFS with -1 dBTP ceiling'},options);
+ assert.equal(plan.commands[0].values.deltaDb,2);assert.equal(plan.verifyMix,true);assert.match(plan.summary,/estimated true-peak/);
+ await assert.rejects(planDawEdit({session,mixAnalysis:analysis,instruction:'Set true peak ceiling'},options),/measure estimated true peaks/);
+});
+test('measured gain brings an inter-sample waveform to its estimated ceiling',async()=>{
+ const {truePeakStatistics}=await import('../src/experimental/audio-true-peak.js'),{integratedLoudness}=await import('../src/experimental/audio-loudness.js'),{audioStatistics}=await import('../src/experimental/audio-statistics.js');
+ const {session,analysis}=fixture(),source=Float32Array.from({length:48000},(_,i)=>.9*Math.sin(Math.PI/2*i+Math.PI/4)),channels=[source,source];
+ const measured={...analysis,channels:audioStatistics(channels),loudness:integratedLoudness(channels,48000),truePeak:truePeakStatistics(channels,48000)},plan=loudnessNormalizationPlan(session,measured,-5,-12,'true');
+ const scaled=source.map(v=>v*10**(plan.deltaDb/20)),after=truePeakStatistics([scaled,scaled],48000);
+ assert.equal(plan.limited,true);assert.ok(after.peaksDbtp.every(v=>Math.abs(v+12)<1e-5));
+});
