@@ -211,3 +211,5 @@ form.daw-note-editor{margin-top:8px}
 
 .daw-zone-audition{grid-column:1/-1;display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:8px}
 .daw-zone-audition>strong{font-size:12px}.daw-zone-audition .button-row{display:flex;flex-wrap:wrap;gap:8px}.daw-zone-audition .button-row label{flex:1;min-width:80px}.daw-zone-audition input{width:100%}.daw-zone-audition output{font-size:11px;color:var(--muted)}
+
+.daw-zone-wave-tools{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.daw-zone-wave-tools button{font-size:11px;padding:5px 8px}[data-zone-view-label]{display:block;color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:5px}
