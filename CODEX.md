@@ -4180,3 +4180,24 @@ roundtrips, preserved curves, fresh IDs, duplicate names, downloaded JSON,
 import undo/redo, malformed files, invalid parameters, unsupported versions,
 and UTF-8 byte limits. All 987 tests and the production build pass; the existing
 large-bundle warning remains.
+
+### Compressor makeup gain
+
+Compressor now exposes **Makeup gain · dB** (`makeupDb`, −24 to +24 dB, default
+0). The gain stage follows compression, so it changes output level without
+changing the detector input. It supports ordinary curves, live automation,
+shared agent `effect.set` / automation commands, presets, and undo. Curves
+interpolate in dB. Older documents/presets default to 0 and retain their output.
+
+The underlying browser compressor still supplies its own fixed gain
+compensation, which depends on threshold, knee and ratio. This additional gain
+control does not disable that behavior or implement automatic loudness matching.
+References: [Apple’s compressor controls](https://support.apple.com/en-mide/guide/logicpro/lgcead9636ef/10.7/mac/11.0)
+and [Web Audio makeup gain](https://webaudio.github.io/web-audio-api/#computing-the-makeup-gain).
+
+Validation: `test/experimental-compressor-makeup.test.js` covers default migration,
+limits, commands, presets and undo. The existing live-effect tests exercise the
+new binding. `scripts/browser-experimental-compressor-makeup-check.cjs` checks
+mixer edits/reload and real stereo PCM: exact unity equivalence to the previous
+native graph, positive/negative gain and dB-linear automation. All 989 tests and
+the production build pass, with the existing bundle-size warning.
