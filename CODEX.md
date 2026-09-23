@@ -4897,7 +4897,7 @@ Verification: `test/experimental-sampler-velocity-fade.test.js` covers complemen
 
 ## Non-destructive sample-zone start/end selection
 
-Each **Sample zones** entry now has **Sample start · source seconds** and **Sample end · source seconds**. Blank end means the original file's end. Two zones can select different portions of one source without copying or changing that file. These are numeric zone controls; the main sampler waveform currently remains a loop editor, not a graphical zone-trim editor.
+Each **Sample zones** entry now has **Sample start · source seconds** and **Sample end · source seconds**. Blank end means the original file's end. Two zones can select different portions of one source without copying or changing that file. Numeric controls are accompanied by the graphical zone-trim editor described below. The main sampler waveform remains a separate loop editor.
 
 Zone fields `sourceStart` (default 0) and `sourceEnd` (default null) are accepted by `samplerZone.set`, `samplerZone.addMany`, and partial `samplerZone.adjust`. End must follow start; actual decoded-buffer validation requires at least one sample and rejects out-of-file ranges, including non-looping zones. Loops must fit within the selected source portion, and a blank loop end resolves to the selected source end. Old projects continue playing complete source files.
 
@@ -4906,3 +4906,14 @@ The scheduler adds the source start to its pitch-bend-integrated seek offset. No
 Settings survive duplication, presets, project persistence and portable instrument files. Undo restores the previous selection. Manual save validates the real source before applying; agent patches use the shared schema, with real source-bound checks during playback/monitor preparation. No audio file is rendered or overwritten by these edits.
 
 Verification: `test/experimental-sampler-source-range.test.js` covers sample-length/buffer bounds, loop containment, partial edits, legacy migration, Undo, validation of multiple trims sharing one file, and instrument archive preservation. `scripts/browser-experimental-sampler-source-range-check.cjs` tests controls, rejection, Undo/Redo, mocked agent/reload, and native rendered PCM with distinct audio before/inside/after the selection: start/end exclusion, octave and bend playback rates, looping, seek and live-monitor parity. Physical MIDI timing and live provider inference remain unverified. Source-duration semantics: [AudioBufferSourceNode.start](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/start).
+
+
+## Graphical sampler-zone source trimming
+
+The sample-zone form includes **Load zone waveform** and a waveform overview for the chosen source. Already-decoded audio appears immediately. Drag across the waveform to set a new source portion, or drag the start/end handles. Boundaries snap to source sample frames and cannot cross; the selection retains at least one frame. Keyboard-focused handles support Left/Right by one frame, Shift+Left/Right by 10 ms, and Home/End within valid bounds.
+
+Waveform gestures update only the form's `sourceStart` and `sourceEnd` draft. **Save sample zone** applies the existing validated, undoable operation. Escape, pointer cancellation or lost pointer capture restores the range present before a drag. Loop settings stay unchanged; saving still rejects loops outside the selected portion. Invalid numeric ranges can be corrected by drawing a new selection. The displayed duration and slider accessibility values update with numeric edits.
+
+Loading decodes through the existing source cache without repainting or clearing draft controls. A completed load is ignored if the form, zone or asset selection changed. Switching zones/sources redraws the appropriate cached waveform and discards an active drag without writing the previous zone's draft into the new form. This is an overview with numeric/sample-step refinement, not a zoomable full sample editor.
+
+Verification: `test/experimental-sampler-zone-waveform.test.js` covers bidirectional drawing, frame snapping, bounds, noncrossing handles and invalid input. `scripts/browser-experimental-sampler-zone-waveform-check.cjs` covers actual mouse gestures, keyboard frame adjustments, Escape cancellation, draft-only changes, Save/Undo/Redo, load preservation, mocked agent/reload and the existing native trim playback checks (source exclusion, pitch/bend, loop, seek and live-monitor rendering). A screenshot of the waveform controls was visually inspected. Physical device timing and live model inference remain unverified.
