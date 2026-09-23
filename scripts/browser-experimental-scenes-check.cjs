@@ -28,6 +28,13 @@ const assert=require('node:assert/strict');
 
   const before=await read();await page.locator('#daw-json').evaluate(e=>e.closest('details').open=true);await page.locator('#daw-json').fill(JSON.stringify([{op:'scene.add',values:{id:'verse',name:'Verse',regionIds:'r,other-region'}},{op:'scene.cell.set',target:'verse',values:{regionId:'other-region',loop:false}}]));await page.getByRole('button',{name:'Execute commands',exact:true}).click();let saved=await read();assert.equal(saved.scenes[0].name,'Verse');assert.deepEqual(saved.scenes[0].cells,[{regionId:'r',loop:true},{regionId:'other-region',loop:false}]);assert.deepEqual(saved.tracks,before.tracks);await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual((await read()).scenes,[]);await page.getByRole('button',{name:'Redo',exact:true}).click();await page.reload();await page.getByText('Session restored on this device.',{exact:true}).waitFor();assert.deepEqual((await read()).scenes,saved.scenes);
   await page.locator('#daw-scenes summary').click();
+  await page.getByRole('button',{name:'Duplicate scene',exact:true}).click();
+  const duplicated=await read();assert.equal(duplicated.scenes[1].name,'Verse copy');assert.deepEqual(duplicated.scenes[1].cells,duplicated.scenes[0].cells);
+  assert.equal(await page.locator('[data-scene-rename] input').inputValue(),'Verse copy');
+  await page.locator('[data-scene-assign] input[name=loop]').uncheck();await page.getByRole('button',{name:'Assign clip',exact:true}).click();
+  assert.equal((await read()).scenes[0].cells[0].loop,true);assert.equal((await read()).scenes[1].cells[0].loop,false);
+  await page.getByRole('button',{name:'Undo',exact:true}).click();await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal((await read()).scenes.length,1);
+
   await page.locator('[data-scene-cell="verse"][data-scene-track="t"]').click();
   await page.locator('[data-scene-assign] input[name=loop]').uncheck();
   await page.getByRole('button',{name:'Assign clip',exact:true}).click();

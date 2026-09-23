@@ -19,7 +19,15 @@ export function editScene(session,op,target,values){
   session.scenes.push(sceneSchema.parse({id:v.id??crypto.randomUUID(),name:v.name,cells:ids.map(regionId=>({regionId,loop:true}))}));validateScenes(session);return;
  }
  const scene=session.scenes.find(s=>s.id===target);if(!scene)throw Error('Scene not found.');
- if(op==='scene.rename'){const v=z.object({name}).strict().parse(values);scene.name=v.name;}
+ if(op==='scene.duplicate'){
+  const v=z.object({id:ident.optional(),name:name.optional()}).strict().parse(values);
+  if(session.scenes.length>=64)throw Error('A project can contain up to 64 scenes.');
+  const existing=new Set(session.scenes.map(s=>s.name));let candidate;
+  for(let n=1;n<=65;n++){const suffix=n===1?' copy':` copy ${n}`;candidate=scene.name.slice(0,100-suffix.length)+suffix;if(!existing.has(candidate))break;}
+  const copy=sceneSchema.parse({...structuredClone(scene),id:v.id??crypto.randomUUID(),name:v.name??candidate});
+  session.scenes.splice(session.scenes.indexOf(scene)+1,0,copy);
+ }
+ else if(op==='scene.rename'){const v=z.object({name}).strict().parse(values);scene.name=v.name;}
  else if(op==='scene.delete'){z.object({}).strict().parse(values);session.scenes=session.scenes.filter(s=>s.id!==target);}
  else if(op==='scene.move'){const v=z.object({index:z.number().int().min(0).max(63)}).strict().parse(values);if(v.index>=session.scenes.length)throw Error('Choose an existing scene position.');session.scenes.splice(session.scenes.indexOf(scene),1);session.scenes.splice(v.index,0,scene);}
  else if(op==='scene.cell.set'){

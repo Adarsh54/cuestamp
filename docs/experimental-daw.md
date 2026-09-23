@@ -2233,3 +2233,7 @@ Scene cells now show Playing, Queued, or Finished independently of cell selectio
 **Stop all clips** uses the scene's immediate/beat/bar timing. It stops current clips and cancels future voice starts, including clips in a pending scene handoff, without ending the scene clock. Mixer effects continue within the audition window; a queued scene still switches its mixer graph at its scheduled boundary. Launch another clip or scene to resume sound. **Stop scene audition** still ends the entire transport. The agent can use `stop_all_scene_clips` with the same behavior, and performance capture retains gaps between stopped and relaunched clips.
 
 Validation: `experimental-scene-stop-all.test.js`, `browser-experimental-scene-stop-all-check.cjs`, and `browser-experimental-scenes-check.cjs` cover quantized scheduling, canceled queued audio, relaunch, performance gaps, and manual/agent controls. Indefinite transport, full automation capture, and live provider inference remain unfinished.
+
+### Scene variations
+
+Duplicate scene creates an adjacent scene with its own clip assignments and loop flags, then selects it for editing. Source regions remain shared, so editing a source region affects every scene referencing it. The shared `scene.duplicate` command accepts an optional ID and name; otherwise it generates an ID and a distinct copy name. Scene duplication and subsequent edits support normal batch undo, validation, and persistence. The agent can duplicate and customize a scene in one edit batch.
