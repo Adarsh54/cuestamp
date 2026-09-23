@@ -13,7 +13,8 @@ export function editTakeGroup(track,operation,values){
  }
  const v=z.object({groupId:id,regionId:id.optional()}).strict().parse(values),members=track.regions.filter(r=>r.takeGroup?.id===v.groupId);
  if(!members.length)throw Error('Take group no longer exists.');
- if(operation==='select'){if(!members.some(r=>r.id===v.regionId))throw Error('Choose a take in this group.');const takeId=members.find(r=>r.id===v.regionId).takeGroup.takeId;for(const r of members)r.mute=r.takeGroup.takeId!==takeId;}
+ if(operation==='append'){const region=track.regions.find(r=>r.id===v.regionId);if(!region?.assetId||region.takeGroup)throw Error('Choose an ungrouped audio region with source media.');if(!members.some(r=>r.start<region.start+region.duration&&region.start<r.start+r.duration))throw Error('The new take must overlap this group.');region.takeGroup={...members[0].takeGroup,takeId:region.id};region.mute=false;for(const r of members)r.mute=true;}
+ else if(operation==='select'){if(!members.some(r=>r.id===v.regionId))throw Error('Choose a take in this group.');const takeId=members.find(r=>r.id===v.regionId).takeGroup.takeId;for(const r of members)r.mute=r.takeGroup.takeId!==takeId;}
  else if(operation==='ungroup'){if(v.regionId!==undefined)throw Error('Ungroup does not accept a region.');for(const r of members)delete r.takeGroup;}
  else throw Error('Unknown take group operation.');
 }

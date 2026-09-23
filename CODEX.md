@@ -3934,10 +3934,38 @@ inherit membership. General moves, splits and duplicates retain it; groups are
 track-local. A group can contain only one remaining take after deletion/moving.
 Direct region mute edits remain possible; Use take restores a single selected
 performance. This organizes existing regions, not automatic cycle capture or
-Logic-style recording take folders. Automatic recording/group creation remains
-outstanding.
+Logic-style recording take folders. Grouping on recording completion is described below; automatic cycle capture
+remains outstanding.
 
 Unit tests cover preservation, validation, protection, split-take selection,
 independent comps and agent commands. The browser check covers manual grouping,
 selection, undo/redo, reload, agent selection and ungrouping, plus native offline
 rendering proving only the selected take sounds. Model responses are mocked.
+
+### Experimental DAW: group completed recordings
+
+The toolbar Recording mode selects Layer recordings (default) or Group
+overlapping takes, persisted as `session.audioRecordMode` (`layer` / `takes`).
+Choose an existing Audio destination to build successive takes on that track.
+New-track recording creates its normal independent track. Manual media import
+and MIDI recording are unaffected.
+
+`recordedMediaPlan` combines region creation and grouping in one command batch:
+new overlapping ungrouped performances form a group; a recording overlapping
+only one existing group joins it using `takes.append`. The new take becomes
+active and earlier group members are muted. Source files remain available and
+undo removes the new timeline take while restoring previous group/mute state.
+The append command also supports manual/agent use with groupId and regionId.
+
+If overlapping candidates mix groups/ungrouped regions or lack a common interval,
+the recording is saved as a separate layer with an explicit message for manual
+grouping. It is never discarded or silently assigned to an arbitrary group.
+No-overlap recordings remain independent. Existing content-protection and
+microphone permission requirements still apply. This records successive linear
+passes; it does not split continuous cycle recording into takes.
+
+Unit tests cover atomic create/append/undo, layered/disjoint behavior, ambiguity
+and protection. `browser-experimental-recording-takes-check.cjs` captures three
+actual browser recordings using Chromium's synthetic microphone, verifies group
+state and latest selection, then undo/redo and reload. Physical-input testing
+remains outstanding.
