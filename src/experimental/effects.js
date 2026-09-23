@@ -1,3 +1,4 @@
+import {eqTypes} from './eq-modes.js';
 import {automationModeSchema,automationMutedSchema,activeAutomation} from './automation-mode.js';
 import {automationShape,curveAutomationValue,scheduleCurveAutomation} from './automation-curves.js';
 import {connectDistortion} from './distortion.js';
@@ -13,7 +14,7 @@ export const effectSchema=z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('chorus'),rate:z.number().finite().min(.05).max(10).default(.8),depthMs:z.number().finite().min(0).max(20).default(3),mix:z.number().finite().min(0).max(1).default(.35),stereoPhase:z.number().finite().min(-180).max(180).default(90),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
  z.object({...base,kind:z.literal('tremolo'),rate:z.number().finite().min(.05).max(20).default(4),depth:z.number().finite().min(0).max(1).default(.5),phase:z.number().finite().min(-180).max(180).default(90),stereoPhase:z.number().finite().min(-180).max(180).default(0),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
  z.object({...base,kind:z.literal('gain'),gainDb:z.number().finite().min(-96).max(24).default(0),width:z.number().finite().min(0).max(2).default(1),invertLeft:z.boolean().default(false),invertRight:z.boolean().default(false),swap:z.boolean().default(false)}).strict(),
- z.object({...base,kind:z.literal('eq'),type:z.enum(['lowpass','highpass','peaking','lowshelf','highshelf']).default('peaking'),frequency:z.number().finite().min(20).max(20000).default(1000),q:z.number().finite().min(.1).max(20).default(1),gainDb:z.number().finite().min(-24).max(24).default(0)}).strict(),
+ z.object({...base,kind:z.literal('eq'),type:z.enum(eqTypes).default('peaking'),frequency:z.number().finite().min(20).max(20000).default(1000),q:z.number().finite().min(.1).max(20).default(1),gainDb:z.number().finite().min(-24).max(24).default(0)}).strict(),
  z.object({...base,kind:z.literal('compressor'),threshold:z.number().finite().min(-80).max(0).default(-24),ratio:z.number().finite().min(1).max(20).default(4),attack:z.number().finite().min(0).max(1).default(.003),release:z.number().finite().min(.001).max(1).default(.25),knee:z.number().finite().min(0).max(40).default(15),makeupDb:z.number().finite().min(-24).max(24).default(0)}).strict(),
  z.object({...base,kind:z.literal('delay'),time:z.number().finite().min(.01).max(2).default(.25),feedback:z.number().finite().min(0).max(.9).default(.3),mix:z.number().finite().min(0).max(1).default(.25)}).strict(),
  z.object({...base,kind:z.literal('reverb'),decay:z.number().finite().min(.1).max(8).default(2),mix:z.number().finite().min(0).max(1).default(.2)}).strict(),

@@ -4201,3 +4201,30 @@ new binding. `scripts/browser-experimental-compressor-makeup-check.cjs` checks
 mixer edits/reload and real stereo PCM: exact unity equivalence to the previous
 native graph, positive/negative gain and dB-linear automation. All 989 tests and
 the production build pass, with the existing bundle-size warning.
+
+### Notch and band-pass EQ
+
+The EQ type selector now includes `notch` and `bandpass`, alongside the existing
+five types. Frequency and Q control the center and bandwidth; higher Q narrows
+the band. Gain is retained for switching back to peaking/shelf modes but is
+unused by these filters. Graph drags therefore move horizontally, and vertical
+arrow keys leave the saved gain unchanged. Frequency and Q automation, presets,
+shared agent commands, undo and project persistence work through existing EQ paths.
+
+EQ type choices now come from `eq-modes.js`. The static response plot samples
+extra frequencies around the center and bandwidth, including the exact center,
+so narrow notches are visible between the normal logarithmic plot samples.
+The graph remains a static frequency response, not a live spectral analyzer.
+These are native second-order filters, not linear-phase or variable-slope EQ.
+As with the existing EQ modes, the export duration does not add a separate EQ
+ring-down tail; leave space after the audio when that decay needs to be retained.
+
+References: [Apple’s single-band EQ](https://support.apple.com/en-gb/guide/logicpro/lgcef1edd13d/mac)
+and [band-stop filter definition](https://developer.apple.com/documentation/avfaudio/avaudiouniteqfiltertype/bandstop).
+
+Validation extends `test/experimental-eq-graph.test.js` and
+`scripts/browser-experimental-eq-graph-check.cjs`: shared commands, automation,
+undo, drag/keyboard behavior, exact notch-center inclusion in the plot, and
+rendered PCM versus displayed response across all seven types. The notch test
+requires over 100 dB center attenuation. All 990 tests and the production build
+pass, with the existing bundle-size warning.
