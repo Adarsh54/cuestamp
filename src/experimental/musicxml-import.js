@@ -1,3 +1,4 @@
+import {musicxmlDynamics,applyMusicxmlDynamics} from './musicxml-dynamics.js';
 import {musicxmlPedalValue,musicxmlSoundOffset,musicxmlPedalEvents} from './musicxml-pedal.js';
 import {partwiseMusicxmlRoot,validateTimewiseBoundaries} from './musicxml-timewise.js';
 import {encodeMidiImport} from './midi.js';
@@ -19,7 +20,7 @@ export function parseMusicxml(source){
  let count=0;
  const tracks=parts.map(part=>{
   if(!definitions.has(part.id))throw Error('MusicXML part is missing from its part list.');
-  let divisions=0,transpose=0,keyTranspose=0,at=0,meter=4;const notes=[],ties=new Map(),measureEnds=[],events=[];
+  let divisions=0,transpose=0,keyTranspose=0,at=0,meter=4;const notes=[],ties=new Map(),measureEnds=[],events=[],dynamics=[];
   const measures=children(part,'measure');if(measures.length>2048)throw Error('Import up to 2,048 measures per part.');
   for(const measure of measures){
    let cursor=0,extent=0,previous=null;
@@ -34,6 +35,7 @@ export function parseMusicxml(source){
     }else if(item.localName==='direction'||item.localName==='sound'){
      const sound=item.localName==='sound'?item:child(item,'sound'),offset=musicxmlSoundOffset(sound,item,divisions);
      if(!Number.isFinite(at+cursor+offset)||at+cursor+offset<0)throw Error('MusicXML sound offset must remain inside the timeline.');
+     if(sound?.hasAttribute('dynamics')){if(dynamics.length>=20000)throw Error('Import up to 20,000 dynamics changes per part.');dynamics.push({start:at+cursor+offset,velocity:musicxmlDynamics(sound.getAttribute('dynamics'))});}
      if(sound?.hasAttribute('damper-pedal')){if(events.length>=20000)throw Error('Import up to 20,000 pedal changes per part.');events.push({start:at+cursor+offset,parameter:64,value:musicxmlPedalValue(sound.getAttribute('damper-pedal'))});}
      if(sound){for(const attribute of ['dacapo','dalsegno','tocoda','fine','segno','coda','forward-repeat','time-only'])if(sound.hasAttribute(attribute))throw Error('MusicXML playback jumps require a performed MIDI export.');if(sound.hasAttribute('tempo')){const bpm=number(sound.getAttribute('tempo'),'tempo');if(bpm<20||bpm>300||at+cursor+offset<0)throw Error('MusicXML tempo must be 20–300 BPM at a nonnegative position.');put(tempos,at+cursor+offset,bpm,'tempos');}}
      const metronome=item.querySelector('metronome');if(metronome&&!sound?.hasAttribute('tempo')){const unit={whole:4,half:2,quarter:1,eighth:.5,'16th':.25,'32nd':.125}[text(metronome,'beat-unit')],dots=children(metronome,'beat-unit-dot').length,bpm=number(text(metronome,'per-minute'),'metronome tempo')*unit*(2-2**(-dots));if(!Number.isFinite(bpm)||bpm<20||bpm>300||at+cursor+offset<0)throw Error('Unsupported MusicXML metronome tempo.');put(tempos,at+cursor+offset,bpm,'tempos');}
@@ -50,7 +52,7 @@ export function parseMusicxml(source){
      const tieTypes=children(item,'tie').map(t=>t.getAttribute('type')),key=`${voice}:${staff}:${pitch}`,pending=ties.get(key);
      if(tieTypes.some(t=>!['start','stop'].includes(t)))throw Error('Unsupported MusicXML tie.');
      if(tieTypes.includes('stop')){if(!pending||Math.abs(pending.start+pending.duration-start)>1e-7)throw Error('MusicXML tie does not connect matching consecutive notes.');pending.duration+=duration;if(!tieTypes.includes('start'))ties.delete(key);}
-     else{if(pending)throw Error('MusicXML tie is missing its ending.');const n={pitch,start,duration,velocity:.8};if(item.hasAttribute('dynamics'))n.velocity=Math.min(1,Math.max(0,number(item.getAttribute('dynamics'),'dynamics')*.9/127));notes.push(n);if(tieTypes.includes('start'))ties.set(key,n);}
+     else{if(pending)throw Error('MusicXML tie is missing its ending.');const n={pitch,start,duration,velocity:.8,explicitVelocity:item.hasAttribute('dynamics')};if(n.explicitVelocity)n.velocity=musicxmlDynamics(item.getAttribute('dynamics'));notes.push(n);if(tieTypes.includes('start'))ties.set(key,n);}
     }
    }
    if(extent<=0)extent=meter;
@@ -58,6 +60,7 @@ export function parseMusicxml(source){
    at+=extent;measureEnds.push(at);if(at>432000)throw Error('MusicXML score exceeds the timeline limit.');
   }
   if(ties.size)throw Error('MusicXML contains unfinished ties.');
+  applyMusicxmlDynamics(notes,dynamics);
   return {name:definitions.get(part.id),notes,events,duration:at,measureEnds};
  });
  if(timewise)validateTimewiseBoundaries(tracks);

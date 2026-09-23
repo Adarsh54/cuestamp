@@ -5265,3 +5265,13 @@ Only explicit sound pedal data is currently interpreted; graphical `<pedal>` mar
 Verified 1,352 tests and build; `scripts/browser-experimental-musicxml-pedal-check.cjs` checks sound-offset precedence, file import, retained CC64 events, computed playback sustain through a trailing rest, and Undo. Unit tests cover pedal percentages, invalid values, overlapping-unison channels and score-end release. This validates controller timing, not a live hardware piano performance.
 
 Reference: [W3C MusicXML sound attributes and offsets](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/).
+
+### MusicXML playback dynamics (2026-09-23)
+
+Explicit `<sound dynamics>` values now establish a velocity timeline for each imported part. Changes are resolved by musical onset after parsing all voices, including direction/sound offsets, rather than by XML traversal order. Note-level `dynamics` overrides the part timeline. Tied notes retain their original attack velocity across later dynamic changes. Values use MusicXML's percentage of MIDI forte velocity 90 and are clamped at MIDI maximum; negative or invalid values reject. Without explicit dynamics, the existing 0.8 velocity default applies. Up to 20,000 explicit changes per part are accepted; onset lookup is logarithmic. Values are quantized to MIDI's 7-bit velocity during conversion.
+
+Printed dynamic symbols and wedges without explicit playback data are still not interpreted, and continuous expression during held notes remains separate from note-on velocity. No dynamics are inferred from the appearance of the score. Existing parser and shared MIDI import limits/Undo still apply.
+
+Verified 1,355 tests and build. `scripts/browser-experimental-musicxml-dynamics-check.cjs` checks part-level changes with offsets, note-level overrides, tied-note onset velocity, isolation between parts, actual imported MIDI velocities and Undo. Unit tests cover out-of-order voice timing, equal-time changes and invalid percentages.
+
+Reference: [W3C MusicXML sound dynamics](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/).
