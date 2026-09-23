@@ -22,7 +22,7 @@ export function sceneAudition(session,values){
  const tracks=new Map(document.tracks.map(t=>[t.id,t]));
  for(const {trackId,region,count} of plans)for(let i=0;i<count;i++)tracks.get(trackId).regions.push({...structuredClone(region),id:`scene-${trackId}-${i}`,start:i*region.duration});
  document.scenes=[];document.loopEnabled=false;document.metronomeEnabled=false;
- const signature=createSceneSourceReader(session),sourceCells=plans.map(({trackId,region})=>({trackId,sourceSignature:signature(sceneId,trackId),duration:cells.get(region.id).loop?duration:Math.min(duration,region.duration)}));
+ const signature=createSceneSourceReader(session),sourceCells=plans.map(({trackId,region})=>({trackId,regionId:region.id,sourceSignature:signature(sceneId,trackId),duration:cells.get(region.id).loop?duration:Math.min(duration,region.duration)}));
  return {kind:'scene',sceneId,sourceCells,sourceSignature:signature(sceneId),document,position:0,end:duration,label:`Auditioning scene “${scene.name}” for ${duration} s`};
 }
 
