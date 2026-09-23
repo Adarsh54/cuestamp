@@ -5245,3 +5245,13 @@ References: W3C MusicXML 4.0 [backup](https://www.w3.org/2021/06/musicxml40/musi
 Verified 1,348 tests and build; `scripts/browser-experimental-mxl-import-check.cjs` tests manifest-directed nested-score selection rather than decoy XML, legacy archives, invalid manifest rejection, actual file-picker import and Undo. Unit tests exercise expanded-size limits, invalid text and root paths. Full notation/layout import and timewise/opus scores remain pending.
 
 Reference: [W3C compressed MusicXML container specification](https://www.w3.org/2021/06/musicxml40/tutorial/compressed-mxl-files/).
+
+### Timewise MusicXML import (2026-09-23)
+
+MusicXML import now also accepts `score-timewise` roots in plain `.xml` / `.musicxml` and compressed `.mxl`, superseding the timewise limitation above. Measure/part organization is converted in memory without changing note contents; declared part-list order determines track order. Measure attributes, including pickup flags, are retained. The shared parser still handles voices, chords, ties, tempo and transposition, and the same MIDI command provides atomic Undo.
+
+This version requires every declared part exactly once in every timewise measure and matching measure boundaries. Missing/duplicate/unknown part IDs, omitted parts, inconsistent durations and non-controlling polymetric measures reject rather than guessing silent content or shifting later notes. These restrictions, opus collections, playback constructs previously listed, and full engraved-layout import remain unfinished.
+
+Verified 1,349 tests and build; `scripts/browser-experimental-musicxml-timewise-check.cjs` compares timewise and partwise note/tempo/key/meter output with reordered parts, tests invalid membership, and exercises both plain and compressed file-picker imports with Undo. Boundary unit checks include pickup disagreement despite equal final duration.
+
+References: [W3C score-timewise](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/score-timewise/) and [timewise measure](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/measure-timewise/).

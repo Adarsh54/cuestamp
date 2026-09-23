@@ -1,3 +1,4 @@
+import {partwiseMusicxmlRoot,validateTimewiseBoundaries} from './musicxml-timewise.js';
 import {encodeMidiImport} from './midi.js';
 const children=(node,name)=>[...node.children].filter(n=>n.localName===name),child=(node,name)=>children(node,name)[0],text=(node,name)=>child(node,name)?.textContent.trim();
 const number=(value,label)=>{const n=Number(value);if(value===undefined||value===''||!Number.isFinite(n))throw Error(`MusicXML requires a valid ${label}.`);return n;};
@@ -5,8 +6,9 @@ const natural={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 export function parseMusicxml(source){
  if(typeof source!=='string'||new TextEncoder().encode(source).length>8*1024*1024)throw Error('MusicXML imports support files up to 8 MB.');
  if(/<!ENTITY|<!DOCTYPE[^>]*\[/i.test(source))throw Error('MusicXML entity declarations are not supported.');
- const document=new DOMParser().parseFromString(source,'application/xml'),root=document.documentElement;
- if(document.querySelector('parsererror')||root.localName!=='score-partwise')throw Error('Import a valid partwise MusicXML score (.musicxml or .xml).');
+ const document=new DOMParser().parseFromString(source,'application/xml'),sourceRoot=document.documentElement;
+ if(document.querySelector('parsererror')||!['score-partwise','score-timewise'].includes(sourceRoot.localName))throw Error('Import a valid partwise or timewise MusicXML score.');
+ const timewise=sourceRoot.localName==='score-timewise',root=partwiseMusicxmlRoot(sourceRoot);
  const unsupported=root.querySelector('repeat,ending,grace,unpitched,tremolo,ornaments,octave-shift,scordatura,accordion-registration');
  if(unsupported)throw Error(`MusicXML ${unsupported.localName} playback is not supported yet. Export a performed MIDI file instead.`);
  const definitions=new Map(children(child(root,'part-list')??root,'score-part').map(p=>[p.id,text(p,'part-name')||'Score part']));
@@ -16,7 +18,7 @@ export function parseMusicxml(source){
  let count=0;
  const tracks=parts.map(part=>{
   if(!definitions.has(part.id))throw Error('MusicXML part is missing from its part list.');
-  let divisions=0,transpose=0,keyTranspose=0,at=0,meter=4;const notes=[],ties=new Map();
+  let divisions=0,transpose=0,keyTranspose=0,at=0,meter=4;const notes=[],ties=new Map(),measureEnds=[];
   const measures=children(part,'measure');if(measures.length>2048)throw Error('Import up to 2,048 measures per part.');
   for(const measure of measures){
    let cursor=0,extent=0,previous=null;
@@ -50,11 +52,13 @@ export function parseMusicxml(source){
    }
    if(extent<=0)extent=meter;
    if(measure.getAttribute('implicit')!=='yes'&&extent<meter)extent=meter;
-   at+=extent;if(at>432000)throw Error('MusicXML score exceeds the timeline limit.');
+   at+=extent;measureEnds.push(at);if(at>432000)throw Error('MusicXML score exceeds the timeline limit.');
   }
   if(ties.size)throw Error('MusicXML contains unfinished ties.');
-  return {name:definitions.get(part.id),notes,duration:at};
+  return {name:definitions.get(part.id),notes,duration:at,measureEnds};
  });
+ if(timewise)validateTimewiseBoundaries(tracks);
+ for(const track of tracks)delete track.measureEnds;
  if(!tracks.some(t=>t.notes.length))throw Error('The MusicXML score has no pitched notes.');
  return {tracks,tempos:[...tempos],meters:[...meters],keys:[...keys]};
 }

@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {validateTimewiseBoundaries} from '../src/experimental/musicxml-timewise.js';
+test('timewise parts must align at every measure boundary, including pickups',()=>{assert.doesNotThrow(()=>validateTimewiseBoundaries([{measureEnds:[1,5,8]},{measureEnds:[1,5,8]}]));assert.throws(()=>validateTimewiseBoundaries([{measureEnds:[1,5,8]},{measureEnds:[.5,5,8]}]),/inconsistent/);assert.throws(()=>validateTimewiseBoundaries([{measureEnds:[1,5]},{measureEnds:[1]}]),/inconsistent/);});
