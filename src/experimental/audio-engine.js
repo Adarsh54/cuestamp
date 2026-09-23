@@ -51,10 +51,19 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
   if(!Number.isFinite(when)||when<=context.currentTime)throw Error('Choose a future audio-clock stop time.');
   if(options.endPosition!==undefined&&when>=base+options.endPosition-position)throw Error('Playback ends before the requested cell stop.');
   if(!session.tracks.some(t=>t.id===trackId&&['audio','midi'].includes(t.kind)))throw Error('Choose an audio or MIDI track.');
-  collectVoices();const current=voices.get(trackId);
+  collectVoices();stopVoices(trackId,when);return {trackId,when};
+ };
+ const stopVoices=(trackId,when)=>{const current=voices.get(trackId);
   for(const entry of retired)if(entry.trackId===trackId){entry.when=Math.min(entry.when,when);entry.group.silenceAt(entry.when);}
   if(current){const stopTime=current.stopping?Math.min(current.when,when):when;current.group.silenceAt(stopTime);retired.add({...current,when:stopTime});voices.set(trackId,{...current,when:stopTime,queued:true,stopping:true});}
-  return {trackId,when};
+ };
+ const stopAllRegions=({when}={})=>{
+  if(stopped)throw Error('Playback has stopped.');
+  if(!Number.isFinite(when)||when<=context.currentTime)throw Error('Choose a future audio-clock stop time.');
+  if(options.endPosition!==undefined&&when>=base+options.endPosition-position)throw Error('Playback ends before the requested clip stop.');
+  collectVoices();const ids=new Set([...voices.keys(),...Array.from(retired,e=>e.trackId)]);
+  for(const id of ids)stopVoices(id,when);
+  return {when};
  };
  const lanes=new Map(effectLanes);
  const addLane=(id,parameter,param,points,fallback)=>lanes.set(`${id}:${parameter}`,{param,points:structuredClone(points||[]),fallback});
@@ -67,6 +76,6 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
   for(const send of track.sends||[]){const id=sendAutomationTarget(track.id,send.busId);addLane(id,'gainDb',sendNodes.get(id).gain,send.automation,send.gainDb);}
  }
  const automation=createLiveAutomation({context,base,position,lanes});
- return {base,meters,automation,replaceTrackRegions,stopTrackRegions,collectVoices,readEffectMeters:()=>effectMeters?.read(),stop(){if(stopped)return;stopped=true;for(const {group} of voices.values())group.stop();for(const {group} of retired)group.stop();voices.clear();retired.clear();effectMeters?.stop();automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
+ return {base,meters,automation,replaceTrackRegions,stopTrackRegions,stopAllRegions,collectVoices,readEffectMeters:()=>effectMeters?.read(),stop(){if(stopped)return;stopped=true;for(const {group} of voices.values())group.stop();for(const {group} of retired)group.stop();voices.clear();retired.clear();effectMeters?.stop();automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
 }
 export {encodeWav} from './wav.js';

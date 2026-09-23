@@ -36,3 +36,5 @@ export function sceneCellPlan(session,values){
 
 export const sceneCellStopSchema=z.object({trackId:z.string().min(1).max(100),quantization:z.enum(['immediate','beat','bar'])}).strict();
 export function validateSceneCellStop(session,value){const v=sceneCellStopSchema.parse(value);if(!session.tracks.some(t=>t.id===v.trackId&&['audio','midi'].includes(t.kind)))throw Error('Choose an audio or MIDI track.');return v;}
+
+export const sceneStopAllSchema=z.object({quantization:z.enum(['immediate','beat','bar'])}).strict();

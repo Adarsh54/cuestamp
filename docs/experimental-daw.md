@@ -2225,3 +2225,11 @@ Stop track clip and the agent stop_scene_cell action now schedule an immediate/b
 ### Cell performance recording checkpoint
 
 Scene recording now captures independent launches and stops as per-track clip passages, preserves simultaneous tracks, omits canceled launches and supports atomic arrangement placement/undo. Cell signatures protect the actual source without depending on other cells. A native two-track audio fixture replays the saved performance with sample-identical output after initial launch latency is removed. Mixer automation restart behavior and effect-tail parity are not covered by that claim and remain unfinished, alongside indefinite cell transport and take management.
+
+### Live scene state and stopping all clips
+
+Scene cells now show Playing, Queued, or Finished independently of cell selection. The agent receives the same validated clip IDs and scheduled times in `transport.scene`. This is scheduling state, not a measurement of audible output.
+
+**Stop all clips** uses the scene's immediate/beat/bar timing. It stops current clips and cancels future voice starts, including clips in a pending scene handoff, without ending the scene clock. Mixer effects continue within the audition window; a queued scene still switches its mixer graph at its scheduled boundary. Launch another clip or scene to resume sound. **Stop scene audition** still ends the entire transport. The agent can use `stop_all_scene_clips` with the same behavior, and performance capture retains gaps between stopped and relaunched clips.
+
+Validation: `experimental-scene-stop-all.test.js`, `browser-experimental-scene-stop-all-check.cjs`, and `browser-experimental-scenes-check.cjs` cover quantized scheduling, canceled queued audio, relaunch, performance gaps, and manual/agent controls. Indefinite transport, full automation capture, and live provider inference remain unfinished.

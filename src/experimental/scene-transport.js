@@ -37,6 +37,16 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
    if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell can launch. Start a longer audition.');
    performanceLog?.canAppend(plan);current.graph.replaceTrackRegions(trackId,regions,{when,duration:plan.end});performanceLog?.cell(plan,trackId,position);observation.launch(plan,trackId,position,context.currentTime-base);return {position,trackId};
   },
+  stopAll({quantization}){
+   if(stopped)throw Error('Start scene playback before stopping clips.');
+   transport.advance();
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   if(position>=transport.endPosition)throw Error('Scene playback ends before this clip stop.');
+   // Include the queued graph: its future voice opens must not restart clips.
+   for(const entry of [current,pending])if(entry&&when<entry.when+entry.plan.end)entry.graph.stopAllRegions({when});
+   performanceLog?.stop(undefined,position);observation.stop(undefined,position,context.currentTime-base);
+   return {position};
+  },
   stopCell({trackId,quantization}){
    if(stopped)throw Error('Start scene playback before stopping a cell.');
    transport.advance();if(pending)throw Error('Wait for the queued scene before stopping a cell.');
