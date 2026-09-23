@@ -4592,3 +4592,12 @@ The video monitor has **Show movie frames** for the selected movie region, falli
 Thumbnail decoding uses an offscreen HTML video element and canvas, keeps the original file unchanged, and requires a browser-decodable attached movie. Decode/seek waits have timeouts. The strip samples eight points rather than showing every frame or detecting scene cuts; reverse thumbnail timing uses the selected session frame rate.
 
 Unit checks cover trimmed/reversed/subframe sample positions. The real-WebM browser check verifies eight JPEG thumbnails, frame navigation, cancellation and retry alongside movie playback checks. The scoring browser regression also passes. All 1,152 tests and build pass; the existing bundle-size warning remains.
+
+
+### Fit tempo to picture timecode
+
+Tempo map → Fit music to a timestamp now has an endpoint format selector for seconds or timecode. Timecode honors the session start, frame rate and drop-frame settings. Switching formats preserves a precise endpoint rather than replacing it with the rounded label; selecting a marker preserves that marker’s exact time. Invalid/before-start labels disable Fit tempo.
+
+`tempo.fit` accepts exactly one of `targetTime` (timeline seconds) or `targetTimecode` (picture label), with existing zero-based quarter-note `startBeat`/`endBeat`. The agent prompt documents this choice. The same tempo-scaling planner keeps the passage start fixed, preserves internal tempo ratios and restores the previous tempo at the endpoint. Existing audio/video/markers stay fixed; tempo-following MIDI is retimed as before. BPM and timeline limits still apply.
+
+Tests cover drop-frame conversion, ambiguous/invalid endpoints, atomic rejection and Undo. `scripts/browser-experimental-tempo-fit-timecode-check.cjs` verifies picture-label entry, the resulting BPM, Undo, format roundtrip precision and invalid endpoint handling. All 1,153 tests and build pass. Live model inference for this request remains unverified.
