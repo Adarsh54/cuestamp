@@ -16,10 +16,11 @@ export function createMidiOutput({session,position,beforePlay,onChange,onPositio
   catch{if(epoch===token)notice='Could not silence the MIDI device. Check its connection.';}
   finally{if(epoch===token){opening=false;changed();}}
  }
- function stateChange(){if(port&&port.state!=='connected')stop('MIDI output disconnected.');if(!outputs().some(p=>p.id===outputId))outputId=outputs()[0]?.id||'';changed();}
+ function fail(reason){const notify=plan?.onFailure;stop(reason);notify?.(new Error(reason));changed();}
+ function stateChange(){if(port&&port.state!=='connected')fail('MIDI output disconnected.');if(!outputs().some(p=>p.id===outputId))outputId=outputs()[0]?.id||'';changed();}
  async function connect(){if(opening||plan)return;opening=true;const token=++epoch;notice='Requesting MIDI output access…';changed();try{const next=await requestAccess();if(disposed||epoch!==token)return;access?.removeEventListener('statechange',stateChange);access=next;access.addEventListener('statechange',stateChange);outputId=outputs()[0]?.id||'';notice=outputId?'MIDI output ready.':'Connect a MIDI output device.';}catch{if(epoch===token)notice='MIDI output access is unavailable or was denied.';}finally{if(epoch===token){opening=false;changed();}}}
  function tick(){
-  if(!plan||!port)return;const now=clock();if(now-lastTick>500){stop('MIDI output stopped after a timing interruption. Restart from the playhead.');changed();return;}lastTick=now;
+  if(!plan||!port)return;const now=clock();if(now-lastTick>500){fail('MIDI output stopped after a timing interruption. Restart from the playhead.');return;}lastTick=now;
   try{let sent=0;const duration=(plan.end-plan.start)*1000;
    while(true){
     if(index===plan.messages.length){if(!plan.cycle||base+duration>now+100)break;base+=duration;index=0;}
@@ -28,14 +29,14 @@ export function createMidiOutput({session,position,beforePlay,onChange,onPositio
    }
    const elapsed=Math.max(0,now-origin);onPosition(plan.cycle?plan.start+(elapsed%duration)/1000:Math.min(plan.end,plan.start+elapsed/1000));
    if(!plan.cycle&&now>=origin+duration+20){stop('MIDI output finished.',{releaseTail:plan.releaseTail});changed();}
-  }catch{stop('MIDI output failed or disconnected.');changed();}
+  }catch{fail('MIDI output failed or disconnected.');}
  }
- async function prepare({agent=false,recording=false}={}){
+ async function prepare({agent=false,recording=false,onFailure=null}={}){
   if(opening||plan)throw Error('Stop MIDI output before preparing another playback.');
   const prepared=midiOutputPlaybackPlan(session(),trackId,position(),{arrangement:scope==='arrangement'}),output=outputs().find(p=>p.id===outputId);if(!output)throw Error('Choose a connected MIDI output.');
   beforePlay({agent,recording});const token=++epoch;opening=true;notice='Opening MIDI output…';changed();
   try{await output.open();if(disposed||epoch!==token){if(port!==output)await output.close();throw Error('MIDI output preparation canceled.');}if(output.state!=='connected')throw Error('MIDI output disconnected.');port=output;
-   const start=(startAt=clock()+50)=>{if(disposed||epoch!==token||!opening)throw Error('MIDI output preparation canceled.');if(!Number.isFinite(startAt)||startAt<clock())throw Error('MIDI output start time has passed.');plan={...prepared,releaseTail:recording};index=0;base=startAt;origin=base;lastTick=clock();notice=(plan.cycle?'Cycling on ':'Playing on ')+(output.name||'MIDI output');opening=false;tick();if(plan)timer=schedule(tick,25);changed();};
+   const start=(startAt=clock()+50)=>{if(disposed||epoch!==token||!opening)throw Error('MIDI output preparation canceled.');if(!Number.isFinite(startAt)||startAt<clock())throw Error('MIDI output start time has passed.');plan={...prepared,releaseTail:recording,onFailure};index=0;base=startAt;origin=base;lastTick=clock();notice=(plan.cycle?'Cycling on ':'Playing on ')+(output.name||'MIDI output');opening=false;tick();if(plan)timer=schedule(tick,25);changed();};
    return Object.assign(start,{duration:prepared.end-prepared.start,cycle:prepared.cycle});
   }catch(error){if(epoch===token){stop(error.message);changed();}throw error;}
  }

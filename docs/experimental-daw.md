@@ -2329,3 +2329,9 @@ Verified using a fake microphone and simulated MIDI output: scheduled messages, 
 The recorder uses an exact AudioWorklet end frame for the combined duration. At natural MIDI completion during capture, it releases hold pedals and notes without All Sound Off so the instrument can render its release/reverb tail. Manual Stop, Cancel and Panic retain immediate cleanup. Region boundaries now release sustain, sostenuto and hold-2 pedals. A supplied tail duration is not a guarantee that the instrument has fully decayed; users choose it for their patch.
 
 Verified duration bounds/defaults, prepared playback duration metadata, release-tail cleanup, and an automatically saved 0.6-second browser capture (0.4-second MIDI region plus 0.2-second tail) using fake audio input and simulated MIDI output. Physical instrument audio and latency remain unverified.
+
+### Interrupted hardware recordings
+
+MIDI device disconnects, failed sends, and scheduling interruptions now notify an attached recorder. The recorder releases the audio input/output immediately and reports the failure instead of saving an incomplete take as a successful bounce. This also works during count-in: failed recordings bypass the normal wait-until-capture-start rule so they cannot leave the recording UI armed indefinitely. Normal completion, manual Stop and Cancel retain their respective save/discard behavior. Failed partial captures are discarded, with an explicit “No take was saved” message; recovery/export of interrupted partial captures is not implemented.
+
+Unit tests cover disconnect, send failure, stall, single notification and normal-stop behavior. Simulated-hardware browser checks cover disconnects during capture and count-in, unchanged saved-take count and released input tracks. Physical disconnect behavior remains unverified.
