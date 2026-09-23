@@ -4357,3 +4357,7 @@ Track search deselects regions hidden by the new filter and retains visible sele
 ### Panel state during editor changes
 
 Workspace panel restoration uses its original DOM position when still valid, then a unique summary label when inserting/removing an editor shifts that position. Duplicate labels do not use the fallback. This keeps the command harness open (or deliberately closed) across track/region selections. `scripts/browser-experimental-view-state-check.cjs` checks both transitions, ambiguous labels, delayed initialization, draft focus, device changes, editor scrolling, and undo.
+
+### Reveal mixer channel in arrangement
+
+The selected track's mixer detail has a Show in arrangement button. It clears the transient track filter, selects/focuses the track header, scrolls it into view, and expands ancestor buses through the existing undoable `track.set` commands. Master has no arrangement track and does not show this action. Expanding groups uses the regular edit path and pauses playback; revealing an already expanded track only changes the view. The action is blocked during loading, recording, and agent work. The track-search browser check covers filter clearing, focus, collapsed ancestors, and undo.
