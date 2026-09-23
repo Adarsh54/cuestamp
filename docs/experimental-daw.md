@@ -2201,3 +2201,7 @@ Reference: [Logic's graphical EQ controls](https://support.apple.com/en-mide/gui
 ## Scene foundation — 2026-09-23
 
 Apple's Live Loops overview describes track rows with shared channel-strip routing and scene columns launched together: https://support.apple.com/guide/logicpro/live-loops-overview-lgcpf46ffc88/10.7/mac/11.0 . Cuestamp now has its own saved scene/cell-reference model and shared undoable commands. This is not Live Loops parity: quantized scene/cell transport, grid UI, recording and performance capture are still unimplemented. Source regions remain authoritative; scenes retain one region reference per track with a loop/one-shot preference. Evidence is in `test/experimental-scenes.test.js` and `scripts/browser-experimental-scenes-check.cjs`.
+
+### Scene playback checkpoint
+
+The saved scene grid now supports timed auditions through the existing native audio scheduler. Cells start together, loop cells repeat at their source clip length, and one-shots play once. Manual controls and the agent `audition_scene` tool share validation and leave the arrangement intact. Audition length is bounded to 0.1–600 seconds and playback cuts off at the requested end, including tails. Track/master automation runs from scene time zero. These are timed auditions, not yet Logic-style quantized launches or performance recording. Native rendered-audio checks cover loop versus one-shot behavior, routed gain and end gating; live provider inference is still unverified.
