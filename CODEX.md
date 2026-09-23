@@ -5148,3 +5148,16 @@ Verification: `test/experimental-score-clef.test.js` checks supported clefs, exa
 - Selecting an existing score note now supplies its note/region IDs to the agent, even when the arrangement or piano roll has another region selected. Context is captured before the request-triggered repaint. Selected-region exports follow the score region too, and unrelated waveform-range context is omitted.
 - Score context is cleared by interacting with another editing area, closing the note form, selecting a rest draft, or repainting the score. Interaction within the agent preserves it until capture. IDs are revalidated against the live MIDI document; stale or missing notes are not supplied.
 - Verified unit tests in `test/experimental-score-agent-selection.test.js` and browser `scripts/browser-experimental-score-agent-selection-check.cjs`: clicking a bass note in a two-part score sends its ID, region and export context, and a mocked agent command edits that note. Real model interpretation of “this note” remains unverified.
+
+### Live score-agent diagnostic (2026-09-23)
+
+Configure server-only `OPENAI_API_KEY` and `DAW_AGENT_MODEL` in ignored `.env.local` (or `DAW_AGENT_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` and an accessible model). Never use frontend-prefixed keys.
+
+```sh
+npm run check:daw-agent -- --score --config-only
+npm run check:daw-agent -- --score
+```
+
+The score scenario uses up to three billable model requests on a disposable in-memory session: move the selected bass note up an octave, follow up with a quarter-note-triplet duration, then request a two-part MusicXML score. It applies shared command validation and checks complete session equality against the expected change. It generates XML in memory; no project, media, or export file is saved. The existing default mix scenario remains unchanged.
+
+Local preflight on this checkpoint found `OPENAI_API_KEY` and `DAW_AGENT_MODEL` missing, so **live inference is still unverified**. `test/experimental-score-agent-check.test.js` verifies the diagnostic using fake plans, including wrong targets, unrelated edits, incomplete export requests, missing configuration and error redaction. These unit tests are not evidence of provider/model success.

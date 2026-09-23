@@ -1,3 +1,4 @@
+import {checkScoreAgent} from './daw-score-agent-check.mjs';
 import {pathToFileURL} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
 import {DawModelError,dawModelConfig} from '../server/daw-model.js';
@@ -5,12 +6,14 @@ import {planDawEdit} from '../server/daw-agent.js';
 import {SessionHistory,newSession} from '../src/experimental/session.js';
 import {conversationTurn} from '../src/experimental/agent-conversation.js';
 
-export async function checkDawAgent({env=process.env,configOnly=false,plan=planDawEdit}={}){
+export async function checkDawAgent({env=process.env,configOnly=false,scenario='mix',plan=planDawEdit}={}){
+ if(!['mix','score'].includes(scenario))return {ok:false,stage:'configuration',message:'Choose the mix or score scenario.'};
  const config=dawModelConfig(env);
  if(!['openai','anthropic'].includes(config.provider))return {ok:false,stage:'configuration',message:'DAW_AGENT_PROVIDER must be openai or anthropic.'};
  const missing=[config.provider==='anthropic'?'ANTHROPIC_API_KEY':'OPENAI_API_KEY','DAW_AGENT_MODEL'].filter(name=>!env[name]?.trim());
  if(missing.length)return {ok:false,stage:'configuration',message:`Missing ${missing.join(' and ')}. Set these server-only variables in .env.local, then restart the API. Never use a VITE_ prefix or commit credentials.`};
  if(configOnly)return {ok:true,stage:'configuration',message:'Required variables are present. This does not verify credentials, model access, inference, or application login.'};
+ if(scenario==='score')return checkScoreAgent({plan,config});
  const history=new SessionHistory(newSession());history.execute([{op:'track.add',values:{id:'check-strings',name:'Smoke-test strings',kind:'midi'}},{op:'track.add',values:{id:'check-guide',name:'Smoke-test guide',kind:'audio'}}]);
  const conversation=[];let stage='initial edit';
  try{
@@ -31,6 +34,6 @@ export async function checkDawAgent({env=process.env,configOnly=false,plan=planD
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
- const args=process.argv.slice(2);if(args.some(arg=>arg!=='--config-only')){console.error('Usage: npm run check:daw-agent -- [--config-only]');process.exitCode=2;}
- else{const configOnly=args.includes('--config-only');if(!configOnly)console.log('Checking the configured model using up to two billable requests on a disposable in-memory session.');const result=await checkDawAgent({configOnly});console.log(`${result.ok?'PASS':'FAIL'} [${result.stage}] ${result.message}`);process.exitCode=result.ok?0:1;}
+ const args=process.argv.slice(2);if(args.some(arg=>!['--config-only','--score'].includes(arg))){console.error('Usage: npm run check:daw-agent -- [--config-only] [--score]');process.exitCode=2;}
+ else{const configOnly=args.includes('--config-only');const scenario=args.includes('--score')?'score':'mix';if(!configOnly)console.log(`Checking the configured model using up to ${scenario==='score'?'three':'two'} billable requests on a disposable in-memory session.`);const result=await checkDawAgent({configOnly,scenario});console.log(`${result.ok?'PASS':'FAIL'} [${result.stage}] ${result.message}`);process.exitCode=result.ok?0:1;}
 }
