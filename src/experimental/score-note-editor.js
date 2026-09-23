@@ -1,3 +1,4 @@
+import {rememberScoreSelection,rememberedScoreSelection} from './score-agent-selection.js';
 import {scoreSelectionToolsView,bindScoreSelectionTools} from './score-selection-tools.js';
 import {scoreChordDraft,scoreChordCommand} from './score-chord.js';
 import {scoreTransposition} from './score-transposition.js';
@@ -24,9 +25,9 @@ export function scoreNoteheads(graphical){
  const index=graphical.vfnoteIndex;
  return Number.isInteger(index)&&heads[index]?[heads[index]]:[];
 }
-export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard}){
+export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard,selectionRoot}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
- const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null,chordDraft=false,selectedIds=new Set();
+ const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null,chordDraft=false,selectedIds=new Set(),restoring=false;
  form.hidden=true;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;
  const select=(reference,extend=false,preserve=false)=>{
   const sourceRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=reference.note??sourceRegion?.notes.find(n=>n.id===reference.noteId);if(!note)return;
@@ -35,6 +36,7 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
   if(note.id&&!selectedIds.size){form.querySelector('[data-score-note-close]').click();return;}
   if(note.id&&!selectedIds.has(note.id)){select({regionId:sourceRegion.id,noteId:[...selectedIds][0]},true,true);return;}
   if(note.id){panel.dataset.selectedScoreNotes=JSON.stringify([...selectedIds]);panel.dataset.selectedScoreNote=note.id;panel.dataset.selectedScoreRegion=sourceRegion.id;}else{delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;}
+  if(!restoring)rememberScoreSelection(selectionRoot,session.id,note.id?{regionId:sourceRegion.id,noteId:note.id,noteIds:[...selectedIds]}:null);
   selected=note;selectedRegion=sourceRegion;chordDraft=Boolean(reference.chord);const rhythm=identifyScoreRhythm(session,sourceRegion,note);form.elements.namedItem('scoreLength').value=rhythm.length;form.elements.namedItem('scoreRhythm').value=rhythm.variant;form.elements.namedItem('scoreRhythm').disabled=rhythm.length==='custom';form.querySelector('[data-score-rhythm-status]').textContent='';form.hidden=false;form.querySelector('[data-score-note-label]').textContent=reference.chord?`Add chord tone in ${sourceRegion.name||'MIDI region'}`:reference.note?`Add note to ${sourceRegion.name||'MIDI region'}`:`Edit note in ${sourceRegion.name||'MIDI region'} · changes all tied segments`;form.querySelector('[type=submit]').textContent=reference.chord?'Add chord tone':reference.note?'Add note':'Apply note edit';
   for(const action of ['duplicate','delete','chord'])form.querySelector(`[data-score-note-${action}]`).hidden=!note.id;
   const multiple=selectedIds.size>1;
@@ -80,5 +82,17 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
  form.onsubmit=guard(e=>{e.preventDefault();if(!selected)throw Error('Select a score note first.');if(selectedIds.size>1)throw Error('Select one note to change its fields.');const values=Object.fromEntries(['pitch','start','duration','velocity'].map(key=>[key,Number(form.elements.namedItem(key).value)]));if(length.value!=='custom')values.duration=scoreRhythmDuration(session,selectedRegion,values.start,length.value,rhythm.value);execute([chordDraft?scoreChordCommand(selectedRegion,selected,values):{op:selected.id?'note.set':'note.add',target:selected.id??selectedRegion.id,values}],chordDraft?'Added chord tone':selected.id?'Edited score note':'Added score note');});
  form.querySelector('[data-score-note-chord]').onclick=guard(()=>select(scoreChordDraft(session,selectedRegion,selected)));
  for(const action of ['duplicate','delete'])form.querySelector(`[data-score-note-${action}]`).onclick=guard(()=>execute([scoreNoteGroupAction(session,selectedRegion,[...selectedIds],action)],action==='delete'?'Deleted score note':'Duplicated score note'));
- form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;selectedIds.clear();delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
+ form.querySelector('[data-score-note-close]').onclick=()=>{form.hidden=true;selected=null;selectedIds.clear();rememberScoreSelection(selectionRoot,session.id,null);delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;panel.querySelectorAll('[data-score-note]').forEach(el=>{el.style.fill='';el.setAttribute('aria-pressed','false');});};
+ const memory=rememberedScoreSelection(selectionRoot,session.id);
+ if(memory){
+  const visible=new Set([...targets.values()].filter(Boolean).filter(t=>t.reference.regionId===memory.regionId).map(t=>t.reference.noteId));
+  const ids=memory.noteIds.filter(id=>visible.has(id));
+  if(ids.length){
+   selectedRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===memory.regionId);
+   selectedIds=new Set(ids);restoring=true;
+   select({regionId:memory.regionId,noteId:ids.includes(memory.noteId)?memory.noteId:ids[0]},true,true);
+   restoring=false;
+  }
+ }
+
 }

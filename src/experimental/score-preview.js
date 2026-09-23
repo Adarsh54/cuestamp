@@ -54,7 +54,7 @@ export function bindScorePreview(root,{session,track,region,execute,guard,downlo
     if(request!==generation||!panel.isConnected){candidate.clear();return;}
     sheet.replaceChildren(surface);renderer=candidate;loadedScope=cacheKey;sheet.setAttribute('aria-label',document.label);
    }
-   renderer.Zoom=Number(zoom.value);renderer.render();bindScoreNotes(panel,renderer,{session:display.session,track:display.track,region,scope:selectedScope,execute,guard});indexScorePosition(root,panel);scroll.scrollTop=view.top;scroll.scrollLeft=view.left;status.textContent='Score preview ready.';
+   renderer.Zoom=Number(zoom.value);renderer.render();bindScoreNotes(panel,renderer,{session:display.session,track:display.track,region,scope:selectedScope,execute,guard,selectionRoot:root});indexScorePosition(root,panel);scroll.scrollTop=view.top;scroll.scrollLeft=view.left;status.textContent='Score preview ready.';
   }catch(error){if(request!==generation||!panel.isConnected)return;sheet.replaceChildren();panel.querySelector('[data-score-note-editor]').hidden=true;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;loadedScope=null;renderer=null;status.textContent=error.message||'Unable to render this score.';}
  };
  for(const input of choices)input.onchange=()=>{view.partIds=choices.filter(c=>c.checked).map(c=>c.value);void draw();};
