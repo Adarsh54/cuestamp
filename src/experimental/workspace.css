@@ -196,3 +196,5 @@ form.daw-note-editor{margin-top:8px}
 
 .daw-zone-batch-actions{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}
 .daw-zone-batch-actions>strong{font-size:12px}
+
+[data-sampler-zone]>.daw-zone-fade-help{grid-column:1/-1}

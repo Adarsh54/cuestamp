@@ -1,0 +1,5 @@
+import {z} from 'zod';
+export const velocityFadeSchema=z.object({velocityFadeIn:z.number().int().min(0).max(126).default(0),velocityFadeOut:z.number().int().min(0).max(126).default(0),velocityFadeCurve:z.enum(['linear','equalPower']).default('linear')});
+export const velocityFadePatch=Object.fromEntries(Object.entries(velocityFadeSchema.shape).map(([key,schema])=>[key,schema.removeDefault().optional()]));
+export function validateVelocityFade(zone,ctx){const span=zone.velocityHigh-zone.velocityLow;for(const key of ['velocityFadeIn','velocityFadeOut'])if(zone[key]>span)ctx.addIssue({code:'custom',path:[key],message:'Velocity fade width must fit inside the zone velocity range.'});}
+export function velocityFadeGain(zone,note){if(!note)return 1;const velocity=Math.max(1,Math.min(127,Math.round(note.velocity*127)));if(velocity<zone.velocityLow||velocity>zone.velocityHigh)return 0;const into=zone.velocityFadeIn??0,out=zone.velocityFadeOut??0;const gain=Math.max(0,Math.min(1,into?(velocity-zone.velocityLow)/into:1,out?(zone.velocityHigh-velocity)/out:1));return zone.velocityFadeCurve==='equalPower'?Math.sin(gain*Math.PI/2):gain;}
