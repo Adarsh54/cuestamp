@@ -1,7 +1,9 @@
 import {z} from 'zod';
 import {scenePerformanceSchema,scenePerformanceView,availableScenePerformance} from './scene-performance.js';
-const takeSchema=z.object({id:z.string().min(1).max(100),name:z.string().trim().min(1).max(100),createdAt:z.string().datetime(),performance:scenePerformanceSchema,placements:z.number().int().nonnegative().default(0)}).strict();
+export const takeSchema=z.object({id:z.string().min(1).max(100),name:z.string().trim().min(1).max(100),createdAt:z.string().datetime(),performance:scenePerformanceSchema,placements:z.number().int().nonnegative().default(0)}).strict();
 const librarySchema=z.object({version:z.literal(1),selectedId:z.string().nullable(),selectedBySession:z.record(z.string(),z.string()).default({}),takes:z.array(takeSchema).max(32)}).strict().refine(v=>new Set(v.takes.map(t=>t.id)).size===v.takes.length,'Take IDs must be unique.');
+export const sceneTakeBundleSchema=z.object({selectedId:z.string().min(1).max(100).nullable(),takes:z.array(takeSchema).max(32)}).strict();
+export function validateSceneTakeBundle(value,sessionId){const bundle=sceneTakeBundleSchema.parse(value??{selectedId:null,takes:[]});if(bundle.takes.some(t=>t.performance.sessionId!==sessionId)||new Set(bundle.takes.map(t=>t.id)).size!==bundle.takes.length||bundle.selectedId&&!bundle.takes.some(t=>t.id===bundle.selectedId))throw Error('Archived takes do not match their project or selection.');return bundle;}
 export class SceneTakes {
  constructor(storage,key){this.epoch=0;this.storage=storage;this.key=key+':scene-takes';this.legacyKey=key+':scene-performance';this.data={version:1,selectedId:null,selectedBySession:{},takes:[]};this.saved=true;this.loadError=null;
   let raw,legacy;try{raw=storage.getItem(this.key);legacy=raw?null:storage.getItem(this.legacyKey);}catch{this.saved=false;return;}
@@ -10,6 +12,9 @@ export class SceneTakes {
  persist(){if(this.loadError)throw Error(this.loadError);this.epoch++;try{this.storage.setItem(this.key,JSON.stringify(this.data));this.saved=true;}catch{this.saved=false;}}
  list(sessionId){return this.data.takes.filter(t=>t.performance.sessionId===sessionId);}
  selected(sessionId){const list=this.list(sessionId);return list.find(t=>t.id===(this.data.selectedBySession[sessionId]??this.data.selectedId))??list.at(-1);}
+ exportBundle(sessionId){if(this.loadError)throw Error(this.loadError);return validateSceneTakeBundle({selectedId:this.selected(sessionId)?.id??null,takes:this.list(sessionId)},sessionId);}
+ checkImport(bundle,sessionId){if(this.loadError)throw Error(this.loadError);const parsed=validateSceneTakeBundle(bundle,sessionId);if(this.data.takes.length+parsed.takes.length>32)throw Error('Discard unneeded takes before importing: this archive would exceed the 32-take device limit.');if(parsed.takes.some(t=>this.data.takes.some(existing=>existing.id===t.id)))throw Error('An imported take ID already exists.');return parsed;}
+ importBundle(bundle,sessionId){const parsed=this.checkImport(bundle,sessionId);this.data.takes.push(...parsed.takes);if(parsed.selectedId){this.data.selectedId=parsed.selectedId;this.data.selectedBySession[sessionId]=parsed.selectedId;}this.persist();}
  assertCanRecord(){if(this.loadError)throw Error(this.loadError);if(this.data.takes.length>=32)throw Error('Discard an unneeded scene take before recording more than 32 takes on this device.');}
  add(performance,name){this.assertCanRecord();performance=scenePerformanceSchema.parse(performance);const list=this.list(performance.sessionId);let n=1;while(list.some(t=>t.name===`Take ${n}`))n++;const take=takeSchema.parse({id:crypto.randomUUID(),name:name??`Take ${n}`,createdAt:new Date().toISOString(),performance,placements:0});this.data.takes.push(take);this.data.selectedId=take.id;this.data.selectedBySession[performance.sessionId]=take.id;this.persist();return take;}
  select(id,sessionId){if(!this.list(sessionId).some(t=>t.id===id))throw Error('Choose a take from this project.');this.data.selectedId=id;this.data.selectedBySession[sessionId]=id;this.persist();}
