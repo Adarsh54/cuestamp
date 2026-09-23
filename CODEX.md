@@ -3969,3 +3969,27 @@ and protection. `browser-experimental-recording-takes-check.cjs` captures three
 actual browser recordings using Chromium's synthetic microphone, verifies group
 state and latest selection, then undo/redo and reload. Physical-input testing
 remains outstanding.
+
+### Experimental DAW: split continuous recordings into takes
+
+The audio region's Split recording into takes panel converts consecutive passes
+in one recording into aligned alternatives on a new track. Set pass duration,
+destination time and optional edge fade. Defaults use the cycle range. It starts
+at the selected region's beginning, honors source trim/reversal, references the
+same media, and mutes the original region. The final partial pass is preserved;
+the last complete pass is selected. The UI selects the resulting take for review.
+
+The shared `region.cycleTakes` command takes duration (.01..600 seconds), start
+(destination seconds), and edgeFade (0...1 seconds, default .005). It requires
+2..64 passes and space for another track, and rejects muted/protected sources.
+Track routing, effects and automation are copied; automation uses destination
+timeline times. Each pass gets linear edge fades capped at half its length.
+This is a source-reference edit with one undo step, not resampling or generation.
+Agent use requires known pass timing; it must not guess musical boundaries.
+
+Unit tests cover trimmed/reversed offsets, exact and partial passes, validation,
+protection, undo and the agent command. The browser test checks the form, current
+take selection, real offline playback of three distinguishable source sections,
+partial-tail silence, undo/redo and reload. This supplies the take-splitting
+foundation for continuous cycle recording; capture/playback integration is still
+outstanding.
