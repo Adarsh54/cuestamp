@@ -5293,3 +5293,11 @@ MIDI CC66 now captures only keys held when sostenuto is first pressed. Repeated 
 Converting pedal holds to note lengths now includes CC66. Cropping a region containing sostenuto first bakes its pedal holds into note durations so removing the original capture point does not change the resulting sound. Shared command Undo restores the original notes and controller events. MIDI-device seeking starts captured keys before restoring CC66 and starts other keys afterward.
 
 Verified 1,361 tests and production build. `scripts/browser-experimental-sostenuto-check.cjs` renders actual offline browser audio to verify capture, exclusion of later notes, release, and seeking. Unit coverage includes damper interaction, repeated presses, reset, live monitoring, crop/Undo and MIDI message ordering. Physical MIDI hardware has not been verified. This does not add MusicXML sostenuto-mark import or continuous half-pedal synthesis.
+
+### MusicXML sostenuto sound data (2026-09-23)
+
+Explicit `sound sostenuto-pedal` now imports as MIDI CC66 using the same yes/no/percentage and sound-offset rules as damper. Both pedals are retained independently on all generated unison channels, with separate score-end releases. A same-direction sostenuto symbol is suppressed when explicit sostenuto playback data is present. Symbol-only sostenuto lines still require explicit playback data; continuous half-pedal synthesis remains unsupported.
+
+Verified 1,362 tests and build. `scripts/browser-experimental-musicxml-sostenuto-check.cjs` verifies XML parsing, duplicate-symbol suppression, invalid percentages, imported CC66 timing, captured-note hold through trailing rests, actual file import and Undo. Unit coverage checks independent damper release while sostenuto remains held.
+
+Reference: [MusicXML sound pedal attributes](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/).
