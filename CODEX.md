@@ -4431,3 +4431,7 @@ Tests: `test/experimental-agent-selection-audition.test.js` covers captured/expl
 ### Automation recording during auditions
 
 Every temporary playback document is marked as a preview. Touch, Latch, Write, Trim Touch and Trim Latch reject preview playback before opening an automation capture or setting a live parameter. This includes waveform ranges and selected-clip auditions as well as comps/warps. Use ordinary playback with Cycle off to record automation. Regression coverage spans all five modes and preview flags in `test/experimental-automation-touch.test.js`; the region-audition browser check verifies a rejected fader gesture keeps the project unchanged and audition playback active.
+
+### Cycle from multiple clips
+
+Loop selected clips replaces the old primary-region-only action. It enables Cycle from the earliest selected start to the latest selected end across tracks, using the existing undoable `session.set` operation. Region contents and mute states do not change; all normally audible material inside the range plays, unlike selected-clip audition. Empty/invalid selections, ranges beyond the timeline, and passages over the current 10-minute cycle playback limit reject before changing cycle settings. Unit/browser checks: `test/experimental-cycle-selection.test.js` and `scripts/browser-experimental-cycle-selection-check.cjs` cover full spans, single clips, invalid bounds, unchanged region data, actual cycle playback and undo.

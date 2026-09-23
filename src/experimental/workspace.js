@@ -430,7 +430,7 @@ export function createExperimentalWorkspace({account,esc}){
   bindMetronome(root,{execute,guard});
   midiInput.bind(root);
   bindBounceSettings(root,bounceSettings);
-  bindCycle(root,{region:region(),execute,guard});
+  bindCycle(root,{session:session(),ids:[...regionSelection],execute,guard});
   bindMixer(root,{touch,touchMode,onTouchMode:value=>{if(value==='write')stop();else touch.finish();touchMode=value;paint();},cancelTouch:()=>{touch.cancel();if(touchMode==='write')touchMode='touch';paint();},isPlaying:()=>Boolean(playback),afterTouch:()=>{if(touchMode==='write'&&!touch.active)touchMode='touch';paint();},sampleRate:context?.sampleRate||48000,blocked:()=>busy||Boolean(recordAbort)||midiInput.active,session:session(),selected:mixerSelected,automationParameter,onAutomationParameter:value=>{automationParameter=value;},select:id=>{mixerSelected=id;paint();},execute,guard,duration:sessionDuration(session())});
   root.querySelector('[data-frame-rate]').onchange=guard(e=>execute([{op:'session.set',values:{frameRate:Number(e.target.value)}}],'Changed frame rate'));
   root.querySelector('[data-timecode]').onchange=guard(e=>{const next=parseTimecode(e.target.value,session().frameRate);stop();position=next;paint();});
