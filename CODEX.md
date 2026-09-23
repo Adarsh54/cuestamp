@@ -4549,3 +4549,12 @@ Experimental scoring controls now include Timecode format: Non-drop or Drop-fram
 `session.set` accepts `dropFrame` together with `frameRate`, so the agent uses the same validated, undoable setting. Invalid rate/format combinations reject atomically. Manually switching to an incompatible frame rate also switches to non-drop in the same undo step. Timecode entry rejects skipped frame labels. This changes timeline numbering only; it does not read a movie’s embedded source timecode or alter media playback.
 
 Reference: [Apple timecode technical note](https://developer.apple.com/library/archive/technotes/tn2310/_index.html). Unit checks exercise every frame across ten-minute transitions at both supported rates, hour boundaries, inverse conversion and settings history. `scripts/browser-experimental-drop-frame-check.cjs` covers minute-boundary frame stepping, invalid entry, reload, rate switching and Undo. All 1,141 tests and build pass; the existing bundle-size warning remains.
+
+
+### Movie preview synchronization
+
+`movie-sync.js` shares source selection and time mapping between stopped previews and playback. It respects video track/region mute, source offsets and reversed regions, hides gaps/missing assets, and uses half a selected timeline frame as the forward drift threshold instead of 150 ms. Forward playback follows the video clock while correcting drift; stopped previews and reverse playback seek to the requested source frame. Stop invalidates pending playback intent so a delayed play promise cannot restart a stopped picture.
+
+Reverse preview is browser seeking rather than reverse video decoding and may be less smooth depending on codec, frame rate and device. Overlapping movie regions still use the first eligible region in track order; this is not a video compositor. Audio remains handled by the existing audio graph.
+
+`test/experimental-movie-sync.test.js` checks trim/reverse mapping, mute/gaps, frame changes, missing assets and delayed play cleanup. `scripts/browser-experimental-movie-sync-check.cjs` generates a real WebM clip using MediaRecorder and verifies seek, frame step, forward play/stop, reverse seek and mute with an HTML video element. All 1,144 tests and build pass; the existing bundle-size warning remains.
