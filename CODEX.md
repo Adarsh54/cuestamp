@@ -4576,3 +4576,10 @@ The marker panel follows **Timeline ruler**: seconds, bars/beats/ticks, or timec
 `marker.add` and `marker.set` accept `values.timecode` instead of `values.time`, and reject commands containing both. The command engine resolves the label against the current session frame rate, drop-frame and start offset, rejects skipped/before-start labels, and keeps batch rollback and Undo. The agent prompt documents this path so it can pass picture timecodes directly rather than calculate seconds itself.
 
 Checks cover valid conversion, ambiguous/invalid labels, atomic rollback and preservation of subframe positions during renaming. The browser marker workflow also creates/jumps to a picture cue with a one-hour start and adds a marker at bar three, alongside existing MIDI download/import and history checks. All 1,149 tests and build pass; the existing bundle-size warning remains. Live model inference for marker requests remains unverified.
+
+
+### Agent seeking by displayed position
+
+`seek_timeline_position` accepts `format` (`timecode` or `musical`) and a string `position`. The server uses the same session-aware parser as manual navigation: frame rate, drop-frame, timecode start, tempo changes and meter changes are applied in code. The model can pass the requested label directly. The result uses the existing validated transport seek path, pauses playback, leaves the document unchanged and creates no undo step. It requires transport capability and is not offered during editing continuations.
+
+Invalid labels, skipped drop-frame numbers, before-start positions, extra arguments and missing capability reject. Browser revision/transport checks prevent a delayed response from overriding newer navigation. `scripts/browser-experimental-agent-position-check.cjs` runs the actual server planner with mocked provider output and checks timecode/musical seeks, unchanged document and stale transport rejection. All 1,150 tests and build pass; live provider behavior remains unverified.

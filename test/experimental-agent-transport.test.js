@@ -50,3 +50,12 @@ test('agent hardware transport requires observed ready output and selected track
  await assert.rejects(planDawEdit({session,instruction:'Play device',transport:{...transport,midiOutput:{...midiOutput,trackId:null}},allowTransport:true},adapter([output({operation:'play_device',position:null})])),/Select a MIDI track/);
  await assert.rejects(planDawEdit({session,instruction:'Edit and play device',transport,allowTransport:true},adapter([output({summary:'Change title',commands:[{op:'session.set',values:{title:'Changed'}}],afterEditTransport:{operation:'play_device',position:null}},'edit_session')])),/Connect and select/);
 });
+
+test('agent seeks picture timecode and musical labels through validated session timing',async()=>{
+ const s={...session,frameRate:29.97,dropFrame:true,timecodeOffset:3599.9964,tempo:120,meter:4,tempoChanges:[{id:'tempo',beat:4,bpm:60}]},state={...transport,sessionId:s.id};
+ const run=(args,extra={})=>planDawEdit({session:s,instruction:'Go to this position',transport:state,allowTransport:true,...extra},adapter([output(args,'seek_timeline_position')]));
+ const tc=await run({format:'timecode',position:'01:00:01;00'});assert.ok(Math.abs(tc.transport.position-1.001)<1e-8);assert.equal(tc.transport.operation,'seek');assert.equal(tc.transportEpoch,4);assert.deepEqual(tc.commands,[]);
+ const musical=await run({format:'musical',position:'3:1:000'});assert.equal(musical.transport.position,6);
+ for(const args of [{format:'timecode',position:'01:01:00;00'},{format:'timecode',position:'00:59:59;29'},{format:'musical',position:'0:1:000'},{format:'seconds',position:'2'},{format:'musical',position:'2:1:000',play:true}])await assert.rejects(run(args));
+ await assert.rejects(run({format:'timecode',position:'01:00:01;00'},{allowTransport:false}),/Unexpected/);
+});
