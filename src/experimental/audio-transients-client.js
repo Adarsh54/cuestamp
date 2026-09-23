@@ -1,0 +1,7 @@
+import {transientSettingsSchema} from './audio-transients.js';
+export async function analyzeRegionTransients(buffer,region,settings={}, {signal,onProgress=()=>{}}={}){
+ settings=transientSettingsSchema.parse(settings);signal?.throwIfAborted();const rate=buffer.sampleRate,offset=Math.round(region.offset*rate),frames=Math.round(region.duration*rate);
+ if(offset<0||frames<1||offset+frames>buffer.length||frames/rate>600||buffer.numberOfChannels<1||buffer.numberOfChannels>2||frames*buffer.numberOfChannels*4>250*1024*1024)throw Error('Analyze a valid region up to 10 minutes within 250 MB of PCM.');
+ const channels=Array.from({length:buffer.numberOfChannels},(_,c)=>{const data=buffer.getChannelData(c).slice(offset,offset+frames);return region.reverse?data.reverse():data;});
+ return new Promise((resolve,reject)=>{const worker=new Worker(new URL('./audio-transients.worker.js',import.meta.url),{type:'module'}),cleanup=()=>{worker.terminate();signal?.removeEventListener('abort',abort);},fail=e=>{cleanup();reject(e);},abort=()=>fail(new DOMException('Transient detection canceled.','AbortError'));signal?.addEventListener('abort',abort,{once:true});worker.onerror=e=>fail(Error(e.message||'Transient detection failed.'));worker.onmessage=({data})=>{if(data.error)return fail(Error(data.error));if(data.markers){cleanup();resolve(data.markers);}else try{onProgress(data.progress);}catch(e){fail(e);}};try{worker.postMessage({channels,sampleRate:rate,settings},channels.map(c=>c.buffer));}catch(e){fail(e);}});
+}

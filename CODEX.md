@@ -3656,3 +3656,17 @@ The agent tool `snap_audio_range_to_zero_crossings` accepts the captured wavefor
 Tests: `test/experimental-zero-crossing.test.js` checks bounded searches, stereo polarity, channel mismatch, offset/reversal mapping, invalid samples, collapsed ranges and agent capability/context guards. `scripts/browser-experimental-silence-check.cjs` checks manual and agent selection controls against imported WAV samples and unchanged saved project state.
 
 Reference: [Apple Logic Pro zero-crossing editing](https://support.apple.com/guide/logicpro/snap-edits-to-zero-crossings-lgcp76a73399/10.7/mac/11.0).
+
+### Audio attack detection and navigation
+
+In **Audio waveform editor**, **Detect attacks** analyzes the selected region in a cancelable worker and overlays detected attacks. **Previous attack** / **Next attack** move the cursor through those positions; the existing waveform split and range controls then provide editing. Detection settings are attack rise (3–24 dB), noise floor (-96 to -12 dBFS) and minimum gap (0.01–1 second). Defaults are 9 dB, -45 dBFS and 50 ms. Smaller rise thresholds can detect weaker attacks but also more false positives.
+
+This is an approximate short-time energy-rise detector: 2 ms blocks, a preceding 20 ms baseline, maximum channel power, and a minimum separation. It does not infer beats, perform spectral onset analysis, or implement Flex warping. Transitions below the floor are ignored; channel powers are not summed as waveforms, so opposite polarity cannot cancel the detector. Markers are region-local, with source offset and reverse applied before analysis. No audio file or document is modified. Results are temporary and invalidated by a document revision; they are not yet manually editable or persisted marker sets.
+
+Detection accepts up to 10 minutes of mono/stereo region PCM within 250 MB and at most 10,000 attacks. Worker inputs are copies; cancellation terminates analysis. After decoding/analysis, session revision and cancellation are checked before publishing results. Missing detailed waveform data is loaded so agent-generated results are visible in the same editor.
+
+The agent tool `detect_audio_attacks` accepts a region ID (null for captured selection) and the same settings. It analyzes real PCM in the browser and reports the first 32 measured absolute timeline positions in the action summary. It is a standalone analysis action and unavailable during editing continuation. Live provider inference is not covered by the mocked-response browser check.
+
+Verification: `test/experimental-transients.test.js` covers separated attacks, sustained tone, silence, subfloor audio, stereo polarity, gap settings, invalid data, navigation and agent guards. `scripts/browser-experimental-transients-check.cjs` verifies actual worker execution, trim/reverse timing, cancellation and unchanged buffers. The editor browser regression imports WAV, detects two attacks, navigates both directions, requests agent analysis and checks unchanged saved state.
+
+Reference: [Apple Logic Pro transient marker editing](https://support.apple.com/en-ca/guide/logicpro/lgcp21586c87/mac). Manual marker editing and Flex warping remain unfinished.
