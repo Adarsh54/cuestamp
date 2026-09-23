@@ -25,7 +25,7 @@ export function musicxmlRegionPlan(session,track,region){
  while(at<endBeat-1e-9){if(measures.length>=2048)throw Error('Export up to 2,048 measures at a time.');const next=Math.min(endBeat,meter.barStart(bar+1)),signature=meter.signatureAtBar(bar),start=tick(at),end=tick(next);if(end>start)measures.push({bar,start,end,signature,partial:at>meter.barStart(bar)+1e-9||next<meter.barStart(bar+1)-1e-9,tempos:[...(measures.length===0?[{beat:at,bpm:tempo.tempoAtBeat(at)}]:[]),...tempo.points.filter(p=>p.beat>=at&&p.beat<next&&(measures.length>0||p.beat>at))].map(p=>({offset:tick(p.beat)-start,bpm:p.bpm}))});at=next;bar++;}
  return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
 }
-export function exportRegionMusicxml(session,track,region){
+function regionMeasures(session,track,region){
  const keys=compileKeyMap(session),tempo=compileTempoMap(session),origin=tempo.beatAtTime(region.start);
  const plan=musicxmlRegionPlan(session,track,region),parts=[],clefs={treble:['G',2],bass:['F',4],alto:['C',3],tenor:['C',4]},clef=clefs[track.scoreClef??'treble'];if(!clef)throw Error('Choose a supported score clef.');let lastSignature='',lastKey='';
  for(const [index,m] of plan.measures.entries()){
@@ -49,6 +49,22 @@ export function exportRegionMusicxml(session,track,region){
    }
   }parts.push(`<measure number="${index+1}"${m.partial?' implicit="yes"':''}>${music.join('')}</measure>`);
  }
- return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(region.name||session.title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list><score-part id="P1"><part-name>${xml(track.name)}</part-name></score-part></part-list><part id="P1">${parts.join('')}</part></score-partwise>`;
+ return parts.join('');
+}
+function scoreDocument(title,parts){
+ return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list>${parts.map((p,i)=>`<score-part id="P${i+1}"><part-name>${xml(p.name)}</part-name></score-part>`).join('')}</part-list>${parts.map((p,i)=>`<part id="P${i+1}">${p.measures}</part>`).join('')}</score-partwise>`;
+}
+export function exportRegionMusicxml(session,track,region){return scoreDocument(region.name||session.title,[{name:track.name,measures:regionMeasures(session,track,region)}]);}
+export function scoreTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.instrument!=='drumKit'&&t.regions.length&&!t.regions.some(r=>r.notes.some(n=>n.channel===9)));}
+export function exportScoreMusicxml(session,trackIds=scoreTracks(session).map(t=>t.id)){
+ if(!Array.isArray(trackIds)||!trackIds.length||trackIds.length>128||new Set(trackIds).size!==trackIds.length)throw Error('Choose between 1 and 128 distinct pitched MIDI tracks.');
+ const eligible=scoreTracks(session),tracks=trackIds.map(id=>{const track=eligible.find(t=>t.id===id);if(!track)throw Error('Choose existing pitched MIDI tracks with regions; percussion notation is not supported.');return track;});
+ const end=Math.max(...tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration)));
+ const parts=tracks.map(track=>{
+  // Align all parts to the same timeline, retaining gaps as rests and overlapping regions as voices.
+  const region={id:'score-export',name:session.title,start:0,duration:end,notes:track.regions.flatMap(r=>r.notes.map(n=>({...n,start:r.start+n.start})))};
+  return {name:track.name,measures:regionMeasures(session,{...track,regions:[region]},region)};
+ });
+ return scoreDocument(session.title,parts);
 }
 export function resolveMusicxmlRegion(session,regionId){if(typeof regionId!=='string'||!regionId||regionId.length>100)throw Error('Choose an existing MIDI region.');const track=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=track?.regions.find(r=>r.id===regionId);musicxmlRegionPlan(session,track,region);return {track,region};}
