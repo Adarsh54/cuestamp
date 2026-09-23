@@ -29,6 +29,7 @@
     "jszip": "3.10.1",
     "libflacjs": "5.6.0",
     "mediabunny": "^1.56.3",
+    "opensheetmusicdisplay": "2.1.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {

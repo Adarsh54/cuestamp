@@ -2386,3 +2386,11 @@ checks pass, and the downloaded fixture validates against the official 4.0 XSD.
 This adds notation interchange, not an interactive score editor. Percussion,
 engraving controls, lyrics, MusicXML import and external notation-app verification
 remain incomplete. Agent-triggered MusicXML export now uses the same generator; mocked integration checks pass, while live model tool selection remains unverified.
+
+## Score preview checkpoint — 2026-09-23
+
+A selected MIDI region now renders as SVG notation in an optional in-app score
+preview, using lazy-loaded OpenSheetMusicDisplay and the shared MusicXML exporter.
+Browser checks verify visible rendering, zoom and no session mutation; the score
+was visually inspected. This closes the basic score-viewing gap. Direct notation
+editing, advanced engraving and MusicXML import remain unfinished.
