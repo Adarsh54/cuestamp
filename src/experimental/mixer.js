@@ -23,7 +23,7 @@ export function mixerView(session,selected,esc,{touchMode='static',touchCount=0,
 }
 const effectParameterSelections=new Map();
 export function bindMixer(root,{session,selected,select,execute,guard,duration,touch=null,touchMode='static',onTouchMode=()=>{},cancelTouch=()=>{},isPlaying=()=>false,afterTouch=()=>{},automationParameter='gainDb',onAutomationParameter=()=>{},sampleRate=48000,blocked=()=>false}){
- bindChannelAllocation(root,{execute,guard});
+ bindChannelAllocation(root,{execute,guard,blocked});
  bindSummingGroup(root,{session,execute,guard,blocked,select});
  root.querySelectorAll('[data-mix-fold]').forEach(el=>el.onclick=guard(()=>{const t=session.tracks.find(t=>t.id===el.dataset.mixFold);execute([{op:'track.set',target:t.id,values:{collapsed:!t.collapsed}}],t.collapsed?'Expanded group':'Collapsed group');select(t.id);}));
  root.querySelectorAll('[data-mix-select]').forEach(el=>el.onclick=guard(()=>{const commands=revealTrackCommands(session,el.dataset.mixSelect);if(commands.length)execute(commands,'Revealed group member');select(el.dataset.mixSelect);}));

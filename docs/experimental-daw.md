@@ -2299,3 +2299,9 @@ The MIDI output panel now offers **One MIDI track** or **MIDI arrangement**. Arr
 Agent transport observations include the manually selected scope. `play_device` uses that scope; stopping, panic, cancellation and disconnect cleanup apply to every channel that was scheduled. Scope selection is local UI state and does not edit the project. This is MIDI-only playback to one port, not synchronized browser audio playback, multi-port routing, external audio returns, or hardware latency compensation. Those remain outstanding.
 
 Reference: [Apple's multichannel MIDI overview](https://support.apple.com/en-ie/guide/logicpro/lgcpebe9781c/10.7/mac/11.0). Tests cover concurrent channels, controller chase, mute/solo and solo buses, cross-track conflicts, sequential channel reuse, and browser/agent arrangement playback through a simulated port. Physical MIDI hardware remains unverified.
+
+### Resolve hardware channel conflicts
+
+The MIDI output panel now includes **Assign channels for this device**, using the existing `midi.allocateChannels` planner and command. It previews each changed track/channel before applying. Notes and controller streams move together, drum/reserved channels and protected tracks retain the existing allocation rules, and one Undo restores every assignment. It assigns channels across the saved session, including muted parts, rather than just the current audition. Check the external instrument's receiving channels afterward; no hardware patch configuration is inferred or sent by this operation. Overlapping regions on the same track/channel still require manual channel reassignment or timing edits.
+
+The existing mixer entry point remains available and uses the same operation. Output controls disable allocation during playback/setup and other busy operations. Browser verification covers a two-track conflict, preview, allocation, Undo/Redo, and resulting two-channel hardware playback with a simulated device.
