@@ -21,7 +21,7 @@ export function midiOutputPlan(session,trackId,start=0,{arrangement=false,endAt=
   for(const event of region.events)if(event.start>=relative&&event.start<region.duration)add(region.start+event.start,eventBytes(event),4);
   const controllers=new Map([...channels].map(c=>[c,compileMidiControllers(region.events.filter(e=>(e.channel??0)===c),track.pitchBendRange)]));
   for(const note of notes){const channel=note.channel??0,nominalEnd=Math.min(region.duration,note.start+note.duration),heldEnd=controllers.get(channel).sustainedEnd(note,region.duration);if(heldEnd<=relative||note.start>=region.duration)continue;add(region.start+Math.max(relative,note.start),[0x90|channel,note.pitch,Math.max(1,Math.round(note.velocity*127))],6);add(region.start+Math.max(relative,nominalEnd),[0x80|channel,note.pitch,0],nominalEnd<=relative?7:5);}
-  for(const channel of channels){add(limit,[0xb0|channel,64,0],0);add(limit,[0xb0|channel,123,0],0);}
+  for(const channel of channels)for(const cc of [64,66,69,123])add(limit,[0xb0|channel,cc,0],0);
  }
  if(!messages.length)throw Error('No MIDI notes or events remain after the playhead.');
  messages.sort((a,b)=>a.time-b.time||a.priority-b.priority);return {trackId:arrangement?null:trackId,trackIds:tracks.map(t=>t.id),start,end,messages};

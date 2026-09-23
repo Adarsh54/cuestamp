@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {hardwareCaptureDuration,hardwareRecordingOptions} from '../src/experimental/hardware-recording.js';
+test('automatic hardware capture includes a bounded tail and manual mode retains recorder limits',()=>{assert.equal(hardwareCaptureDuration(5),7);assert.equal(hardwareCaptureDuration(5,{tailSeconds:0}),5);assert.equal(hardwareCaptureDuration(599,{tailSeconds:1}),600);assert.equal(hardwareCaptureDuration(800,{autoFinish:false}),null);for(const d of [0,-1,Infinity,NaN])assert.throws(()=>hardwareCaptureDuration(d));assert.throws(()=>hardwareCaptureDuration(599),/10 minutes/);for(const tailSeconds of [-1,31,Infinity,NaN])assert.throws(()=>hardwareRecordingOptions.parse({tailSeconds}));});
