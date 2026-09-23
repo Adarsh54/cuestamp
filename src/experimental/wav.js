@@ -1,12 +1,14 @@
+import {wavMarkerChunks} from './wav-markers.js';
 // Integer WAV clips at full scale; float WAV preserves over-range samples for mixing.
-export function encodeWav(buffer,{bitDepth=16,dither='none',random=Math.random}={}) {
+export function encodeWav(buffer,{bitDepth=16,dither='none',random=Math.random,markers=[]}={}) {
  if(![16,24,32].includes(bitDepth))throw Error('Choose 16-bit, 24-bit or 32-bit float WAV.');
  if(!['none','tpdf'].includes(dither))throw Error('Choose no dither or triangular dither.');
  const useDither=dither==='tpdf'&&bitDepth!==32;
  const channels=buffer.numberOfChannels,frames=buffer.length,bytes=bitDepth/8;
+ const metadata=wavMarkerChunks(markers,buffer.sampleRate,frames);
  const dataSize=frames*channels*bytes,padding=dataSize%2,headerSize=bitDepth===32?56:44;
- if(!Number.isSafeInteger(dataSize)||dataSize+headerSize-8+padding>0xffffffff)throw Error('Audio exceeds the WAV file size limit.');
- const array=new ArrayBuffer(headerSize+dataSize+padding),view=new DataView(array);
+ if(!Number.isSafeInteger(dataSize)||dataSize+headerSize-8+padding+metadata.length>0xffffffff)throw Error('Audio exceeds the WAV file size limit.');
+ const array=new ArrayBuffer(headerSize+dataSize+padding+metadata.length),view=new DataView(array);
  const text=(offset,s)=>{for(let i=0;i<s.length;i++)view.setUint8(offset+i,s.charCodeAt(i));};
  text(0,'RIFF');view.setUint32(4,array.byteLength-8,true);text(8,'WAVEfmt ');
  view.setUint32(16,16,true);view.setUint16(20,bitDepth===32?3:1,true);
@@ -25,5 +27,6 @@ export function encodeWav(buffer,{bitDepth=16,dither='none',random=Math.random}=
   if(bitDepth===16)view.setInt16(offset,value,true);
   else {view.setUint8(offset,value&255);view.setUint8(offset+1,(value>>8)&255);view.setUint8(offset+2,(value>>16)&255);}
  }
+ new Uint8Array(array).set(metadata,headerSize+dataSize+padding);
  return new Blob([array],{type:'audio/wav'});
 }

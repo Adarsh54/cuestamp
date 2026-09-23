@@ -1,3 +1,4 @@
+import {bounceMarkers} from './wav-markers.js';
 import {createMovieFilmstrip} from './movie-filmstrip.js';
 import {syncMovie} from './movie-sync.js';
 import {hardwareRecordingView,bindHardwareRecordingSource,hardwareRetakePlan,hardwareRetakeActionSchema} from './hardware-recording.js';
@@ -252,7 +253,7 @@ export function createExperimentalWorkspace({account,esc}){
     check();if(zip){status=`Bouncing stem ${i+1} of ${plan.entries.length}…`;paint();}
     const offline=new OfflineAudioContext(2,Math.max(1,Math.ceil(plan.duration*settings.sampleRate)),settings.sampleRate);
     scheduleSession(offline,entry.document,buffers,plan.position,{baseTime:0});
-    const file=encodeWav(await wait(offline.startRendering()),{bitDepth:settings.bitDepth,dither:settings.dither});
+    const file=encodeWav(await wait(offline.startRendering()),{bitDepth:settings.bitDepth,dither:settings.dither,markers:bounceMarkers(entry.document,plan.position,plan.duration)});
     if(zip)zip.file(entry.name,await wait(file.arrayBuffer()));else{output=file;name=entry.name;}
    }
    if(zip){output=await wait(zip.generateAsync({type:'blob'}));name=plan.title+'-stems.zip';}
