@@ -1,10 +1,10 @@
 import {z} from 'zod';
 const position=z.number().finite().min(0).max(1000000000);
 const sceneObservationSchema=z.object({currentSceneId:z.string().min(1).max(100),queuedSceneId:z.string().min(1).max(100).nullable(),cells:z.array(z.object({sceneId:z.string().min(1).max(100),trackId:z.string().min(1).max(100),regionId:z.string().min(1).max(100),start:position,end:position,state:z.enum(['playing','queued','finished'])}).strict().refine(c=>c.end>c.start,'Cell end must follow its start.')).max(512)}).strict();
-export const transportStateSchema=z.object({sessionId:z.string().min(1).max(100),revision:z.number().int().nonnegative(),epoch:z.number().int().nonnegative(),position,playing:z.boolean(),scene:sceneObservationSchema.optional(),mode:z.enum(['stopped','arrangement','cycle','audioRange','regionSelection','scene','scenePerformance','midiOutput','comp','warp','preview']).optional()}).strict();
-export const transportActionSchema=z.object({operation:z.enum(['play','pause','stop','seek']),position:z.number().finite().min(0).max(86400).nullable()}).strict().superRefine((v,ctx)=>{
+export const transportStateSchema=z.object({sessionId:z.string().min(1).max(100),revision:z.number().int().nonnegative(),epoch:z.number().int().nonnegative(),position,playing:z.boolean(),midiOutput:z.object({deviceId:z.string().min(1).max(1000),name:z.string().max(1000),trackId:z.string().min(1).max(100).nullable(),ready:z.boolean()}).strict().optional(),scene:sceneObservationSchema.optional(),mode:z.enum(['stopped','arrangement','cycle','audioRange','regionSelection','scene','scenePerformance','midiOutput','comp','warp','preview']).optional()}).strict();
+export const transportActionSchema=z.object({operation:z.enum(['play','pause','stop','seek','play_device','silence_device']),position:z.number().finite().min(0).max(86400).nullable()}).strict().superRefine((v,ctx)=>{
  if(v.operation==='seek'&&v.position===null)ctx.addIssue({code:'custom',message:'Seek requires an absolute timeline position.'});
- if(['pause','stop'].includes(v.operation)&&v.position!==null)ctx.addIssue({code:'custom',message:'Pause and stop do not accept a position.'});
+ if(['pause','stop','play_device','silence_device'].includes(v.operation)&&v.position!==null)ctx.addIssue({code:'custom',message:'This operation does not accept a position.'});
 });
 export function validateTransportState(value,session){
  if(value===undefined)return;const state=transportStateSchema.parse(value);
@@ -48,4 +48,10 @@ export function transportPlaybackMode(playback){
  if(playback.compPreview)return 'comp';
  if(playback.preview)return 'preview';
  return playback.loop?'cycle':'arrangement';
+}
+
+export function validateDeviceTransport(action,state){
+ if(!['play_device','silence_device'].includes(action.operation))return;
+ if(!state?.midiOutput?.ready)throw Error('Connect and select a MIDI output device before requesting hardware control.');
+ if(action.operation==='play_device'&&!state.midiOutput.trackId)throw Error('Select a MIDI track for hardware playback.');
 }

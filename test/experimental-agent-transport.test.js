@@ -38,3 +38,15 @@ test('playback scope is validated before model calls and reaches the provider as
  let sent;const scoped={...transport,playing:true,mode:'regionSelection'};await planDawEdit({session,instruction:'What is playing?',transport:scoped},adapter([],body=>sent=body));assert.equal(JSON.parse(sent.input.at(-1).content).transport.mode,'regionSelection');assert.match(sent.input[0].content,/temporary listening scopes/);assert.equal(transportSummary('play',scoped),'Selected clip audition at 12.00 s.');
  let calls=0;await assert.rejects(planDawEdit({session,instruction:'play',transport:{...scoped,playing:false}},adapter([],()=>calls++)),{status:400});assert.equal(calls,0);
 });
+
+test('agent hardware transport requires observed ready output and selected track',async()=>{
+ const midiOutput={deviceId:'out',name:'Synth',trackId:'t',ready:true};
+ for(const operation of ['play_device','silence_device']){
+  const action={operation,position:null};
+  const result=await planDawEdit({session,instruction:'Hardware action',transport:{...transport,midiOutput},allowTransport:true},adapter([output(action)]));assert.deepEqual(result.transport,action);assert.equal(result.transportEpoch,4);
+  for(const observed of [undefined,{...midiOutput,ready:false}])await assert.rejects(planDawEdit({session,instruction:'Hardware action',transport:{...transport,midiOutput:observed},allowTransport:true},adapter([output(action)])),/Connect and select/);
+  assert.throws(()=>transportActionSchema.parse({...action,position:1}));
+ }
+ await assert.rejects(planDawEdit({session,instruction:'Play device',transport:{...transport,midiOutput:{...midiOutput,trackId:null}},allowTransport:true},adapter([output({operation:'play_device',position:null})])),/Select a MIDI track/);
+ await assert.rejects(planDawEdit({session,instruction:'Edit and play device',transport,allowTransport:true},adapter([output({summary:'Change title',commands:[{op:'session.set',values:{title:'Changed'}}],afterEditTransport:{operation:'play_device',position:null}},'edit_session')])),/Connect and select/);
+});
