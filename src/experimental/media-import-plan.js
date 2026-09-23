@@ -20,6 +20,7 @@ export function mediaImportPlan(session,{trackId,kind='audio',assetId,name,start
 export function recordedMediaPlan(session,settings){
  const plan=mediaImportPlan(session,settings);
  plan.message='Recorded take added to the timeline.';
+ if(session.audioRecordMode==='cycle'&&Number.isFinite(settings.cycleDuration)&&settings.duration>settings.cycleDuration+1e-9){const commands=[...plan.commands,{op:'region.cycleTakes',target:plan.regionId,values:{duration:settings.cycleDuration,start:settings.start}}];applyCommands(session,commands);return {...plan,commands,cycleTakes:true,message:'Cycle recording saved as selectable takes.'};}
  if(session.audioRecordMode!=='takes'||!settings.trackId)return plan;
  const source=session.tracks.find(t=>t.id===settings.trackId),overlap=source.regions.filter(r=>r.assetId&&r.start<settings.start+settings.duration&&settings.start<r.start+r.duration);
  if(!overlap.length)return plan;

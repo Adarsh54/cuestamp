@@ -3993,3 +3993,33 @@ take selection, real offline playback of three distinguishable source sections,
 partial-tail silence, undo/redo and reload. This supplies the take-splitting
 foundation for continuous cycle recording; capture/playback integration is still
 outstanding.
+
+### Experimental DAW: continuous cycle recording
+
+Recording mode now includes Record cycle takes (`audioRecordMode: 'cycle'`).
+Enable a cycle range of 0.1–600 seconds and disable audio punch. Recording starts
+at cycle start, uses the existing count-in and microphone settings, and captures
+up to 64 passes or ten minutes (also bounded by the timeline end). Continuous
+microphone PCM is saved once. On stop, passes are aligned using the actual
+sample-rounded playback period; a partial final pass is kept and the last full
+pass selected. Stopping before a complete pass still saves the captured audio.
+
+The continuous original is retained/muted, and aligned takes go on an adjacent
+new track in one undoable batch. Capacity is checked before permission/capture.
+The recording playhead wraps and the progress label shows the current take.
+Success selects the resulting take. Cancellation stops microphone, loop, count-in
+and monitor without committing regions. Agent settings can prepare this mode,
+but starting the microphone remains a manual action.
+
+Accompaniment (when enabled) and the recording metronome are rendered into one
+sample-aligned repeating buffer. The count-in click is scheduled separately;
+playback is isolated from the microphone capture graph. As with existing cycle
+playback, effects reset at the buffer boundary and sustain/history from before
+the range is not reconstructed. Physical input/output latency is not compensated.
+
+Tests cover range validation, sample rounding, capture limits, pass preservation,
+and early stop. The browser check uses a real AudioWorklet with Chromium's fake
+microphone, verifies saved passes and one-step undo/redo, cancellation cleanup,
+repeated accompaniment samples and digital click isolation. Ordinary recording
+regression coverage checks timing, saved PCM and cancellation/navigation cleanup.
+Real hardware latency/listening validation remains outstanding.

@@ -1,4 +1,6 @@
+import {cycleRecordingWindow} from './cycle-recording.js';
 export function audioRecordingWindow(session,position=0){
+ const cycle=cycleRecordingWindow(session);if(cycle)return cycle;
  if(!session?.audioPunchEnabled)return {playbackStart:position,start:position,duration:600,punch:false};
  const start=session.audioPunchStart,end=session.audioPunchEnd;
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>86400||end<=start||end-start>600)throw Error('Audio punch range must be ordered, within the timeline, and at most 10 minutes.');
