@@ -3881,8 +3881,8 @@ the nodes and closes their message port. UI rerenders do not reset the processor
 Linear metering taps the post-fader/post-pan master before the separately routed
 click. Cycle metering analyzes the rendered repeating buffer, including its click.
 The UI states this difference. These are current playback windows, not full-song
-integrated loudness, LRA or true peaks. Existing agent meter context remains
-sample-peak-only; full mix analysis supplies its loudness data. Unsupported or
+integrated loudness, LRA or true peaks. Agent meter context includes recent live loudness as described below; full mix
+analysis supplies integrated loudness and full-song extrema. Unsupported or
 failed worklet loading leaves playback available and displays meter unavailable.
 
 The worklet is bundled through Vite's `worker&url` import, loaded lazily so Node
@@ -3892,3 +3892,22 @@ the latter catches asset/import failures hidden by development serving. Unit
 coverage compares live windows with offline weighting at all mix render rates,
 checks level changes and silence. Browser coverage uses real AudioWorklet audio
 in linear and cycle playback and checks stop/start reset.
+
+### Experimental DAW: live loudness in agent context
+
+`meterObservation.loudness` optionally carries master momentaryLufs,
+shortTermLufs, processed frames and its own measuredAt. Worklet messages include
+audio-context time; the main thread uses it to account for delivery delay rather
+than timestamping stale readings as new. Readings older than two seconds stop
+appearing as live measurements and are omitted from new captures. Validation
+requires the master meter, complete windows for non-null values, current document
+revision, and the original observation age limit of two minutes. Old clients
+without loudness remain accepted. Telemetry is not persisted in the session.
+
+The agent is instructed to treat these as recent playback windows and request
+full-mix analysis for integrated loudness/normalization. Mode distinguishes
+linear from repeating cycle playback and its possible metronome content. Null
+means startup, silence or below the meter floor; absence means unmeasured.
+Unit tests verify timestamp and window guards and model context. The live-meter
+browser script verifies actual AudioWorklet readings in the outgoing request;
+the model reply is mocked, not live provider inference.

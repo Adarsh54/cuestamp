@@ -10,8 +10,8 @@ export function createLiveLoudness(context,source,{startTime=context.currentTime
  try{
   node=new AudioWorkletNode(context,'cuestamp-live-loudness',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:2,channelCountMode:'explicit',processorOptions:{startTime}});
   sink=context.createGain();sink.gain.value=0;node.connect(sink).connect(context.destination);source.connect(node);
-  node.port.onmessage=event=>{if(!closed)value=event.data;};node.onprocessorerror=()=>{value={unavailable:true};};
-  return {read:()=>value,stop(){if(closed)return;closed=true;node.port.onmessage=null;node.port.postMessage('stop');node.port.close();source.disconnect(node);node.disconnect();sink.disconnect();}};
+  node.port.onmessage=event=>{if(!closed){const {contextTime,...reading}=event.data;value={...reading,measuredAt:Math.round(Date.now()-Math.max(0,context.currentTime-contextTime)*1000)};}};node.onprocessorerror=()=>{value={unavailable:true};};
+  return {read:()=>value.measuredAt&&Date.now()-value.measuredAt>2000?{unavailable:true}:value,stop(){if(closed)return;closed=true;node.port.onmessage=null;node.port.postMessage('stop');node.port.close();source.disconnect(node);node.disconnect();sink.disconnect();}};
  }catch{try{source.disconnect(node);}catch{}node?.disconnect();sink?.disconnect();return null;}
 }
 export function updateLiveLoudness(root,values){
