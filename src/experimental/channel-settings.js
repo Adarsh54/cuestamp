@@ -10,7 +10,7 @@ export function copyChannelSettings(destination,source,options){
  if(!selected.length)throw Error('Select at least one category to replace.');
  if(options.instrument&&(source.kind!=='midi'||destination.kind!=='midi'))throw Error('Instrument settings require two MIDI tracks.');
  const copy=duplicateTrack(source,{includeRegions:false});
- const keys={effects:['effects'],mix:['gainDb','pan'],automation:['automation','automationMode','automationMuted'],routing:['output','sends'],instrument:['inputArticulation','midiSwitches','sampleArticulations',...Object.keys(copy).filter(key=>key==='instrument'||key==='pitchBendRange'||(key.startsWith('sample')&&key!=='sampleArticulations'))]};
+ const keys={effects:['effects'],mix:['gainDb','pan'],automation:['automation','automationMode','automationMuted'],routing:['output','sends'],instrument:['sampleZones','inputArticulation','midiSwitches','sampleArticulations',...Object.keys(copy).filter(key=>key==='instrument'||key==='pitchBendRange'||(key.startsWith('sample')&&key!=='sampleArticulations'))]};
  for(const category of selected)for(const key of keys[category])destination[key]=copy[key];
 }
 export function channelSettingsView(session,track,esc){
