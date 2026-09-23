@@ -3911,3 +3911,33 @@ means startup, silence or below the meter floor; absence means unmeasured.
 Unit tests verify timestamp and window guards and model context. The live-meter
 browser script verifies actual AudioWorklet readings in the outgoing request;
 the model reply is mocked, not live provider inference.
+
+### Experimental DAW: audio take groups
+
+Select an audio track/region and open Take groups. Choose overlapping source
+regions, name the group and group them. Use take unmutes one performance and
+mutes its alternatives; unrelated regions and track mute/solo stay unchanged.
+All source files, trims, timing and effects are preserved. Ungroup removes the
+membership metadata while keeping current mutes. Comping can use inactive takes.
+
+Shared commands: `takes.create` targets the audio track with regionIds (comma
+separated), name and optional activeRegionId; `takes.select` takes groupId and
+regionId; `takes.ungroup` takes groupId. Membership is stored per region as
+`takeGroup: {id, takeId, name}`. Split/duplicated fragments retain take identity,
+so selecting that performance switches all its fragments together on the track.
+Group creation requires at least two distinct, ungrouped audio regions with
+source media and a shared timeline interval. Commands reject protected content
+and are undoable. The agent uses these same commands and actual group IDs.
+
+Comp output, stretched/pitched/warped renders and silence-stripped output do not
+inherit membership. General moves, splits and duplicates retain it; groups are
+track-local. A group can contain only one remaining take after deletion/moving.
+Direct region mute edits remain possible; Use take restores a single selected
+performance. This organizes existing regions, not automatic cycle capture or
+Logic-style recording take folders. Automatic recording/group creation remains
+outstanding.
+
+Unit tests cover preservation, validation, protection, split-take selection,
+independent comps and agent commands. The browser check covers manual grouping,
+selection, undo/redo, reload, agent selection and ungrouping, plus native offline
+rendering proving only the selected take sounds. Model responses are mocked.

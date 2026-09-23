@@ -17,6 +17,7 @@ export function silenceRegionTrack(session,regionId,values){
  if(ranges.length===1&&ranges[0].start===0&&ranges[0].end===region.duration)throw Error('No silence to remove at these settings.');
  const copy=duplicateTrack(track,{name:region.name.slice(0,180)+' stripped',includeRegions:false});
  copy.regions=ranges.map((range,i)=>{const trimmed=trimmedRegion(region,region.start+range.start,region.start+range.end);return {...structuredClone(region),...trimmed,id:crypto.randomUUID(),name:region.name.slice(0,180)+' '+(i+1),notes:[],events:[],fadeIn:range.start===0?Math.min(region.fadeIn,trimmed.duration):0,fadeOut:range.end===region.duration?Math.min(region.fadeOut,trimmed.duration-(range.start===0?Math.min(region.fadeIn,trimmed.duration):0)):0};});
+ for(const r of copy.regions)delete r.takeGroup;
  return {track:copy,sourceTrackId:track.id};
 }
 

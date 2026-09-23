@@ -25,7 +25,7 @@ export function saveCompAlternative(session,trackId,values){
  return saved;
 }
 export function savedCompValues(track,id){const c=track?.compAlternatives?.find(c=>c.id===id);if(!c)throw Error('Saved comp alternative not found.');return {name:c.name,segments:JSON.stringify(c.segments),edgeFade:c.edgeFade,crossfade:c.crossfade??0,crossfadeShape:c.crossfadeShape??'linear',muteSource:c.muteSource};}
-export function createAudioComp(session,trackId,values){const plan=audioCompPlan(session,trackId,values),comp=duplicateTrack(plan.source,{name:plan.name,includeRegions:false});comp.mute=false;comp.regions=plan.regions.map(r=>({...r,id:crypto.randomUUID()}));session.tracks.splice(session.tracks.indexOf(plan.source)+1,0,comp);if(plan.muteSource)plan.source.mute=true;return comp;}
+export function createAudioComp(session,trackId,values){const plan=audioCompPlan(session,trackId,values),comp=duplicateTrack(plan.source,{name:plan.name,includeRegions:false});comp.mute=false;comp.regions=plan.regions.map(r=>{const copy={...r,id:crypto.randomUUID()};delete copy.takeGroup;return copy;});session.tracks.splice(session.tracks.indexOf(plan.source)+1,0,comp);if(plan.muteSource)plan.source.mute=true;return comp;}
 export function compAuditionPlan(session,trackId,values){
  const document=structuredClone(session),comp=createAudioComp(document,trackId,values);
  document.loopEnabled=false;
