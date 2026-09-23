@@ -1,7 +1,8 @@
-import {resolveScorePasteAction} from './agent-score-clipboard.js';
+import {resolveScorePasteAction,resolveScoreCopyAction} from './agent-score-clipboard.js';
 import {regionBeatTiming} from './tempo-map.js';
 import {selectedMidiNotes} from './note-selection.js';
-const clipboards=new WeakMap();
+const clipboards=new WeakMap(),epochs=new WeakMap();
+const changed=root=>epochs.set(root,(epochs.get(root)??0)+1);
 export function copyScoreNotes(session,region,ids){
  const chosen=selectedMidiNotes(region,{noteIds:ids.join(',')});
  if(!chosen.length)throw Error('Select score notes to copy.');
@@ -21,6 +22,20 @@ export function pasteScoreNotes(session,clipboard,{regionId,beat=0,timing='beats
  if(end>region.duration+1e-9&&!extend)throw Error('The notes do not fit. Enable Extend destination or choose an earlier beat.');
  return [...(end>region.duration?[{op:'region.set',target:region.id,values:{duration:end}}]:[]),{op:'notes.addMany',target:region.id,values:{notes:JSON.stringify(notes)}}];
 }
+export function scoreCopyContext(root,session){return {sessionId:session.id,revision:session.revision,epoch:epochs.get(root)??0};}
+export function copyToScoreClipboard(root,session,context,value,execute,getSession=()=>session){
+ const action=resolveScoreCopyAction(session,value,context);
+ if((epochs.get(root)??0)!==context.epoch)throw Error('Score clipboard changed while planning. Run the instruction again.');
+ const region=session.tracks.flatMap(t=>t.regions).find(r=>r.id===action.regionId),previous=clipboards.get(root),previousEpoch=epochs.get(root)??0;
+ const state={clipboard:copyScoreNotes(session,region,action.noteIds),regionId:region.id,beat:0,timing:'beats',extend:false};
+ clipboards.set(root,state);changed(root);
+ if(action.operation==='cut')try{execute([{op:'notes.delete',target:region.id,values:{noteIds:action.noteIds.join(',')}}],'Cut score notes');}catch(error){
+  // Persistence may fail after the document was edited: retain the cut data then.
+  if(getSession().revision===session.revision){if(previous)clipboards.set(root,previous);else clipboards.delete(root);epochs.set(root,previousEpoch);}
+  throw error;
+ }
+ return state;
+}
 export function scoreClipboardContext(root,session){
  const clipboard=clipboards.get(root)?.clipboard;
  if(!clipboard||clipboard.sessionId!==session.id)return undefined;
@@ -32,15 +47,15 @@ export function pasteFromScoreClipboard(root,session,context,value){
  return pasteScoreNotes(session,clipboard,action);
 }
 export const scoreClipboardView=()=>`<form data-score-paste hidden><p data-score-clipboard-status role="status"></p><div class="button-row"><label>Paste into<select name="destination"></select></label><label>Start · beats into region<input name="beat" type="number" min="0" step="any" value="0" required></label><label>Preserve<select name="timing"><option value="beats">Musical rhythm</option><option value="seconds">Original seconds</option></select></label><label><input name="extend" type="checkbox"> Extend destination to fit</label><button type="submit">Paste notes</button><button type="button" data-score-clipboard-clear>Clear copied notes</button></div><p class="muted">Copies note pitches, velocities and articulations. Destination instruments and controllers apply; source controller events are not copied.</p></form>`;
-export function bindScoreClipboard(panel,{session,selectionRoot,selection,execute,guard}){
+export function bindScoreClipboard(panel,{session,selectionRoot,selection,execute,guard,getSession}){
  let state=clipboards.get(selectionRoot);if(state?.clipboard.sessionId!==session.id){state=null;clipboards.delete(selectionRoot);}
- const form=panel.querySelector('[data-score-paste]'),copy=panel.querySelector('[data-score-note-copy]');
+ const form=panel.querySelector('[data-score-paste]');
  const regions=session.tracks.filter(t=>t.kind==='midi').flatMap(t=>t.regions.map(r=>({region:r,name:`${t.name} / ${r.name}`})));
  for(const {region,name} of regions){const option=panel.ownerDocument.createElement('option');option.value=region.id;option.textContent=name;form.elements.destination.append(option);}
  const render=()=>{form.hidden=!state;if(!state)return;form.querySelector('[data-score-clipboard-status]').textContent=`${state.clipboard.notes.length} notes copied`;form.elements.destination.value=regions.some(r=>r.region.id===state.regionId)?state.regionId:regions[0]?.region.id??'';form.elements.beat.value=state.beat;form.elements.timing.value=state.timing;form.elements.extend.checked=state.extend;};
- copy.onclick=guard(()=>{const {region,ids}=selection();state={clipboard:copyScoreNotes(session,region,ids),regionId:region.id,beat:0,timing:'beats',extend:false};clipboards.set(selectionRoot,state);render();});
+ for(const operation of ['copy','cut'])panel.querySelector(`[data-score-note-${operation}]`).onclick=guard(()=>{const {region,ids}=selection();state=copyToScoreClipboard(selectionRoot,session,scoreCopyContext(selectionRoot,session),{operation,regionId:region.id,noteIds:ids},execute,getSession);render();});
  const remember=()=>{if(!state)return;state.regionId=form.elements.destination.value;state.beat=form.elements.beat.valueAsNumber;state.timing=form.elements.timing.value;state.extend=form.elements.extend.checked;};
  form.oninput=remember;form.onchange=remember;
  form.onsubmit=guard(e=>{e.preventDefault();remember();execute(pasteScoreNotes(session,state?.clipboard,state??{}),'Pasted score notes');});
- form.querySelector('[data-score-clipboard-clear]').onclick=()=>{state=null;clipboards.delete(selectionRoot);render();};render();
+ form.querySelector('[data-score-clipboard-clear]').onclick=()=>{state=null;clipboards.delete(selectionRoot);changed(selectionRoot);render();};render();
 }

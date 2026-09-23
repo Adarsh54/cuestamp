@@ -17,3 +17,12 @@ test('score paste rejects unobserved clipboard, stale context, continuations and
  for(const bad of [{...options,regionId:'missing'},{...options,beat:-1},{...options,timing:'guess'},{...options,extra:1}])await assert.rejects(planDawEdit(input,adapter([call(bad)])));
  await assert.rejects(planDawEdit(input,adapter([call(options),call(options)])),/Unexpected/);
 });
+test('agent copy/cut resolves observed notes and is capability gated',async()=>{
+ const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'t',kind:'midi'}},{op:'region.add',target:'t',values:{id:'r',duration:4}},{op:'note.add',target:'r',values:{id:'n',pitch:60,duration:1}}]);
+ const session=h.session,scoreCopy={sessionId:session.id,revision:session.revision,epoch:0},input={session,scoreCopy,instruction:'Cut the selected score notes',selectedNoteIds:['n']},options={operation:'cut',regionId:'r',noteIds:null},copyCall=value=>({type:'function_call',name:'copy_score_notes',arguments:JSON.stringify(value)});
+ let sent;const result=await planDawEdit(input,adapter([copyCall(options)],body=>sent=body));assert.deepEqual(result.options.noteIds,['n']);assert.equal(result.action,'copy_score_notes');assert.equal(result.scoreCopyEpoch,0);assert.equal(session.tracks[0].regions[0].notes.length,1);assert.equal(sent.tools.find(t=>t.name==='copy_score_notes').strict,true);
+ await assert.rejects(planDawEdit({...input,scoreCopy:undefined},adapter([copyCall(options)])),/Unexpected/);
+ await assert.rejects(planDawEdit({...input,selectedNoteIds:[]},adapter([copyCall(options)])),/distinct/);
+ await assert.rejects(planDawEdit(input,adapter([copyCall({...options,noteIds:['missing']})])),/belong/);
+ await assert.rejects(planDawEdit({...input,scoreCopy:{...scoreCopy,revision:999}},adapter([])),{status:400});
+});

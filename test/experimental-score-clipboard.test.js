@@ -18,3 +18,24 @@ test('score paste rejects missing destinations, project changes, bad timing and 
  for(const options of [{regionId:'missing'},{regionId:'d'},{regionId:'r',beat:NaN},{regionId:'r',beat:-1},{regionId:'r',timing:'invalid'}])assert.throws(()=>pasteScoreNotes(h.session,clip,options));
  assert.throws(()=>pasteScoreNotes({...h.session,id:'another'},clip,{regionId:'r'}));assert.throws(()=>copyScoreNotes(h.session,h.session.tracks[0].regions[0],['missing']));
 });
+import {copyToScoreClipboard,scoreCopyContext,scoreClipboardContext,pasteFromScoreClipboard} from '../src/experimental/score-clipboard.js';
+test('cut saves a snapshot, removes notes in one undo step and retains copied notes after Undo',()=>{
+ const h=setup(),root={},context=scoreCopyContext(root,h.session),before=structuredClone(h.session.tracks);
+ copyToScoreClipboard(root,h.session,context,{operation:'cut',regionId:'r',noteIds:['a','b']},commands=>h.execute(commands),()=>h.session);
+ assert.equal(h.session.tracks[0].regions[0].notes.length,0);assert.equal(scoreClipboardContext(root,h.session).count,2);
+ h.undo();assert.deepEqual(h.session.tracks,before);
+ h.execute(pasteFromScoreClipboard(root,h.session,scoreClipboardContext(root,h.session),{regionId:'r',beat:4,timing:'beats',extend:false}));assert.equal(h.session.tracks[0].regions[0].notes.length,4);
+});
+test('failed cut preserves previous clipboard, while post-commit persistence failure retains cut notes',()=>{
+ const h=setup(),root={},copy={operation:'copy',regionId:'r',noteIds:['a']};
+ copyToScoreClipboard(root,h.session,scoreCopyContext(root,h.session),copy);const prior=scoreClipboardContext(root,h.session),epoch=scoreCopyContext(root,h.session);
+ assert.throws(()=>copyToScoreClipboard(root,h.session,epoch,{...copy,operation:'cut',noteIds:['b']},()=>{throw Error('blocked');},()=>h.session),/blocked/);
+ assert.equal(scoreClipboardContext(root,h.session).token,prior.token);assert.deepEqual(scoreCopyContext(root,h.session),epoch);
+ assert.throws(()=>copyToScoreClipboard(root,h.session,epoch,{...copy,operation:'cut',noteIds:['b']},commands=>{h.execute(commands);throw Error('storage full');},()=>h.session),/storage full/);
+ assert.equal(h.session.tracks[0].regions[0].notes.length,1);assert.notEqual(scoreClipboardContext(root,h.session).token,prior.token);
+ assert.throws(()=>copyToScoreClipboard(root,h.session,scoreCopyContext(root,h.session),{...copy,noteIds:['b']}),/belong/);
+});
+test('a later clipboard copy rejects an agent copy planned against an earlier epoch',()=>{
+ const h=setup(),root={},context=scoreCopyContext(root,h.session),value={operation:'copy',regionId:'r',noteIds:['a']};
+ copyToScoreClipboard(root,h.session,context,value);assert.throws(()=>copyToScoreClipboard(root,h.session,context,value),/changed while planning/);
+});

@@ -5333,3 +5333,13 @@ The agent now receives a count and identity token for copied score notes and can
 The tool is offered only with a nonempty observed score clipboard, outside editing continuations. Context binds to the project/revision; the server validates destination and capacity. Client checks reject cleared/replaced clipboards and mismatched response tokens before any edit. Existing session revision, recording, busy-state, atomic command and Undo protections apply. Clipboard paste cannot be combined with other tool calls or unrelated follow-up actions.
 
 Verified 1,370 tests and build. `test/experimental-agent-score-clipboard.test.js` covers strict schema, summary-only model context, capability gating, stale revisions, invalid destinations/options and nonmutation. `scripts/browser-experimental-agent-score-clipboard-check.cjs` mocks the provider response but executes real local pasting and Undo, and clears the clipboard during a delayed request to verify rejection without added notes. Live model inference remains unverified.
+
+### Score clipboard Copy/Cut through manual controls and agent (2026-09-23)
+
+The score note editor now offers **Cut notes** alongside Copy. Cut captures the selected note data and deletes those notes through shared `notes.delete` in one Undo step. Undo restores source notes without clearing the clipboard. A rejected edit restores the previous clipboard; if document mutation succeeded but persistence failed, the captured notes remain available.
+
+The agent has a separate `copy_score_notes` tool for copy/cut, using an explicit MIDI region and observed note IDs or the captured selection. Empty selections do not expand to all notes. The browser supplies project/revision and a clipboard epoch even before the first copy, so copy/cut can work with an empty clipboard and delayed requests cannot overwrite newer clipboard actions. Paste retains its snapshot-token protection. Only initial planning offers these tools; clipboard requests remain separate from other actions. Agent copy/cut and manual copy/cut share the same snapshot/install logic.
+
+Unit checks cover copy/cut capability gating, selected-note resolution, invalid IDs, stale context, clipboard rollback before commit, retention after persistence failure, Undo, subsequent paste and stale clipboard epochs. `scripts/browser-experimental-score-cut-check.cjs` verifies manual Cut, agent Cut/Copy, Undo selection restoration and manual paste. Provider calls are mocked; live inference remains unverified.
+
+Verified 1,374 tests, production build, score-cut browser workflow and the existing agent paste/stale-clipboard browser regression.
