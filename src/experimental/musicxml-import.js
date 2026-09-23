@@ -1,3 +1,4 @@
+import {musicxmlPedalValue,musicxmlSoundOffset,musicxmlPedalEvents} from './musicxml-pedal.js';
 import {partwiseMusicxmlRoot,validateTimewiseBoundaries} from './musicxml-timewise.js';
 import {encodeMidiImport} from './midi.js';
 const children=(node,name)=>[...node.children].filter(n=>n.localName===name),child=(node,name)=>children(node,name)[0],text=(node,name)=>child(node,name)?.textContent.trim();
@@ -18,7 +19,7 @@ export function parseMusicxml(source){
  let count=0;
  const tracks=parts.map(part=>{
   if(!definitions.has(part.id))throw Error('MusicXML part is missing from its part list.');
-  let divisions=0,transpose=0,keyTranspose=0,at=0,meter=4;const notes=[],ties=new Map(),measureEnds=[];
+  let divisions=0,transpose=0,keyTranspose=0,at=0,meter=4;const notes=[],ties=new Map(),measureEnds=[],events=[];
   const measures=children(part,'measure');if(measures.length>2048)throw Error('Import up to 2,048 measures per part.');
   for(const measure of measures){
    let cursor=0,extent=0,previous=null;
@@ -31,8 +32,10 @@ export function parseMusicxml(source){
     }else if(item.localName==='backup'||item.localName==='forward'){
      const duration=number(text(item,'duration'),'voice duration')/divisions;if(!Number.isFinite(duration)||duration<=0)throw Error('MusicXML voice durations require positive divisions and duration.');cursor+=item.localName==='backup'?-duration:duration;if(cursor< -1e-8)throw Error('MusicXML backup crosses a measure boundary.');cursor=Math.max(0,cursor);extent=Math.max(extent,cursor);previous=null;
     }else if(item.localName==='direction'||item.localName==='sound'){
-     const sound=item.localName==='sound'?item:child(item,'sound'),offset=number(text(item,'offset')??'0','direction offset')/divisions;
-     if(sound){for(const attribute of ['dacapo','dalsegno','tocoda','fine','segno','coda'])if(sound.hasAttribute(attribute))throw Error('MusicXML playback jumps require a performed MIDI export.');if(sound.hasAttribute('tempo')){const bpm=number(sound.getAttribute('tempo'),'tempo');if(bpm<20||bpm>300||at+cursor+offset<0)throw Error('MusicXML tempo must be 20–300 BPM at a nonnegative position.');put(tempos,at+cursor+offset,bpm,'tempos');}}
+     const sound=item.localName==='sound'?item:child(item,'sound'),offset=musicxmlSoundOffset(sound,item,divisions);
+     if(!Number.isFinite(at+cursor+offset)||at+cursor+offset<0)throw Error('MusicXML sound offset must remain inside the timeline.');
+     if(sound?.hasAttribute('damper-pedal')){if(events.length>=20000)throw Error('Import up to 20,000 pedal changes per part.');events.push({start:at+cursor+offset,parameter:64,value:musicxmlPedalValue(sound.getAttribute('damper-pedal'))});}
+     if(sound){for(const attribute of ['dacapo','dalsegno','tocoda','fine','segno','coda','forward-repeat','time-only'])if(sound.hasAttribute(attribute))throw Error('MusicXML playback jumps require a performed MIDI export.');if(sound.hasAttribute('tempo')){const bpm=number(sound.getAttribute('tempo'),'tempo');if(bpm<20||bpm>300||at+cursor+offset<0)throw Error('MusicXML tempo must be 20–300 BPM at a nonnegative position.');put(tempos,at+cursor+offset,bpm,'tempos');}}
      const metronome=item.querySelector('metronome');if(metronome&&!sound?.hasAttribute('tempo')){const unit={whole:4,half:2,quarter:1,eighth:.5,'16th':.25,'32nd':.125}[text(metronome,'beat-unit')],dots=children(metronome,'beat-unit-dot').length,bpm=number(text(metronome,'per-minute'),'metronome tempo')*unit*(2-2**(-dots));if(!Number.isFinite(bpm)||bpm<20||bpm>300||at+cursor+offset<0)throw Error('Unsupported MusicXML metronome tempo.');put(tempos,at+cursor+offset,bpm,'tempos');}
     }else if(item.localName==='note'){
      if(++count>20000)throw Error('Import up to 20,000 score notes at a time.');
@@ -55,7 +58,7 @@ export function parseMusicxml(source){
    at+=extent;measureEnds.push(at);if(at>432000)throw Error('MusicXML score exceeds the timeline limit.');
   }
   if(ties.size)throw Error('MusicXML contains unfinished ties.');
-  return {name:definitions.get(part.id),notes,duration:at,measureEnds};
+  return {name:definitions.get(part.id),notes,events,duration:at,measureEnds};
  });
  if(timewise)validateTimewiseBoundaries(tracks);
  for(const track of tracks)delete track.measureEnds;
@@ -70,7 +73,7 @@ export function musicxmlMidi(score){
  const meta=(tick,type,data)=>({tick,order:0,data:[255,type,...vlq(data.length),...data]});
  const conductor=[...score.tempos.map(([tick,bpm])=>meta(tick,81,bytes(Math.round(60000000/bpm),3))),...score.meters.map(([tick,m])=>meta(tick,88,[m.beats,Math.log2(m.denominator),24,8])),...score.keys.map(([tick,k])=>meta(tick,89,[k.sharps&255,k.mode==='minor'?1:0]))];
  if(!score.tempos.some(([tick])=>tick===0))conductor.push(meta(0,81,bytes(500000,3)));
- const chunks=[chunk(conductor)];for(const track of score.tracks){const events=[meta(0,3,string(track.name.slice(0,200)))];const channels=new Map();for(const n of [...track.notes].sort((a,b)=>a.start-b.start)){const start=Math.round(n.start*960),end=Math.round((n.start+n.duration)*960);if(end<=start)throw Error('MusicXML note is shorter than one MIDI tick.');if(n.velocity<=0)continue;const ends=channels.get(n.pitch)??Array(16).fill(-1);let channel=ends.findIndex((end,i)=>i!==9&&end<=start);if(channel<0)throw Error('MusicXML has more than 15 overlapping notes at the same pitch.');ends[channel]=end;channels.set(n.pitch,ends);events.push({tick:start,order:2,data:[144|channel,n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,order:1,data:[128|channel,n.pitch,0]});}chunks.push(chunk(events));}
+ const chunks=[chunk(conductor)];for(const track of score.tracks){const events=[meta(0,3,string(track.name.slice(0,200)))];const channels=new Map(),usedChannels=new Set([0]);for(const n of [...track.notes].sort((a,b)=>a.start-b.start)){const start=Math.round(n.start*960),end=Math.round((n.start+n.duration)*960);if(end<=start)throw Error('MusicXML note is shorter than one MIDI tick.');if(n.velocity<=0)continue;const ends=channels.get(n.pitch)??Array(16).fill(-1);let channel=ends.findIndex((end,i)=>i!==9&&end<=start);if(channel<0)throw Error('MusicXML has more than 15 overlapping notes at the same pitch.');usedChannels.add(channel);ends[channel]=end;channels.set(n.pitch,ends);events.push({tick:start,order:2,data:[144|channel,n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,order:1,data:[128|channel,n.pitch,0]});}for(const event of musicxmlPedalEvents(track,usedChannels))events.push(event);chunks.push(chunk(events));}
  const size=14+chunks.reduce((sum,c)=>sum+c.length,0),out=new Uint8Array(size);let offset=0;for(const chunk of [[...string('MThd'),0,0,0,6,0,1,...bytes(chunks.length,2),...bytes(960,2)],...chunks]){out.set(chunk,offset);offset+=chunk.length;}return out;
 }
 export function musicxmlImportData(source){return encodeMidiImport(musicxmlMidi(parseMusicxml(source)));}

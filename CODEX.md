@@ -5255,3 +5255,13 @@ This version requires every declared part exactly once in every timewise measure
 Verified 1,349 tests and build; `scripts/browser-experimental-musicxml-timewise-check.cjs` compares timewise and partwise note/tempo/key/meter output with reordered parts, tests invalid membership, and exercises both plain and compressed file-picker imports with Undo. Boundary unit checks include pickup disagreement despite equal final duration.
 
 References: [W3C score-timewise](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/score-timewise/) and [timewise measure](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/measure-timewise/).
+
+### Explicit MusicXML sustain import (2026-09-23)
+
+MusicXML `<sound damper-pedal>` data now imports as MIDI CC64 events. `yes`/`no` map to 127/0; numeric 0–100 percentages map to 0–127. Sound offsets override direction offsets; absent offsets work before a divisions declaration. Imported pedal events are copied to every MIDI channel allocated for overlapping unisons. A pedal still held at the end receives a release at the score end, retaining sustain through trailing rests and preventing an indefinite external pedal hold. Events remain editable through the existing MIDI event UI and agent commands, with one-step import Undo.
+
+Only explicit sound pedal data is currently interpreted; graphical `<pedal>` markings alone, soft/sostenuto pedals and continuous half-pedal synthesis remain incomplete. Intermediate CC64 values survive MIDI export, but the internal renderer uses its existing 64 threshold for on/off sustain. MusicXML forward-repeat/time-only playback instructions now reject alongside other unsupported jumps. The import status distinguishes retained sustain from other unimported expression.
+
+Verified 1,352 tests and build; `scripts/browser-experimental-musicxml-pedal-check.cjs` checks sound-offset precedence, file import, retained CC64 events, computed playback sustain through a trailing rest, and Undo. Unit tests cover pedal percentages, invalid values, overlapping-unison channels and score-end release. This validates controller timing, not a live hardware piano performance.
+
+Reference: [W3C MusicXML sound attributes and offsets](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/).
