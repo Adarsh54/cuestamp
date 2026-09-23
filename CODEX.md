@@ -4386,6 +4386,11 @@ Zoom to selection frames the full time span of selected regions with horizontal 
 
 ### Relative audio source slip
 
-Source-backed audio regions expose Slip source in the inspector. Enter signed seconds: positive moves the source window later in the original recording, negative earlier, independent of reverse playback. The control decodes/loads the original source to check its actual duration and rejects windows outside the recording. It preserves timeline start, clip length, fades, direction, and source-relative attack markers. It uses the existing undoable `region.set` offset command, with revision and editor-lifetime checks after loading. This is an inspector action; it does not add a drag gesture or change the existing absolute offset field.
+Source-backed audio regions expose Slip source in the inspector. Enter signed seconds: positive moves the source window later in the original recording, negative earlier, independent of reverse playback. The control decodes/loads the original source to check its actual duration and rejects windows outside the recording. It preserves timeline start, clip length, fades, direction, and source-relative attack markers. It uses the existing undoable `region.set` offset command, with revision and editor-lifetime checks after loading. The existing absolute offset field remains available.
 
 `test/experimental-region-slip.test.js` checks forward/reverse bounds, shared-command preservation and undo. `scripts/browser-experimental-region-slip-check.cjs` imports a real WAV and verifies relative editing, invalid bounds feedback and undo.
+
+
+### Drag audio content inside a fixed clip
+
+With the pointer tool, Alt/Option-drag the body of an audio clip to slip the recording inside its unchanged timeline boundaries. Dragging right moves waveform content right, including for reversed clips. The normal arrangement snap applies; Shift bypasses snapping. Waveform and source-offset feedback preview during the drag, while the document changes only on release. Source edges clamp the movement. Pointer cancellation restores the prior view without edits. Trim/fade handles keep their existing behavior, and only the dragged clip is slipped even in a group selection. A decoded source is required; otherwise use the inspector Slip source control to load it. Tests extend the region-slip unit/browser checks for direction, clamping, real drag, cancellation and undo.
