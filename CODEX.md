@@ -4519,8 +4519,15 @@ Saving remains one `scene.performance` command and one undo step. It places only
 
 In Experimental → MIDI input, connect a keyboard and select **Remember MIDI** before playing. **Capture recent MIDI** inserts the most recent minute as an editable region at the current playhead and chosen destination. Notes crossing the window boundary and controller state are retained. Capture uses the normal MIDI import/save path and supports Undo/Redo; failed saves retain a retryable take. Pause memory freezes the buffer, and disconnecting the input preserves it for capture.
 
-This is opt-in, page-local memory, capped at ten minutes or 20,000 messages; reaching a cap pauses collection. Leaving Experimental discards it. Switching sessions within the page does not clear it: capture targets the current session. Capture does not recover the original transport placement or cycle takes, start monitoring, or send MIDI to a device. Capture or discard existing memory before normal recording. No agent capture action is exposed yet.
+This is opt-in, page-local memory, capped at ten minutes or 20,000 messages; reaching a cap pauses collection. Leaving Experimental discards it. Switching sessions within the page does not clear it: capture targets the current session. Capture does not recover the original transport placement or cycle takes, or send MIDI to a device. Capture or discard existing memory before normal recording. No agent capture action is exposed yet.
 
 Reference: [Logic Pro capture recording](https://support.apple.com/guide/logicpro/capture-your-most-recent-midi-performance-lgcpdc0bf889/10.7/mac/11.0). Our explicit bounded buffer is a narrower workflow.
 
 Validation: `test/experimental-midi-recent.test.js` covers window trimming, controller chase, sustain, frozen buffers, limits and empty capture. `scripts/browser-experimental-midi-recent-check.cjs` covers capture at the playhead, persisted notes/controllers, Undo/Redo and capture after disconnect using simulated MIDI input. All 1,135 tests and the production build pass; the existing bundle-size warning remains. Physical MIDI hardware has not been verified.
+
+
+### Audition while remembering MIDI
+
+**Hear MIDI while remembering** is enabled by default. It auditions the chosen destination instrument (triangle for a new track) using the same voice engine as recording monitoring, including sampler parameters. Turn it off before starting memory to use an external keyboard’s own sound. Input channel, transpose and velocity transformations apply identically to memory and audition. Instrument settings are captured when memory starts; restart memory to hear changed settings. Monitoring bypasses mixer effects and does not start arrangement playback.
+
+Pause, capture, discard, disconnect, limits and page disposal stop monitor voices. Asynchronous sampler/context preparation cannot attach the input or start voices after cancellation. No document edits occur until capture. Tests cover transformation, monitoring disabled, release on pause, and cancellation during preparation. Browser checks exercise oscillator start/cleanup and the existing recording/count-in/monitor workflow. All 1,137 tests and build pass; physical MIDI hardware remains unverified.
