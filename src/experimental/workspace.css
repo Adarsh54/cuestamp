@@ -115,3 +115,11 @@ form.daw-note-editor{margin-top:8px}
 [data-section-other][hidden]{display:none!important}
 
 .daw-controller-plot [data-controller-reset]{position:absolute;transform:translate(-50%,-50%);width:13px;height:13px;box-sizing:border-box;border:2px dashed var(--text);background:var(--surface);cursor:help}
+
+.daw-mix-detail>[data-effect-presets]{grid-column:1/-1;align-self:start;border-bottom:1px solid var(--line);padding-bottom:16px}
+[data-effect-presets]>summary{cursor:pointer}
+[data-effect-presets] .button-row{gap:10px;align-items:end}
+[data-effect-presets] label{display:grid;gap:6px;font-size:13px}
+[data-effect-preset-save]{display:grid;gap:12px;margin-top:16px;max-width:520px}
+[data-effect-preset-save]>label:has(input[type=checkbox]){display:flex;align-items:center;gap:8px}
+[data-effect-preset-save] input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--accent)}

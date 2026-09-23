@@ -4119,3 +4119,35 @@ harmonics, tone attenuation, wet output gain, stereo isolation, and automation
 seek continuity after warmup. All 980 tests and the production build pass; the
 existing large-bundle warning remains. Real model inference and listening tests
 with representative music are not covered by these automated checks.
+
+### Named effect-chain presets
+
+Open **Mixer → Effect chain presets** on an audio/instrument/bus or master
+channel. Name the current chain and save it; choose a saved chain to replace
+or append effects. Rename and delete are also available. All operations are
+undoable. Presets belong to the project document, survive reload and project
+JSON export/import, and are not yet an account-wide or standalone preset library.
+The library holds up to 32 named chains; each channel/preset holds up to 16 effects.
+
+By default a preset saves static effect settings and bypass state without
+curves or automation modes. **Include effect automation** preserves curves,
+shapes, automation mode and muted lanes, with their original project times.
+Parent channel automation mode is not included. Applying creates independent
+IDs for effects and points; editing the source, preset destination, or another
+instance does not mutate the saved snapshot. Volume/pan, sends, routing,
+instruments and regions remain unchanged.
+
+Shared commands (also documented to the agent):
+
+- `effectPreset.save`: target channel/session ID; values `name`, optional `id`,
+  optional `includeAutomation` (false by default).
+- `effectPreset.apply`: target destination channel/session ID; values `presetId`
+  and `mode` (`replace` or `append`, default replace).
+- `effectPreset.rename`: target preset ID; values `name`.
+- `effectPreset.delete`: target preset ID; no values.
+
+Validation: `test/experimental-effect-presets.test.js` covers snapshot isolation,
+fresh IDs, curves, limits, invalid requests, atomicity, undo, JSON roundtrip and
+mocked agent validation. `scripts/browser-experimental-effect-presets-check.cjs`
+checks save/apply/append, rename/delete, undo/redo and reload in the mixer. All
+984 tests and the production build pass, with the existing bundle-size warning.

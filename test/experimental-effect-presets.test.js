@@ -1,0 +1,22 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SessionHistory,sessionSchema} from '../src/experimental/session.js';
+const fixture=()=>{const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'t'}},{op:'track.add',values:{id:'b',kind:'bus'}},{op:'effect.add',target:'t',values:{id:'d',kind:'distortion',driveDb:24}},{op:'effect.add',target:'t',values:{id:'p',kind:'phaser',sync:true}},{op:'effect.automation.point',target:'d',values:{id:'a',parameter:'driveDb',time:2,value:30}},{op:'effect.set',target:'d',values:{automationMode:'off'}}]);return h;};
+test('saved chains are independent snapshots, default to static controls and apply with fresh IDs',()=>{
+ const h=fixture();h.execute([{op:'effectPreset.save',target:'t',values:{id:'saved',name:'Grit'}}]);const p=h.session.effectPresets[0];assert.equal(p.effects[0].driveDb,24);assert.deepEqual(p.effects[0].automation,[]);assert.equal(p.effects[0].automationMode,undefined);assert.notEqual(p.effects[0].id,'d');
+ h.execute([{op:'effect.set',target:'d',values:{driveDb:6}},{op:'effectPreset.apply',target:'b',values:{presetId:'saved'}}]);assert.equal(h.session.tracks[1].effects[0].driveDb,24);assert.notEqual(h.session.tracks[1].effects[0].id,p.effects[0].id);
+ h.execute([{op:'effectPreset.apply',target:h.session.id,values:{presetId:'saved'}},{op:'effectPreset.apply',target:'b',values:{presetId:'saved',mode:'append'}}]);assert.equal(h.session.tracks[1].effects.length,4);assert.equal(h.session.masterEffects.length,2);assert.equal(h.session.masterDb,0);
+});
+test('included automation preserves times modes and shape with independent IDs, undo redo and JSON reload',()=>{
+ const h=fixture();h.execute([{op:'effectPreset.save',target:'t',values:{id:'saved',name:'Animated',includeAutomation:true}},{op:'effectPreset.apply',target:'b',values:{presetId:'saved'}}]);const e=h.session.tracks[1].effects[0];assert.equal(e.automation[0].time,2);assert.equal(e.automationMode,'off');assert.notEqual(e.automation[0].id,'a');assert.notEqual(e.automation[0].id,h.session.effectPresets[0].effects[0].automation[0].id);
+ assert.deepEqual(sessionSchema.parse(JSON.parse(JSON.stringify(h.session))),h.session);h.undo();assert.equal(h.session.effectPresets.length,0);assert.equal(h.session.tracks[1].effects.length,0);h.redo();assert.equal(h.session.effectPresets.length,1);
+});
+test('presets validate names channels chain limits and command fields atomically',()=>{
+ const h=fixture();h.execute([{op:'effectPreset.save',target:'t',values:{id:'saved',name:'Grit'}}]);
+ for(const cmd of [{op:'effectPreset.save',target:'b',values:{name:'Empty'}},{op:'effectPreset.save',target:'t',values:{name:' grit '}},{op:'effectPreset.save',target:'t',values:{name:' '}},{op:'effectPreset.save',target:'t',values:{name:'X',includeAutomation:1}},{op:'effectPreset.apply',target:'missing',values:{presetId:'saved'}},{op:'effectPreset.apply',target:'b',values:{presetId:'missing'}},{op:'effectPreset.apply',target:'b',values:{presetId:'saved',mode:'bad'}},{op:'effectPreset.delete',target:'saved',values:{unexpected:true}}]){const before=structuredClone(h.session);assert.throws(()=>h.execute([cmd]));assert.deepEqual(h.session,before);}
+ h.execute(Array.from({length:8},()=>({op:'effectPreset.apply',target:'b',values:{presetId:'saved',mode:'append'}})));assert.equal(h.session.tracks[1].effects.length,16);assert.throws(()=>h.execute([{op:'effectPreset.apply',target:'b',values:{presetId:'saved',mode:'append'}}]));
+ h.execute([{op:'effectPreset.rename',target:'saved',values:{name:'New name'}},{op:'effectPreset.delete',target:'saved'}]);assert.equal(h.session.effectPresets.length,0);h.undo();assert.equal(h.session.effectPresets[0].name,'Grit');
+});
+test('agent can save and apply a preset through validated shared commands',async()=>{
+ const {planDawEdit}=await import('../server/daw-agent.js');const h=fixture(),commands=[{op:'effectPreset.save',target:'t',values:{id:'saved',name:'Grit'}},{op:'effectPreset.apply',target:'b',values:{presetId:'saved'}}];
+ const result=await planDawEdit({session:h.session,instruction:'Save track t effects as Grit and apply to b'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Saved and applied chain',commands})}]})})});h.execute(result.commands);assert.equal(h.session.tracks[1].effects.length,2);
+});
