@@ -4645,3 +4645,10 @@ Tests detect a brief polarity reversal concealed by a positive full-render avera
 ### Navigate to the lowest-correlation window
 
 **Go to lowest correlation** moves the playhead to the measured 400 ms window’s start and pauses playback without editing the session. It is disabled for stale results, busy operations and analyses with no qualifying window. The handler rechecks current analysis validity before seeking. The real-render browser analysis workflow verifies the jump and disabled controls after edits and silence; build passes.
+
+
+### Agent navigation to measured mix positions
+
+`navigate_mix_analysis` accepts `sample_peak` or `lowest_correlation`. It resolves the actual measured sample index against current analysis and returns an ordinary guarded transport seek. It pauses playback and does not change the document. The tool requires current analysis and transport capability, and is not offered during editing continuations. If measurements are missing, the agent can request the existing analysis pass first. Missing eligible results, silent peaks, stale revisions and unsupported requests reject.
+
+Unit tests cover sample-index conversion, current-analysis validation, eligibility and capability gating. The browser mix-analysis workflow now sends real rendered measurements through the actual server planner with mocked model output and verifies both destinations in the UI. All 1,160 tests and build pass. Live model behavior remains unverified.

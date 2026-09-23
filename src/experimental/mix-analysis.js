@@ -78,3 +78,11 @@ function truePeakView(value){if(!value)return '';const format=db=>db===null?'Sil
 function loudnessDynamicsView(value){if(!value)return '';const format=(v,unit)=>v===null?'Not measurable':v.toFixed(2)+' '+unit;return `<div class="daw-analysis-values"><div><span>Momentary maximum · 400 ms</span><strong>${format(value.momentaryMaxLufs,'LUFS')}</strong></div><div><span>Short-term maximum · 3 s</span><strong>${format(value.shortTermMaxLufs,'LUFS')}</strong></div><div><span>Loudness range</span><strong>${format(value.rangeLu,'LU')}</strong></div></div><p class="muted">Loudness range describes variation across sections. Short-term readings need at least 3 seconds; range can be misleading on short clips or isolated sounds.</p>`;}
 
 function stereoWindowsView(w,rate,fresh,busy){if(!w)return '';return `<div class="daw-analysis-values"><div><span>Lowest 400 ms correlation</span><strong>${w.worstCorrelation===null?'No eligible audio':w.worstCorrelation.toFixed(3)}</strong></div><div><span>Window starts at</span><strong>${w.worstStartFrame===null?'—':(w.worstStartFrame/rate).toFixed(2)+' s'}</strong></div><div><span>Negative-correlation windows</span><strong>${w.negativeWindows} / ${w.eligibleWindows}</strong></div></div><button data-analysis-correlation ${!fresh||busy||w.worstStartFrame===null?'disabled':''}>Go to lowest correlation</button><p class="muted">400 ms windows, every 100 ms. Both channels must exceed −60 dBFS RMS. Overlapping windows are not separate incidents. Negative correlation suggests possible mono cancellation; listen before changing the mix.</p>`;}
+
+export function mixAnalysisPosition(value,session,measurement){
+ const result=validateMixAnalysis(value,session);if(!result)throw Error('Analyze the mix before navigating measurements.');let frame;
+ if(measurement==='sample_peak'){const peak=result.channels.reduce((best,c)=>(c.peakDb??-Infinity)>(best.peakDb??-Infinity)?c:best);frame=peak.peakFrame;}
+ else if(measurement==='lowest_correlation')frame=result.stereoWindows?.worstStartFrame;
+ else throw Error('Choose sample peak or lowest correlation.');
+ if(frame===null||frame===undefined)throw Error('This analysis has no qualifying position for that measurement.');return frame/result.sampleRate;
+}
