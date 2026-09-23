@@ -1,9 +1,10 @@
+import {groupSoundSettings} from './sampler-group-shaping.js';
 export function samplerEnvelope(settings={}){
  const p={attack:settings.sampleAttack??.005,decay:settings.sampleDecay??0,sustain:settings.sampleSustain??1,release:settings.sampleRelease??.02};
  for(const [name,max] of [['attack',10],['decay',10],['sustain',1],['release',30]])if(!Number.isFinite(p[name])||p[name]<0||p[name]>max)throw Error(`Sampler ${name} must be between 0 and ${max}.`);
  return p;
 }
-export const samplerRelease=track=>track.kind==='midi'&&track.instrument==='sampler'?(track.sampleRelease??.02):0;
+export const samplerRelease=track=>track.kind==='midi'&&track.instrument==='sampler'?Math.max(track.sampleRelease??.02,...(track.sampleGroups??[]).filter(g=>!g.mute&&(!(track.sampleGroups??[]).some(g=>g.solo)||g.solo)&&(track.sampleZones??[]).some(z=>z.groupId===g.id)).map(g=>groupSoundSettings(track,g).sampleRelease)):0;
 export function heldEnvelopeAt(age,p){if(age<0)return 0;if(p.attack>0&&age<p.attack)return age/p.attack;if(p.decay>0&&age<p.attack+p.decay)return 1-(1-p.sustain)*(age-p.attack)/p.decay;return p.sustain;}
 export function envelopeAt(age,gate,p){if(age<gate)return heldEnvelopeAt(age,p);if(!p.release||age>=gate+p.release)return 0;return heldEnvelopeAt(gate,p)*(1-(age-gate)/p.release);}
 export function scheduleSamplerEnvelope(param,start,age,gate,velocity,p){

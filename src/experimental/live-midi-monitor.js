@@ -3,7 +3,7 @@ import {createPitchBendState} from './pitch-bend-state.js';
 import {pitchBendRangeSchema} from './pitch-bend.js';
 import {samplerPlaybackRate} from './sampler-tuning.js';
 import {createSamplerFilter} from './sampler-filter.js';
-import {samplerEnvelope,scheduleSamplerEnvelope} from './sampler-envelope.js';
+import {samplerEnvelope,scheduleSamplerEnvelope,heldEnvelopeAt} from './sampler-envelope.js';
 import {samplerLoop} from './sampler.js';
 import {drumBuffer} from './drums.js';
 // Live audition is independent of capture: count-in notes sound but are not saved.
@@ -18,7 +18,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
  function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false});update(channels.get(id));}return channels.get(id);}
  function update(c){c.gain.gain.setValueAtTime(c.volume*c.expression,context.currentTime);}
  function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();v.zonePan?.disconnect();}
- function release(v,immediate=false){if(v.released&&!immediate)return;v.released=true;const now=context.currentTime;if(immediate){v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(0,now);v.osc.stop(now);destroy(v);}else{const duration=v.sampler?envelope.release:.03;v.gain.gain.cancelAndHoldAtTime(now);if(duration)v.gain.gain.linearRampToValueAtTime(0,now+duration);else v.gain.gain.setValueAtTime(0,now);v.osc.stop(now+duration+.005);}}
+ function release(v,immediate=false){if(v.released&&!immediate)return;v.released=true;const now=context.currentTime;if(immediate){v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(0,now);v.osc.stop(now);destroy(v);}else{const duration=v.sampler?v.envelope.release:.03;const value=v.level*(v.sampler?heldEnvelopeAt(Math.max(0,now-v.startedAt),v.envelope):Math.min(1,Math.max(0,now-v.startedAt)/.008));v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(value,now);if(duration)v.gain.gain.linearRampToValueAtTime(0,now+duration);else v.gain.gain.setValueAtTime(0,now);v.osc.stop(now+duration+.005);}}
  function push(data){
   if(disposed||!data||data.length<2)return;const status=data[0],kind=status&0xf0,id=status&15,a=data[1],b=data[2];
   if(status<0x80||status>=0xf0||a>127||a<0||([0x80,0x90,0xb0,0xe0].includes(kind)&&(!Number.isInteger(b)||b<0||b>127)))return;
@@ -27,9 +27,10 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
    const layers=instrument==='sampler'&&sampleResolver?sampleResolver({pitch:a,velocity:b/127}):[null],group={};
    for(const layer of layers){
    while(voices.size>=maxVoices)release(voices.values().next().value,true);
+   const voiceEnvelope=layer?samplerEnvelope({sampleAttack,sampleDecay,sampleSustain,sampleRelease,...layer}):envelope;
    const drum=instrument==='drumKit',sampler=instrument==='sampler',osc=(drum||sampler)?context.createBufferSource():context.createOscillator(),gain=context.createGain(),now=context.currentTime;
-   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=layer?.buffer??sampleBuffer;Object.assign(osc,layer?samplerLoop(layer.buffer,layer):loop);osc.playbackRate.value=samplerPlaybackRate(a,layer?.sampleRoot??sampleRoot,{sampleTune,sampleFineTune,...(layer??{})});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127*sampleZoneLevel(layer??{}),envelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
-   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,sampleGroupDestination(context,c.gain,layer??{},groups,id),layer??{});const v={zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();}
+   if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=layer?.buffer??sampleBuffer;Object.assign(osc,layer?samplerLoop(layer.buffer,layer):loop);osc.playbackRate.value=samplerPlaybackRate(a,layer?.sampleRoot??sampleRoot,{sampleTune,sampleFineTune,...(layer??{})});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127*sampleZoneLevel(layer??{}),voiceEnvelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
+   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack,...(layer??{})},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,sampleGroupDestination(context,c.gain,layer??{},groups,id),layer??{});const v={startedAt:now,level:b/127*(sampler?sampleZoneLevel(layer??{}):.18),envelope:voiceEnvelope,zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);osc.start();}
 
   }else if(kind===0x80||(kind===0x90&&!b)){
    const v=matching().find(v=>v.pitch===a&&v.held);if(v)for(const layer of matching().filter(n=>n.group===v.group)){layer.held=false;if(!c.sustain&&!layer.drum)release(layer);}
