@@ -1,3 +1,4 @@
+import {z} from 'zod';
 import {selectedRegions} from './region-selection.js';
 import {audibleSources} from './routing.js';
 export function selectedRegionsAudition(session,ids){
@@ -9,3 +10,6 @@ export function selectedRegionsAudition(session,ids){
  document.loopEnabled=false;document.metronomeEnabled=false;
  return {kind:'regionSelection',document,position:Math.min(...regions.map(r=>r.start)),label:`Auditioning ${regions.length} selected ${regions.length===1?'clip':'clips'} through the current mixer`};
 }
+
+export const selectionAuditionSchema=z.object({regionIds:z.array(z.string().min(1).max(100)).min(1).max(1000).nullable()}).strict();
+export function resolveSelectionAudition(session,value,captured=[]){const v=selectionAuditionSchema.parse(value),ids=v.regionIds??captured;selectedRegionsAudition(session,ids);return [...ids];}
