@@ -4558,3 +4558,12 @@ Reference: [Apple timecode technical note](https://developer.apple.com/library/a
 Reverse preview is browser seeking rather than reverse video decoding and may be less smooth depending on codec, frame rate and device. Overlapping movie regions still use the first eligible region in track order; this is not a video compositor. Audio remains handled by the existing audio graph.
 
 `test/experimental-movie-sync.test.js` checks trim/reverse mapping, mute/gaps, frame changes, missing assets and delayed play cleanup. `scripts/browser-experimental-movie-sync-check.cjs` generates a real WebM clip using MediaRecorder and verifies seek, frame step, forward play/stop, reverse seek and mute with an HTML video element. All 1,144 tests and build pass; the existing bundle-size warning remains.
+
+
+### Session start timecode
+
+Set **Timecode at timeline zero** in Experimental scoring controls to label the session from a picture’s starting timecode, for example `01:00:00:00`. The saved `timecodeOffset` is in seconds (0–86,400), exposed through the same undoable `session.set` operation used by the agent. It changes the scoring clock, timecode ruler and timecode seeking; it never shifts clips, tempo, markers or media source offsets. Seconds and musical-position rulers remain relative to timeline zero.
+
+Drop-frame start labels use semicolons. A start that is not aligned to the current frame rate is displayed at the preceding whole frame, and parsing that label returns timeline zero. Labels can extend beyond hour 23 without wrapping; seeks still must fall within the session’s 24-hour timeline. Changing frame rate preserves the stored seconds rather than the old label. Embedded movie timecode is not read automatically.
+
+Timecode unit tests cover normal/drop-frame offsets, frame-rate changes, extended hours, before-start rejection, unchanged media and Undo/Redo. The browser drop-frame check now also sets a one-hour start, frame-steps from it and verifies persistence after reload.
