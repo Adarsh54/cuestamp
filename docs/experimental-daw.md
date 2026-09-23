@@ -2209,3 +2209,7 @@ The saved scene grid now supports timed auditions through the existing native au
 ### Quantized scene switching checkpoint
 
 Timed scenes can now hand off immediately or on the next eligible beat/bar, using the project's tempo and time-signature maps. Manual Cue scene and the agent queue_scene action schedule the same Web Audio graph gates. Tests verify the audible boundary without running UI timers. One scene can be pending; Stop cancels both. New scenes restart their automation from zero and cut old tails at the handoff. Per-scene duration limits remain; independent cell transport and recording a live scene performance into the arrangement are still unfinished.
+
+### Scene performance capture checkpoint
+
+Manual Record performance now captures the audio-clock scene launch sequence, including quantized handoffs. A stopped take survives local refresh and can be placed as editable regions in one undoable edit, manually or through the agent's shared scene.performance command. It does not render the mix or capture restarted automation/tail behavior. Saving is tied to the source session revision. Independent cell launching, editable performance-take management and full scene/arrangement automation parity remain unfinished.
