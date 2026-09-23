@@ -10,9 +10,17 @@ import {scheduleSampler,samplerLoop} from './sampler.js';
 import {createLevelMeters} from './meters.js';
 import {scheduleDrum} from './drums.js';
 import {scheduleMidiChannel,schedulePitchBend} from './midi-events.js';
-import {audibleSources,routedTail,validateRouting} from './routing.js';
+import {audibleSources,createRoutedTailReader,validateRouting} from './routing.js';
 import {connectEffects,scheduleAutomation,effectTail} from './effects.js';
-export const sessionDuration=session=>Math.max(1,...session.tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration+routedTail(session,t))))+effectTail(session.masterEffects,session.masterAutomationMode==='off');
+export function sessionDuration(session){
+ const tail=createRoutedTailReader(session);let end=1;
+ for(const track of session.tracks){
+  if(!track.regions.length)continue;let lastEnd=-Infinity;
+  for(const region of track.regions)lastEnd=Math.max(lastEnd,region.start+region.duration);
+  end=Math.max(end,lastEnd+tail(track));
+ }
+ return end+effectTail(session.masterEffects,session.masterAutomationMode==='off');
+}
 const linear=db=>10**(db/20);
 export function scheduleSession(context,session,buffers,position=0,options={}){
  if(options.endPosition!==undefined&&(!Number.isFinite(options.endPosition)||options.endPosition<=position||options.endPosition>86400))throw Error('Playback end must follow the start within the timeline.');

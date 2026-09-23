@@ -4301,3 +4301,27 @@ meter browser check. The browser uses real live compression and verifies the
 outgoing request with a mocked provider reply; it does not test live model
 inference. All 997 tests and the production build pass, with the existing
 bundle-size warning.
+
+### Arrangement-duration performance
+
+`sessionDuration` now finds each track’s latest region end in one scan and uses
+one memoized routing-tail reader for the calculation. Shared buses are evaluated
+once, and the reader is discarded afterward so later edits cannot reuse stale
+values. This also avoids spreading all region durations into a function call,
+which can exceed engine argument limits in large valid arrangements.
+
+Ordinary playback captures its end time once from the playback snapshot. The
+40 ms UI timer no longer recomputes the entire arrangement and filter tails.
+A new playback gets a fresh duration; explicit audition ends are preserved.
+
+A local synthetic benchmark (64 audio tracks, 100 regions each, shared bus and
+resonant EQ) measured approximately 16 ms per old calculation versus 0.18 ms per
+new calculation, with identical end time. This is a machine-specific duration
+calculation benchmark, not a claim about overall DSP or export throughput.
+
+Validation: `test/experimental-session-duration.test.js` covers shared routing,
+unsorted region ends, empty arrangements, edits between calculations and
+128,000-region inputs. `scripts/browser-experimental-duration-check.cjs` verifies
+actual automatic playback completion including EQ decay, playhead reset, and a
+fresh end after editing duration. The existing range-audition PCM check passes.
+All 1,000 tests and the production build pass; the bundle-size warning remains.
