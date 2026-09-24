@@ -1,3 +1,4 @@
+import {bindScoreClipboardShortcuts} from './score-clipboard-shortcuts.js';
 import {resolveScorePasteAction,resolveScoreCopyAction} from './agent-score-clipboard.js';
 import {regionBeatTiming} from './tempo-map.js';
 import {selectedMidiNotes} from './note-selection.js';
@@ -47,8 +48,9 @@ export function pasteFromScoreClipboard(root,session,context,value){
  return pasteScoreNotes(session,clipboard,action);
 }
 export const scoreClipboardView=()=>`<form data-score-paste hidden><p data-score-clipboard-status role="status"></p><div class="button-row"><label>Paste into<select name="destination"></select></label><label>Start · beats into region<input name="beat" type="number" min="0" step="any" value="0" required></label><label>Preserve<select name="timing"><option value="beats">Musical rhythm</option><option value="seconds">Original seconds</option></select></label><label><input name="extend" type="checkbox"> Extend destination to fit</label><button type="submit">Paste notes</button><button type="button" data-score-clipboard-clear>Clear copied notes</button></div><p class="muted">Copies note pitches, velocities and articulations. Destination instruments and controllers apply; source controller events are not copied.</p></form>`;
-export function bindScoreClipboard(panel,{session,selectionRoot,selection,execute,guard,getSession}){
+export function bindScoreClipboard(panel,{session,selectionRoot,selection,execute,guard,getSession,scoreShortcutsBlocked}){
  let state=clipboards.get(selectionRoot);if(state?.clipboard.sessionId!==session.id){state=null;clipboards.delete(selectionRoot);}
+ bindScoreClipboardShortcuts(panel,{selectionRoot,selection,blocked:scoreShortcutsBlocked,guard});
  const form=panel.querySelector('[data-score-paste]');
  const regions=session.tracks.filter(t=>t.kind==='midi').flatMap(t=>t.regions.map(r=>({region:r,name:`${t.name} / ${r.name}`})));
  for(const {region,name} of regions){const option=panel.ownerDocument.createElement('option');option.value=region.id;option.textContent=name;form.elements.destination.append(option);}

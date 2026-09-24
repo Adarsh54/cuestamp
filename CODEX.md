@@ -5343,3 +5343,11 @@ The agent has a separate `copy_score_notes` tool for copy/cut, using an explicit
 Unit checks cover copy/cut capability gating, selected-note resolution, invalid IDs, stale context, clipboard rollback before commit, retention after persistence failure, Undo, subsequent paste and stale clipboard epochs. `scripts/browser-experimental-score-cut-check.cjs` verifies manual Cut, agent Cut/Copy, Undo selection restoration and manual paste. Provider calls are mocked; live inference remains unverified.
 
 Verified 1,374 tests, production build, score-cut browser workflow and the existing agent paste/stale-clipboard browser regression.
+
+### Score clipboard keyboard shortcuts (2026-09-23)
+
+With focus inside the open score, Cmd/Ctrl C copies selected notes, X cuts them, and V pastes using the destination/beat/timing currently set in the score paste panel. The handlers use the existing Copy/Cut/Paste controls and shared commands. Focus returns to the score container after a keyboard edit replaces the DOM. Empty selections/clipboards give an inline error instead of falling through to arrangement-region copy/paste.
+
+Text inputs, editable roles, contenteditable areas and selected prose retain native clipboard behavior. Composition, alternate modifiers and held-key repeats do not trigger repeated edits. Score clipboard shortcuts obey the workspace shortcut toggle and pause during recording, loading, agent planning and dialogs. Document-level arrangement handlers exclude score clipboard keys to prevent acting on an unrelated region clipboard. Other score navigation and pitch keys retain their existing behavior.
+
+Verified 1,376 tests and production build. `scripts/browser-experimental-score-clipboard-shortcuts-check.cjs` covers actual keyboard copy/cut/paste, Undo, same/cross-region paste, native text-field isolation and shortcut disabling. Unit tests cover both platform modifiers and input/modifier exclusions.

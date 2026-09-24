@@ -26,7 +26,7 @@ export function scoreNoteheads(graphical){
  const index=graphical.vfnoteIndex;
  return Number.isInteger(index)&&heads[index]?[heads[index]]:[];
 }
-export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard,selectionRoot,getSession}){
+export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard,selectionRoot,getSession,scoreShortcutsBlocked}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
  const plans=scoreNotePlans(session,track,region,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null,chordDraft=false,selectedIds=new Set(),restoring=false;
  form.hidden=true;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;
@@ -76,7 +76,7 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
   element.dataset.scoreNote=reference.noteId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label',`Edit MIDI note ${pitch}`);element.style.cursor='pointer';
   bindScorePitchDrag(element,{session,reference,zoom:renderer.Zoom,execute,guard,onSelect:e=>select(reference,Boolean(e?.shiftKey)),onDelete:()=>{const ids=selectedIds.has(reference.noteId)?[...selectedIds]:[reference.noteId],r=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId);execute([scoreNoteGroupAction(session,r,ids,'delete')],'Deleted score notes');}});
  }
- bindScoreClipboard(panel,{session,selectionRoot,selection:()=>({region:selectedRegion,ids:[...selectedIds]}),execute,guard,getSession});
+ bindScoreClipboard(panel,{session,selectionRoot,selection:()=>({region:selectedRegion,ids:[...selectedIds]}),execute,guard,getSession,scoreShortcutsBlocked});
  bindScoreSelectionTools(form,{session,selection:()=>({region:selectedRegion,ids:[...selectedIds]}),execute,guard});
  const length=form.elements.namedItem('scoreLength'),rhythm=form.elements.namedItem('scoreRhythm'),duration=form.elements.namedItem('duration'),start=form.elements.namedItem('start'),rhythmStatus=form.querySelector('[data-score-rhythm-status]');
  const updateRhythm=()=>{rhythm.disabled=length.value==='custom';rhythmStatus.textContent='';if(!selected||length.value==='custom')return;try{duration.value=scoreRhythmDuration(session,selectedRegion,Number(start.value),length.value,rhythm.value);rhythmStatus.textContent='Length follows the project tempo at this note.';}catch(error){rhythmStatus.textContent=error.message;}};
