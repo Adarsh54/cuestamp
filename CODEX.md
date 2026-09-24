@@ -5351,3 +5351,11 @@ With focus inside the open score, Cmd/Ctrl C copies selected notes, X cuts them,
 Text inputs, editable roles, contenteditable areas and selected prose retain native clipboard behavior. Composition, alternate modifiers and held-key repeats do not trigger repeated edits. Score clipboard shortcuts obey the workspace shortcut toggle and pause during recording, loading, agent planning and dialogs. Document-level arrangement handlers exclude score clipboard keys to prevent acting on an unrelated region clipboard. Other score navigation and pitch keys retain their existing behavior.
 
 Verified 1,376 tests and production build. `scripts/browser-experimental-score-clipboard-shortcuts-check.cjs` covers actual keyboard copy/cut/paste, Undo, same/cross-region paste, native text-field isolation and shortcut disabling. Unit tests cover both platform modifiers and input/modifier exclusions.
+
+### Score selection timing tools (2026-09-23)
+
+Selecting existing score notes exposes **Selection timing**, for one note or a multi-note selection. Quantize offers straight and triplet grids, strength 0–100% and swing delay 0–75% of the grid. It moves note starts in project beats through the existing `notes.quantize` command; durations remain unchanged and region bounds still apply. Humanization offers maximum start/length variation in milliseconds, velocity variation and a deterministic seed through `notes.humanize`.
+
+Both tools target only the selected IDs, preflight without mutating the source, and execute through the shared command/Undo path already available to the agent. Draft notes do not expose the tools. The UI explains that humanization changes playback timing and can make notation more complex; repeatability requires the same starting notes and seed (Undo before another trial).
+
+Verified 1,379 tests and build. `test/experimental-score-timing-tools.test.js` covers tempo-aware quantize with strength/swing, unselected-note preservation, nonmutating preparation, bounded/reproducible humanization, invalid inputs and Undo. `scripts/browser-experimental-score-timing-check.cjs` checks actual engraved multi-selection, quantize and timing/velocity humanization, successful score redraws and Undo.
