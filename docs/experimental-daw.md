@@ -2402,3 +2402,18 @@ Partwise uncompressed MusicXML can now be imported through Import files as edita
 Compressed `.mxl` note import is now implemented (2026-09-23): resolve the container's first rootfile, extract within byte limits and reuse the partwise MIDI conversion. Embedded alternate media is ignored. Browser import/Undo and bounded extraction tests pass; timewise/opus and full engraving interchange remain incomplete.
 
 Timewise score roots are now supported for plain and compressed MusicXML note import (2026-09-23). Parts must be explicit in each measure and align at measure boundaries; omitted-part/polymetric reconstruction and opus collections remain unsupported. Browser equivalence and file import/Undo checks pass. Full engraved-layout preservation remains incomplete.
+
+## Monophonic audio-to-MIDI checkpoint — 2026-09-23
+
+Audio regions now offer worker-based melody analysis and review, followed by creation
+of an aligned MIDI track. The agent can invoke the same analysis/creation path.
+Original recordings are preserved and creation is a single Undo transaction.
+`test/experimental-audio-melody.test.js` and
+`scripts/browser-experimental-melody-check.cjs` cover detector fixtures, actual
+worker/UI execution, source trim/reverse, cancellation, stale state, Undo and
+mocked-agent extraction. See CODEX for bounds and detailed limitations.
+
+This adds monophonic extraction toward the audio pitch-editing capability group.
+It does not implement graphical per-note audio retuning, formant/vibrato editing,
+polyphonic transcription or Logic Flex Pitch parity. Those remain part of the
+broader unfinished workstation objective.
