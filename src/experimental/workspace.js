@@ -1,12 +1,12 @@
+import {prepareRegionNotationExport,prepareScoreNotationExport} from './score-notation-export.js';
 import {scoreClipboardContext,pasteFromScoreClipboard,scoreCopyContext,copyToScoreClipboard} from './score-clipboard.js';
 import {musicxmlFileText} from './musicxml-container.js';
 import {musicxmlImportData} from './musicxml-import.js';
 import {captureScoreView} from './score-view-context.js';
-import {scorePitchView} from './score-transposition.js';
 import {selectedScoreNote} from './score-agent-selection.js';
 import {updateScorePosition} from './score-position.js';
 import {scorePreviewView,bindScorePreview} from './score-preview.js';
-import {exportRegionMusicxml,resolveMusicxmlRegion,exportScoreMusicxml,scoreTracks} from './musicxml.js';
+import {exportRegionMusicxml,exportScoreMusicxml,scoreTracks} from './musicxml.js';
 import {sampleMarkersForBuffer} from './sampler-marker-state.js';
 import {validateSamplerSliceAction,resolveSamplerSliceMarkers} from './sampler-slice-action.js';
 import {samplerSlicePlan} from './sampler-zone-slices.js';
@@ -706,9 +706,9 @@ export function createExperimentalWorkspace({account,esc}){
     }else if(result.action==='map_sampler_filenames'){
      if(busy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');request.signal.throwIfAborted();const options=validateFilenameMap(before,result.mapping),plan=filenameMapPlan(before.tracks.find(t=>t.id===options.trackId),files,options);execute(plan.commands,'Mapped sample filenames',revision);applied=true;appliedSession=structuredClone(session());outcome='applied';summary='Mapped '+plan.rows.length+' sample filenames to root notes.';
     }else if(result.action==='export_score_musicxml'){
-     request.signal.throwIfAborted();if(session().revision!==revision)throw Error('Session changed before notation export. Try again.');const display=scorePitchView(before,null,result.pitchMode??'written'),xml=exportScoreMusicxml(display.session,result.trackIds);download(new Blob([xml],{type:'application/vnd.recordare.musicxml+xml'}),(before.title||'Score')+(result.pitchMode==='concert'?'-concert':'')+'.musicxml');summary='Downloaded multi-part '+(result.pitchMode??'written')+'-pitch MusicXML score.';outcome='replied';trace.push({role:'action',text:summary});
+     request.signal.throwIfAborted();if(session().revision!==revision)throw Error('Session changed before notation export. Try again.');const prepared=prepareScoreNotationExport(before,{trackIds:result.trackIds,pitchMode:result.pitchMode??'written',displayGrid:result.displayGrid??'off'});download(new Blob([prepared.xml],{type:'application/vnd.recordare.musicxml+xml'}),(before.title||'Score')+(prepared.pitchMode==='concert'?'-concert':'')+(prepared.displayGrid!=='off'?'-'+prepared.displayGrid:'')+'.musicxml');summary='Downloaded multi-part MusicXML score · '+prepared.pitchMode+' pitch · '+(prepared.displayGrid==='off'?'performed timing':prepared.displayGrid+' display grid')+'.';outcome='replied';trace.push({role:'action',text:summary});
     }else if(result.action==='export_musicxml'){
-     request.signal.throwIfAborted();if(session().revision!==revision)throw Error('Session changed before notation export. Try again.');const {track:scoreTrack,region:scoreRegion}=resolveMusicxmlRegion(before,result.regionId),display=scorePitchView(before,scoreTrack,result.pitchMode??'written'),xml=exportRegionMusicxml(display.session,display.track,scoreRegion);download(new Blob([xml],{type:'application/vnd.recordare.musicxml+xml'}),(scoreRegion.name||'Score')+(result.pitchMode==='concert'?'-concert':'')+'.musicxml');summary='Downloaded '+(result.pitchMode??'written')+'-pitch MusicXML for '+scoreRegion.name+'.';outcome='replied';trace.push({role:'action',text:summary});
+     request.signal.throwIfAborted();if(session().revision!==revision)throw Error('Session changed before notation export. Try again.');const prepared=prepareRegionNotationExport(before,{regionId:result.regionId,pitchMode:result.pitchMode??'written',displayGrid:result.displayGrid??'off'});download(new Blob([prepared.xml],{type:'application/vnd.recordare.musicxml+xml'}),(prepared.name||'Score')+(prepared.pitchMode==='concert'?'-concert':'')+(prepared.displayGrid!=='off'?'-'+prepared.displayGrid:'')+'.musicxml');summary='Downloaded MusicXML for '+prepared.name+' · '+prepared.pitchMode+' pitch · '+(prepared.displayGrid==='off'?'performed timing':prepared.displayGrid+' display grid')+'.';outcome='replied';trace.push({role:'action',text:summary});
     }else if(result.action==='export_sampler_preset'){
      const preset=before.samplerPresets.find(p=>p.id===result.presetId);if(!preset)throw Error('Saved sampler preset not found.');summary=await downloadSamplerPreset(preset,request);outcome='replied';trace.push({role:'action',text:summary});
     }else if(result.action==='export_audio'){
