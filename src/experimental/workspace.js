@@ -1,3 +1,4 @@
+import {melodySaveCommand,restoreMelodyDraft} from './melody-storage.js';
 import {originalMelodyAudition,tunedMelodyAudition} from './melody-audition.js';
 import {melodyRetunePlan} from './melody-retune-plan.js';
 import {bindMelodyDraft,melodyDraftContext,updateMelodyDraft} from './melody-draft.js';
@@ -310,7 +311,8 @@ export function createExperimentalWorkspace({account,esc}){
 
  const waveformIndexes=new WeakMap();let warpDraft=null;let waveformView=null,waveformSelection=null,transientAnalysis=null;
  let melodyAnalysis=null;
- function currentMelody(){const v=melodyAnalysis;return v&&v.sessionId===session().id&&v.revision===session().revision&&v.regionId===region()?.id?v:null;}
+ function currentMelody(){const v=melodyAnalysis;if(v&&v.sessionId===session().id&&v.revision===session().revision&&v.regionId===region()?.id)return v;const saved=restoreMelodyDraft(session(),region());if(saved)melodyAnalysis=saved;return saved;}
+ function saveMelodyEdits(prepared=null){const command=melodySaveCommand(session(),melodyAnalysis),previous={session:history.session,past:[...history.past],future:[...history.future]};stop();try{history.execute([command],session().revision);persist();}catch(error){Object.assign(history,previous);throw error;}if(prepared)prepared.committedSession=structuredClone(session());melodyAnalysis=null;status='Saved melody edits with the audio region.';trace.push({role:'action',text:status,commands:[command]});paint();return status;}
  function createMelodyMidi(prepared=null){
   const plan=melodyMidiCommands(session(),melodyAnalysis),previous={session:history.session,past:[...history.past],future:[...history.future]};
   try{history.execute(plan.commands,melodyAnalysis.revision);persist();}catch(error){Object.assign(history,previous);throw error;}
@@ -470,6 +472,8 @@ export function createExperimentalWorkspace({account,esc}){
  function bindControls(){
   bindMelodyDraft(root,{analysis:currentMelody(),guard,update:action=>{if(busy||agentBusy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');melodyAnalysis=updateMelodyDraft(session(),melodyAnalysis,action);paint();root.querySelector('[data-melody-analysis]').open=true;},page:start=>{if(busy||agentBusy)throw Error('Finish the current operation first.');melodyAnalysis={...melodyAnalysis,page:start};paint();root.querySelector('[data-melody-analysis]').open=true;}});
   const melodyForm=root.querySelector('[data-melody-form]');if(melodyForm)melodyForm.onsubmit=guard(async event=>{event.preventDefault();await analyzeMelody(Object.fromEntries([...new FormData(melodyForm)].map(([key,value])=>[key,Number(value)])));});
+  root.querySelector('[data-melody-save]')?.addEventListener('click',guard(()=>{if(busy||agentBusy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');saveMelodyEdits();}));
+  root.querySelector('[data-melody-clear]')?.addEventListener('click',guard(()=>{if(busy||agentBusy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');execute([{op:'region.clearMelody',target:region().id}],'Removed saved melody.');melodyAnalysis=null;}));
   root.querySelector('[data-melody-stop]')?.addEventListener('click',()=>{stop();paint();});
   root.querySelector('[data-melody-original]')?.addEventListener('click',guard(async()=>{if(busy||agentBusy||recordAbort||midiInput.active)throw Error('Finish the current operation first.');const preview=originalMelodyAudition(session(),currentMelody());stop();meterObservation=undefined;await play({preview});}));
   root.querySelector('[data-melody-preview]')?.addEventListener('click',guard(async()=>{await stretchRegion(melodyRetunePlan(session(),currentMelody(),{preview:true}),null,{previewOnly:true});}));
@@ -668,7 +672,8 @@ export function createExperimentalWorkspace({account,esc}){
     summary=String(result.summary||'No edits requested.').slice(0,2000);
     if(result.action==='edit_melody_draft'){
      if(result.draftToken!==melodyAnalysis?.token)throw Error('The melody draft changed. Try again.');request.signal.throwIfAborted();melodyAnalysis=updateMelodyDraft(before,melodyAnalysis,result.options);
-     if(['previewAudio','previewOriginal'].includes(result.options.operation)){
+     if(result.options.operation==='save'){const prepared={};try{summary=saveMelodyEdits(prepared);}finally{applied=Boolean(prepared.committedSession);if(applied)appliedSession=prepared.committedSession;}outcome='applied';}
+     else if(['previewAudio','previewOriginal'].includes(result.options.operation)){
       if(result.transportEpoch!==transportSnapshot.epoch||transportEpoch!==transportSnapshot.epoch)throw Error('Transport changed while planning. Preview the melody again.');transportTouched=true;
       if(result.options.operation==='previewOriginal'){const preview=originalMelodyAudition(before,melodyAnalysis);stop();meterObservation=undefined;if(!await play({signal:request.signal,preview}))throw Error('Melody preview was interrupted.');summary=preview.label;}
       else summary=await stretchRegion(melodyRetunePlan(before,melodyAnalysis,{preview:true}),request,{previewOnly:true});outcome='replied';trace.push({role:'action',text:summary});

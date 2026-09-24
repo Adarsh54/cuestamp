@@ -11,7 +11,7 @@ export function createSceneSourceReader(session){
   if(trackId!==undefined&&!selected.length)throw Error('A recorded cell no longer exists on its track.');
   const cells=selected.map(cell=>{
    const source=regions.get(cell.regionId);if(!source)throw Error('A recorded source clip no longer exists.');
-   const {name,start,takeGroup,attackMarkers,...content}=source.region;
+   const {name,start,takeGroup,attackMarkers,melodyDraft,...content}=source.region;
    return {regionId:cell.regionId,loop:cell.loop,trackId:source.track.id,kind:source.track.kind,content};
   }).sort((a,b)=>a.regionId<b.regionId?-1:a.regionId>b.regionId?1:0);
   return bytesToHex(sha256(new TextEncoder().encode(JSON.stringify(canonical({version:1,cells})))));
