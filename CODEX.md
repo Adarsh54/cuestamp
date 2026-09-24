@@ -5483,3 +5483,11 @@ Verified 1,416 tests and production build. `test/experimental-melody-storage.tes
 Detected melody notes support an audio fine-tuning offset from -100 to +100 cents in the correction form. The graph, tuned preview, rendered audio, saved region analysis, and captured agent context retain this offset. MIDI creation uses integer pitches only. Omitted or null agent offsets preserve existing tuning; reset clears it. Original recordings and measured detections remain unchanged.
 
 Validation: `npm test`, `npm run build`, and `scripts/browser-experimental-melody-storage-check.cjs` cover fractional targets, bounds, save/reload, agent context, and integer MIDI creation. Browser agent responses are mocked; live model inference is not covered.
+
+### Quantize melody drafts to a scale (2026-09-23)
+
+The melody editor's **Tune draft to scale** form chooses a root and one of the existing eleven scale modes. It snaps all included notes across every review page to their nearest allowed MIDI pitch, using each current target's fine offset when choosing the closest tone. Ties choose the lower pitch. It clears included notes' fine offsets, preserves exclusions, timing, velocity and original measurements, and rotates the draft token. Reset restores measurements; save persists the resulting ordinary correction patches. Preview/render remain explicit actions; this control alone does not alter audio.
+
+`edit_melody_draft` operation `scale` provides the same full-draft action with `scale: {root, mode}` and empty `edits`. Other operations use null (or omitted for older clients). The strict model schema requires the nullable field. Captured revision/token protections apply. This does not perform key detection or change the project key.
+
+Reference: [Apple's audio pitch quantization guide](https://support.apple.com/en-ca/guide/logicpro/lgcp8836920c/mac). Tests cover cross-page application, exclusions, fractional-target tie decisions, unchanged measurements, stale tokens and mocked-agent options. The browser storage check also exercises manual scale selection, graph updates, reset, save/reload and MIDI creation. Live model inference remains unverified.
