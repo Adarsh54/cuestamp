@@ -2417,3 +2417,16 @@ This adds monophonic extraction toward the audio pitch-editing capability group.
 It does not implement graphical per-note audio retuning, formant/vibrato editing,
 polyphonic transcription or Logic Flex Pitch parity. Those remain part of the
 broader unfinished workstation objective.
+
+## Per-note audio pitch correction checkpoint — 2026-09-23
+
+Measured melody drafts now render constant per-note pitch corrections into a new
+WAV/audio track, retaining the source recording and an Undo path. Manual and agent
+controls share the cancelable worker and validated derived-track commit.
+`test/experimental-audio-retune.test.js` and
+`scripts/browser-experimental-retune-check.cjs` verify actual frequency changes,
+excluded spans, unchanged duration/source, cancellation, persistence and Undo.
+
+This supersedes the previous absence of per-note audio retuning. Graphical pitch
+curves, formant control, vibrato/drift editing and broad real-recording quality
+validation remain incomplete; the workstation objective remains active.

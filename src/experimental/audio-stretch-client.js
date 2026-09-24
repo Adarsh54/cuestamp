@@ -1,3 +1,4 @@
+import {validateAudioRetune} from './audio-retune-options.js';
 import {audioWarpPlan} from './audio-warp-options.js';
 import {validateAudioPitch} from './audio-pitch-options.js';
 import {validateAudioStretch} from './audio-stretch-options.js';
@@ -6,6 +7,7 @@ export async function renderAudioStretch(buffer,ratio,{signal,onProgress=()=>{}}
  validateAudioStretch({sampleRate:buffer.sampleRate,frames:buffer.length,channels:buffer.numberOfChannels,ratio});
  return renderAudioWorker(buffer,{ratio},{signal,onProgress});
 }
+export async function renderAudioRetune(buffer,corrections,{signal,onProgress=()=>{}}={}){validateAudioRetune({sampleRate:buffer.sampleRate,frames:buffer.length,channels:buffer.numberOfChannels,corrections});return renderAudioWorker(buffer,{mode:'retune',corrections},{signal,onProgress});}
 export async function renderAudioPitch(buffer,semitones,{signal,onProgress=()=>{}}={}){
  validateAudioPitch({sampleRate:buffer.sampleRate,frames:buffer.length,channels:buffer.numberOfChannels,semitones});
  return renderAudioWorker(buffer,{semitones,mode:'pitch'},{signal,onProgress});
