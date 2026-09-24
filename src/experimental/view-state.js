@@ -9,7 +9,7 @@ export function captureViewState(root,{drafts=false,editor=false,agentFocus=fals
  const log=root.querySelector('.daw-agent-log'),logState=log?{top:log.scrollTop,bottom:log.scrollHeight-log.clientHeight-log.scrollTop<8}:null;
  const details=Array.from(root.querySelectorAll('details')).map(el=>({selector:key(el,root),label:el.querySelector(':scope > summary')?.textContent,open:el.open}));
  const detailCounts=new Map();for(const item of details)detailCounts.set(item.label,(detailCounts.get(item.label)||0)+1);
- const scrolls=editor?Array.from(root.querySelectorAll('.daw-scroll,.daw-note-scroll,.daw-note-grid,.daw-controller-scroll')).map(el=>({selector:key(el,root),top:el.scrollTop,left:el.scrollLeft})):[];
+ const scrolls=editor?Array.from(root.querySelectorAll('.daw-scroll,.daw-note-scroll,.daw-note-grid,.daw-controller-scroll,.daw-melody-scroll')).map(el=>({selector:key(el,root),top:el.scrollTop,left:el.scrollLeft})):[];
  const fields=drafts?Array.from(root.querySelectorAll('input:not([type=file]),select,textarea:not(#daw-instruction)')).map(el=>({selector:key(el,root),tag:el.tagName,name:el.name,value:el.value,checked:el.checked,options:el.tagName==='SELECT'?el.innerHTML:null})):[];
  const chordPreview=drafts?root.querySelector('[data-chord-preview]')?.textContent:null;
  const active=root.contains(document.activeElement)?document.activeElement:null,focus=active&&(drafts||(agentFocus&&active.id==='daw-instruction'))?{selector:key(active,root),start:active.selectionStart,end:active.selectionEnd}:null;
