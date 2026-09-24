@@ -5375,3 +5375,11 @@ Both agent notation tools now accept `displayGrid`: off (performed timing) or th
 Tool schemas require a named grid for model calls; omitted values from older callers default to off. Invalid grids, targets and pitch modes reject. Existing export capability gating, session-revision checks and separate-action rules remain. Copying a visual grid into playback is never implicit.
 
 Verified 1,383 tests and production build. `test/experimental-agent-score-display-export.test.js` covers both tools' schemas, returned options, nonmutation, pitch mode and invalid grids. `scripts/browser-experimental-agent-score-display-export-check.cjs` mocks the provider response, downloads actual MusicXML, parses its rounded note timing and checks unchanged source tracks. Live provider selection remains unverified.
+
+### Printable score preview (2026-09-23)
+
+The score toolbar now offers A4/Letter paper and **Print score**. It creates a separate paginated SVG rendering from the currently selected region/parts, pitch mode and display grid, then opens an in-app preview. **Print / Save as PDF** invokes the browser print dialog for that score document; users choose the printer or Save as PDF there. This is not a separate server-generated PDF download.
+
+Printed pages contain fresh black notation on white paper, without interactive note highlights, transport markers or editor controls. Page breaks match renderer pages, with paper-sized CSS and zero browser page margins; engraving provides its own whitespace. Closing the preview or pressing Escape removes the dialog and temporary renderer. Original session data stays unchanged. Agent-driven print preparation is not yet exposed.
+
+Verified 1,385 tests and build. `scripts/browser-experimental-score-print-check.cjs` checks actual toolbar preparation, Letter/A4 sizes, a two-page long score, absence of UI controls/selection attributes, print-method invocation, cancellation and session nonmutation. The isolated printable page was visually inspected. Native OS printer/PDF-save completion is not automated in this check. Unit tests cover document title escaping, page structure and invalid inputs.
