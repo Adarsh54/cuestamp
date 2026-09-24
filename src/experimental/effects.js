@@ -1,3 +1,4 @@
+import {connectNoiseGate} from './noise-gate.js';
 import {eqTail} from './eq-tail.js';
 import {eqTypes} from './eq-modes.js';
 import {automationModeSchema,automationMutedSchema,activeAutomation} from './automation-mode.js';
@@ -8,8 +9,9 @@ import {connectChorus} from './chorus.js';
 import {connectTremolo} from './tremolo.js';
 import {effectPointSchema,validateEffectPoints,scheduleEffectParameter} from './effect-automation.js';
 import {z} from 'zod';
-const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automationMuted:automationMutedSchema(['makeupDb','driveDb','toneHz','outputDb','rate','depthCents','depthMs','mix','depth','gainDb','width','frequency','q','threshold','ratio','attack','release','knee','time','feedback']),automation:z.array(effectPointSchema).max(2000).default([])};
+const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automationMuted:automationMutedSchema(['reductionDb','hysteresis','hold','makeupDb','driveDb','toneHz','outputDb','rate','depthCents','depthMs','mix','depth','gainDb','width','frequency','q','threshold','ratio','attack','release','knee','time','feedback']),automation:z.array(effectPointSchema).max(2000).default([])};
 export const effectSchema=z.discriminatedUnion('kind',[
+ z.object({...base,kind:z.literal('gate'),threshold:z.number().finite().min(-96).max(0).default(-40),reductionDb:z.number().finite().min(-96).max(0).default(-60),hysteresis:z.number().finite().min(0).max(24).default(6),attack:z.number().finite().min(0).max(1).default(.003),hold:z.number().finite().min(0).max(2).default(.05),release:z.number().finite().min(.001).max(3).default(.1)}).strict(),
  z.object({...base,kind:z.literal('distortion'),driveDb:z.number().finite().min(0).max(36).default(12),toneHz:z.number().finite().min(20).max(20000).default(6000),outputDb:z.number().finite().min(-60).max(12).default(-6),mix:z.number().finite().min(0).max(1).default(1)}).strict(),
  z.object({...base,kind:z.literal('phaser'),rate:z.number().finite().min(.05).max(10).default(.5),frequency:z.number().finite().min(20).max(4000).default(1000),depthCents:z.number().finite().min(0).max(2400).default(1200),mix:z.number().finite().min(0).max(1).default(.5),stereoPhase:z.number().finite().min(-180).max(180).default(90),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
  z.object({...base,kind:z.literal('chorus'),rate:z.number().finite().min(.05).max(10).default(.8),depthMs:z.number().finite().min(0).max(20).default(3),mix:z.number().finite().min(0).max(1).default(.35),stereoPhase:z.number().finite().min(-180).max(180).default(90),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
@@ -25,7 +27,8 @@ export const automationValue=curveAutomationValue;
 export function scheduleAutomation(param,points,parameter,position,base,fallback){scheduleCurveAutomation(param,points,parameter,position,base,fallback,parameter==='gainDb'?v=>10**(v/20):v=>v,parameter==='gainDb');}
 export function effectTail(effects=[],inheritedOff=false){const peak=(e,key)=>Math.max(e[key],...activeAutomation(e,inheritedOff).filter(p=>p.parameter===key).map(p=>p.value));return Math.min(30,effects.filter(e=>e.enabled).reduce((sum,e)=>{if(e.kind==='eq')return sum+eqTail(e,inheritedOff);if(e.kind==='distortion')return sum+(peak(e,'mix')>0?.5:0);if(e.kind==='reverb')return sum+e.decay;if(e.kind==='phaser')return sum+(peak(e,'mix')>0?2:0);if(e.kind==='chorus')return sum+(peak(e,'mix')>0?.025+peak(e,'depthMs')/1000:0);if(e.kind!=='delay'||peak(e,'mix')===0)return sum;const time=peak(e,'time'),feedback=peak(e,'feedback');return sum+time*(feedback>0?Math.ceil(Math.log(.001)/Math.log(feedback))+1:1);},0));}
 export function connectEffects(context,input,effects,nodes,{position=0,base=context.currentTime,tempo=120,tempoChanges=[],register,registerMeter}={}){const schedule=(param,effect,key,position,base,transform=v=>v)=>{register?.(effect,key,param,transform,false);scheduleEffectParameter(param,effect,key,position,base,transform);};let output=input;for(const effect of effects||[]){if(!effect.enabled)continue;
- if(effect.kind==='distortion'){output=connectDistortion(context,output,effect,nodes,{position,base,register});}
+ if(effect.kind==='gate'){output=connectNoiseGate(context,output,effect,nodes,{position,base,register});}
+ else if(effect.kind==='distortion'){output=connectDistortion(context,output,effect,nodes,{position,base,register});}
  else if(effect.kind==='phaser'){output=connectPhaser(context,output,effect,nodes,{position,base,tempo,tempoChanges,register});}
  else if(effect.kind==='chorus'){output=connectChorus(context,output,effect,nodes,{position,base,tempo,tempoChanges,register});}
  else if(effect.kind==='tremolo'){output=connectTremolo(context,output,effect,nodes,{position,base,tempo,tempoChanges,register});}

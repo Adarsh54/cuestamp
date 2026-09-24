@@ -1,3 +1,4 @@
+import {prepareSessionEffects} from './noise-gate.js';
 import {scheduleMetronome} from './metronome.js';
 import {scheduleSession} from './audio-engine.js';
 export function scheduleRecordingPlayback(context,session,buffers,position,captureTime,cycleBuffer){
@@ -11,6 +12,7 @@ export function scheduleRecordingPlayback(context,session,buffers,position,captu
 export async function renderRecordingCycle(session,buffers,sampleRate,periodFrames){
  if(!session.recordWithPlayback&&!session.metronomeRecordEnabled)return null;
  const context=new OfflineAudioContext(2,periodFrames,sampleRate);
+ if(session.recordWithPlayback)await prepareSessionEffects(context,session);
  if(session.recordWithPlayback)scheduleSession(context,session,buffers,session.loopStart,{baseTime:0});
  scheduleMetronome(context,{...session,metronomeEnabled:session.metronomeRecordEnabled},{position:session.loopStart,baseTime:0,duration:periodFrames/sampleRate});
  return context.startRendering();

@@ -1,3 +1,4 @@
+import {prepareSessionEffects} from './noise-gate.js';
 import {audibleSources} from './routing.js';
 import {audibleAssets} from './media-refs.js';
 import {scheduleSession,sessionDuration} from './audio-engine.js';
@@ -21,7 +22,7 @@ export function createScoreNoteAudition({getSession,getContext,loadAsset,buffers
   try{
    if(plan.assets.length)notify('Loading note audition…');
    for(const id of plan.assets){await loadAsset(id);if(!valid())return;}
-   const context=await getContext();if(!valid())return;
+   const context=await getContext();await prepareSessionEffects(context,plan.document);if(!valid())return;
    playback=schedule(context,plan.document,buffers,plan.position,{endPosition:plan.end});
    notify('Auditioning note');timer=setTimer(()=>{if(current===epoch){stop();notify('');}},(plan.end-plan.position+.1)*1000);
   }catch(error){if(current===epoch){stop();notify(error.message||'Unable to audition this note.');}}

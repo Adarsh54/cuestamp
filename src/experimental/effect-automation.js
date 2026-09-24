@@ -3,6 +3,7 @@ import {automationShape,scheduleCurveAutomation} from './automation-curves.js';
 import {z} from 'zod';
 const field=(label,min,max,step)=>({label,min,max,step});
 export const effectParameters={
+ gate:{threshold:field('Threshold · dB',-96,0,.5),reductionDb:field('Closed reduction · dB',-96,0,.5),hysteresis:field('Hysteresis · dB below threshold',0,24,.5),attack:field('Attack · seconds',0,1,.001),hold:field('Hold · seconds',0,2,.01),release:field('Release · seconds',.001,3,.01)},
  distortion:{driveDb:field('Drive · dB',0,36,.5),toneHz:field('Tone cutoff · Hz',20,20000,10),outputDb:field('Wet output · dB',-60,12,.5),mix:field('Wet mix',0,1,.01)},
  phaser:{rate:field('Rate · Hz',.05,10,.05),frequency:field('Center frequency · Hz',20,4000,10),depthCents:field('Sweep depth · cents',0,2400,10),mix:field('Wet mix',0,1,.01)},
  chorus:{rate:field('Rate · Hz',.05,10,.05),depthMs:field('Delay modulation · ms',0,20,.1),mix:field('Wet mix',0,1,.01)},

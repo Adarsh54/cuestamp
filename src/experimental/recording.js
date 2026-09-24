@@ -1,3 +1,4 @@
+import {prepareSessionEffects} from './noise-gate.js';
 import {hardwareCaptureDuration,hardwareLatencyFrames,hardwareRecordingOptions} from './hardware-recording.js';
 import {cycleRecordingFrames} from './cycle-recording.js';
 import {audioRecordingWindow} from './audio-punch.js';
@@ -19,7 +20,7 @@ export async function startRecording({signal,deviceId,inputChannels='stereo',ses
  try{
   stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:inputChannels==='right'?{min:2,ideal:2}:{ideal:2},...(deviceId?{deviceId:{exact:deviceId}}:{})},video:false});if(signal?.aborted)throw Error('Recording canceled.');
   validateRecordingChannels(inputChannels,stream.getAudioTracks()[0]?.getSettings?.().channelCount);
-  context=new AudioContext();await context.audioWorklet.addModule(new URL('./recording-worklet.js',import.meta.url));await context.resume();if(signal?.aborted)throw Error('Recording canceled.');
+  context=new AudioContext();await context.audioWorklet.addModule(new URL('./recording-worklet.js',import.meta.url));await context.resume();if(session?.recordWithPlayback)await prepareSessionEffects(context,session);if(signal?.aborted)throw Error('Recording canceled.');
   const cycleFrames=cycleRecordingFrames(window,context.sampleRate),cycleBuffer=cycleFrames?await renderRecordingCycle(session,buffers,context.sampleRate,cycleFrames.period):null;if(signal?.aborted)throw Error('Recording canceled.');
   const startExternal=externalPlayback?await externalPlayback.prepare({onFailure:failExternal}):null;if(signal?.aborted)throw Error('Recording canceled.');
   const hardwareOptions=externalPlayback?hardwareRecordingOptions.parse(externalPlayback.options??{}):null,latencyFrames=externalPlayback?hardwareLatencyFrames(context.sampleRate,hardwareOptions):0;
