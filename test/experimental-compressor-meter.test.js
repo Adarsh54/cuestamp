@@ -6,3 +6,8 @@ test('effect meters read current reduction and clear references at stop',()=>{
 test('compressor meters start honestly and do not appear on other effects',()=>{
  assert.match(compressorMeterView({id:'c',kind:'compressor',enabled:true}),/Play to measure/);assert.match(compressorMeterView({id:'c',kind:'compressor',enabled:false}),/Bypassed/);assert.equal(compressorMeterView({kind:'eq'}),'');
 });
+
+test('gate meters include detector state and have a 96 dB display range',()=>{
+ const m=createEffectMeters(),node={reduction:-60,gateOpen:false};m.add({id:'g',kind:'gate'},node);assert.deepEqual(m.read().get('g'),{reductionDb:-60,open:false});node.gateOpen=true;node.reduction=0;assert.deepEqual(m.read().get('g'),{reductionDb:0,open:true});
+ assert.match(compressorMeterView({id:'g',kind:'gate',enabled:true}),/max="96"/);m.stop();assert.equal(m.read().size,0);
+});

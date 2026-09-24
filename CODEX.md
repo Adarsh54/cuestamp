@@ -5503,3 +5503,13 @@ The AudioWorklet uses the peak of both input channels to control one shared gain
 Research: [Apple Noise Gate controls](https://support.apple.com/en-ie/guide/logicpro-ipad/lpipbafe55dc/ipados). This is an original gate implementation, not Apple's DSP.
 
 Verification: repository suite and production build passed. `test/experimental-noise-gate.test.js` tests stereo linking, attenuation, hysteresis, hold, smoothing/block continuity, validation, Undo and mocked-agent edits. The shared live-effect test includes gate AudioParams. `scripts/browser-experimental-noise-gate-check.cjs` uses the actual worklet/OfflineAudioContext for PCM measurements, bypass, automation and cycle rendering, then checks mixer editing, reload and live transport. Physical recording hardware, live model inference and subjective listening on real recordings remain unverified.
+
+### Gate detector filtering and measured feedback (2026-09-23)
+
+Noise gate now exposes **Filter gate detector**, **Detector low cutoff**, and **Detector high cutoff**. These static, saved controls use cascaded 12 dB/octave high-pass and low-pass filters only on the detector input. The audible input remains unfiltered. Filtering is disabled by default; defaults are 80 Hz and 12 kHz. Both fields accept 20–20,000 Hz, low must be strictly below high, and runtime frequencies cap at 49% of sample rate. Threshold and envelope controls retain their automation. External sidechain and lookahead remain absent.
+
+During linear playback a gate meter shows actual worklet open/closed state and smoothed gain reduction over a 0–96 dB display. Open/closed refers to the detector state, so attack/release can still be transitioning. Reports arrive at approximately 20 Hz; stale readings become unavailable after half a second of audio-clock time. Stops close the message port and clear the reading. Cycle playback honestly reports per-effect meters unavailable, as with compressors; offline exports do not send meter messages.
+
+Agent `meterObservation.gates` carries enabled gate IDs, negative `reductionDb`, and boolean `open`, separately from compressor readings. Revision/age, ownership, parent-channel, duplicate and playback-mode checks apply. The model receives measured values, not inferred states. No telemetry is persisted in projects.
+
+Verification: 1,428 tests and build passed. Gate/meter tests cover filter constraints, distinct telemetry, stale/foreign readings, and mocked-agent observations. Browser checks exercise actual filtered detector PCM, transparent open-gate audio, saved filter fields, live open-state UI, transport, cycle, bypass and automation. Live provider inference and subjective/hardware checks remain unverified.

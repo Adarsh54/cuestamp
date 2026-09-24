@@ -36,3 +36,13 @@ test('agent gets compressor reduction and rejects invalid effects before provide
  await planDawEdit({session:s,instruction:'How much compression?',meterObservation:m},options);assert.deepEqual(JSON.parse(body.input[1].content).meterObservation.compressors,m.compressors);
  await assert.rejects(planDawEdit({session:s,instruction:'How much?',meterObservation:{...m,compressors:[{id:'missing',reductionDb:-7}]}},options));assert.equal(calls,1);
 });
+
+test('gate telemetry stays separate from compressors and validates ownership, state and freshness',async()=>{
+ const s=applyCommands(fixture(),[{op:'effect.add',target:'t',values:{id:'g',kind:'gate'}}]),now=Date.now();
+ const m=captureMeterObservation(s,new Map([['t',{left:.1,right:.1,peak:.1}]]),{position:1,mode:'linear',sampleRate:48000,now,effectValues:new Map([['g',{reductionDb:-60,open:false}]])});
+ assert.deepEqual(m.gates,[{id:'g',reductionDb:-60,open:false}]);assert.equal(m.compressors,undefined);
+ for(const gates of [[{id:'missing',reductionDb:-1,open:true}],[{id:'g',reductionDb:-97,open:false}],[...m.gates,...m.gates]])assert.throws(()=>validateMeterObservation({...m,gates},s,now));
+ assert.throws(()=>validateMeterObservation(m,s,now+120001),/stale/);
+ let body;await planDawEdit({session:s,instruction:'Is the gate open?',meterObservation:m},{key:'test',model:'test',fetchImpl:async(_,opts)=>{body=JSON.parse(opts.body);return {ok:true,json:async()=>({output:[{type:'message',content:[{type:'output_text',text:'The gate is closed.'}]}]})};}});
+ assert.deepEqual(JSON.parse(body.input[1].content).meterObservation.gates,m.gates);
+});

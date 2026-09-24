@@ -32,3 +32,8 @@ test('attack smoothing follows its time constant and is continuous across render
  const whole=process(gate,input,input,{attack:.01});const splitGate=new NoiseGate(rate),a=process(splitGate,input.subarray(0,480),input.subarray(0,480),{attack:.01}),b=process(splitGate,input.subarray(480),input.subarray(480),{attack:.01});
  assert.ok(Math.abs(whole[0][479]/.2-(1-.999/Math.E))<1e-6);assert.deepEqual(whole[0],Float32Array.from([...a[0],...b[0]]));
 });
+
+test('detector filtering settings reject reversed bands and cannot be automated as gain controls',()=>{
+ for(const values of [{lowCutHz:1000,highCutHz:1000},{lowCutHz:0},{highCutHz:22000}])assert.throws(()=>effectSchema.parse({id:'g',kind:'gate',...values}));
+ const e=effectSchema.parse({id:'g',kind:'gate'});assert.equal(e.filterEnabled,false);assert.throws(()=>effectSchema.parse({...e,automation:[{id:'p',parameter:'lowCutHz',time:0,value:200}]}));
+});
