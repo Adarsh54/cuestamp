@@ -9,3 +9,12 @@ test('scene playback scope is explicit transport context',()=>{const h=setup(),s
 test('agent validates scene audition, capability and transport before returning a listening action',async()=>{const {planDawEdit}=await import('../server/daw-agent.js'),h=setup(),before=structuredClone(h.session);let tools;const options={key:'test',model:'test',fetchImpl:async(_url,init)=>{tools=JSON.parse(init.body).tools;return {ok:true,json:async()=>({output:[{type:'function_call',name:'audition_scene',arguments:JSON.stringify({sceneId:'s',duration:4})}]})};}},request={session:h.session,instruction:'Listen to Verse for four seconds',allowSceneAudition:true,transport:{sessionId:h.session.id,revision:h.session.revision,epoch:3,position:12,playing:false}};
  const plan=await planDawEdit(request,options);assert.equal(plan.action,'audition_scene');assert.equal(plan.transportEpoch,3);assert.deepEqual(plan.audition,{sceneId:'s',duration:4});assert.ok(tools.some(t=>t.name==='audition_scene'));assert.deepEqual(h.session,before);await assert.rejects(()=>planDawEdit({...request,allowSceneAudition:false},options),/Unexpected/);await assert.rejects(()=>planDawEdit({...request,transport:undefined},options),/Transport context/);await assert.rejects(()=>planDawEdit({...request,editingContinuation:true},options),/Continuation/);
 });
+
+test('scenes retain muted trigger clips while leaving unrelated muted tracks silent',async()=>{
+ const {sceneCellPlan}=await import('../src/experimental/scene-playback.js'),{renderingSources}=await import('../src/experimental/routing.js'),h=setup();
+ h.execute([{op:'track.set',target:'b',values:{mute:true}},{op:'effect.add',target:'a',values:{kind:'gate',id:'gate',mode:'duck',sidechainTrackId:'b'}}]);
+ const plan=sceneAudition(h.session,{sceneId:'s',duration:5});assert.equal(plan.document.tracks[1].regions.length,1);assert.ok(plan.sourceCells.some(c=>c.trackId==='b'));assert.equal(renderingSources(plan.document).find(t=>t.id==='b').sidechainOnly,true);
+ const cell=sceneCellPlan(h.session,{sceneId:'s',trackId:'b',duration:4,quantization:'beat'});assert.equal(cell.regions.length,1);assert.equal(cell.plan.document.tracks[0].regions.length,0);
+ h.execute([{op:'effect.set',target:'gate',values:{enabled:false}}]);assert.throws(()=>sceneCellPlan(h.session,{sceneId:'s',trackId:'b',duration:4,quantization:'beat'}),/no audible/);
+ h.undo();h.execute([{op:'region.set',target:'br',values:{mute:true}}]);assert.throws(()=>sceneCellPlan(h.session,{sceneId:'s',trackId:'b',duration:4,quantization:'beat'}),/no audible/);
+});

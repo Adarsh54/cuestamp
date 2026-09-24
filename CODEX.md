@@ -5533,3 +5533,11 @@ Ducker attack controls the onset of attenuation and release restores the origina
 Agent commands set `effect` kind `gate`, `mode:'duck'`, `sidechainTrackId` and normal envelope/reduction fields. This is threshold-triggered ducking, not ratio-based sidechain compression. There is still no lookahead or external bus detector source.
 
 Verified 1,434 tests and build. DSP tests check idle transparency, 12 dB reduction, hold/recovery, stereo balance and source preservation. Mode validation, presets, Undo and mocked-agent edits are covered. The browser checks actual worklet ducking, matching isolated stems, UI mode selection, live ducking feedback and persistence. Live model inference and physical listening remain unverified.
+
+### Sidechains during live scene performance (2026-09-23)
+
+Scene audition and individual cell planning now include enabled gate/ducker detector tracks even when those tracks are muted or excluded by solo. Live clip replacement uses the same render-source eligibility as initial playback. Previously, scene planning discarded those triggers and live replacement rejected them. Muted regions still cannot launch, and unrelated muted tracks remain excluded. A scene containing only detector clips can run silently; this is also how individual trigger cell launches are prepared.
+
+Clip launches/stops reuse the existing mixer graph, so changing a trigger updates the gate envelope without restarting the music track or its effects. Source-cell observations and performance recordings retain the trigger passages. The agent's existing launch_scene_cell tool uses this shared planner and describes detector-only eligibility.
+
+Verified 1,435 tests and production build. Scene unit tests cover muted trigger inclusion, source-cell recording metadata, gate bypass and region mute rejection. `scripts/browser-experimental-sidechain-scene-check.cjs` runs the actual scene transport and worklet in OfflineAudioContext, pauses the audio clock, queues a muted trigger replacement, and measures the target changing from -12 dB ducking to unity. It verifies one uninterrupted music passage, both trigger passages, unchanged project state, and matching measured levels when replaying the captured performance. Real-time UI launch timing under heavy load and hardware output remain unverified.

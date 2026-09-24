@@ -5,7 +5,7 @@ import {sendAutomationTarget} from './automation-recording-lane.js';
 import {createLiveAutomation} from './automation-live.js';
 import {effectiveAutomationSession} from './automation-mode.js';
 import {createLevelMeters} from './meters.js';
-import {audibleSources,renderingSources,createRoutedTailReader,validateRouting} from './routing.js';
+import {renderingSources,createRoutedTailReader,validateRouting} from './routing.js';
 import {connectEffects,scheduleAutomation,effectTail} from './effects.js';
 export function sessionDuration(session){
  const tail=createRoutedTailReader(session);let end=1;
@@ -42,7 +42,7 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
   if(duration!==undefined&&(!Number.isFinite(duration)||duration<=0||duration>600))throw Error('Choose a clip playback duration up to 600 seconds.');
   if(!Array.isArray(regions)||regions.length>10000)throw Error('Choose at most 10,000 clip repetitions.');
   const source=session.tracks.find(t=>t.id===trackId&&['audio','midi'].includes(t.kind));if(!source)throw Error('Choose an audio or MIDI track.');
-  const track=audibleSources({...session,tracks:session.tracks.map(t=>t.id===trackId?{...t,regions}:t)}).find(t=>t.id===trackId);if(!track)throw Error('This track is muted or excluded by solo.');
+  const track=renderingSources({...session,tracks:session.tracks.map(t=>t.id===trackId?{...t,regions}:t)}).find(t=>t.id===trackId);if(!track)throw Error('This track is neither audible nor an active sidechain source.');
   collectVoices();const previous=voices.get(trackId);if(previous?.queued&&previous.when>context.currentTime)throw Error('This track already has a pending clip launch or stop.');
   const group=scheduleTrackVoices(context,track,buffers,channels.get(trackId).input,clipPosition,when);
   if(context.currentTime>=when){group.stop();throw Error('Clip preparation missed its launch time. Try again.');}
