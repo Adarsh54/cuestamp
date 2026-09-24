@@ -27,7 +27,7 @@ export function scoreNoteheads(graphical){
  const index=graphical.vfnoteIndex;
  return Number.isInteger(index)&&heads[index]?[heads[index]]:[];
 }
-export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard,selectionRoot,getSession,scoreShortcutsBlocked,notationSession=session,notationTrack=track,notationRegion=region}){
+export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard,selectionRoot,getSession,scoreShortcutsBlocked,notationSession=session,notationTrack=track,notationRegion=region,auditionNote}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
  const plans=scoreNotePlans(notationSession,notationTrack,notationRegion,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null,chordDraft=false,selectedIds=new Set(),restoring=false;
  form.hidden=true;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;
@@ -76,7 +76,7 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
   if(!target)continue;const {reference,pitch}=target;
   if(notationSession!==session){const original=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=original?.notes.find(n=>n.id===reference.noteId);if(note){element.dataset.scoreStart=String(original.start+note.start);element.dataset.scoreEnd=String(original.start+note.start+note.duration);}}
   element.dataset.scoreNote=reference.noteId;element.setAttribute('role','button');element.setAttribute('tabindex','0');element.setAttribute('aria-label',`Edit MIDI note ${pitch}`);element.style.cursor='pointer';
-  bindScorePitchDrag(element,{session,reference,zoom:renderer.Zoom,execute,guard,onSelect:e=>select(reference,Boolean(e?.shiftKey)),onDelete:()=>{const ids=selectedIds.has(reference.noteId)?[...selectedIds]:[reference.noteId],r=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId);execute([scoreNoteGroupAction(session,r,ids,'delete')],'Deleted score notes');}});
+  bindScorePitchDrag(element,{session,reference,zoom:renderer.Zoom,execute,guard,onSelect:e=>{select(reference,Boolean(e?.shiftKey));if(selectedIds.has(reference.noteId))auditionNote?.(reference);},onDelete:()=>{const ids=selectedIds.has(reference.noteId)?[...selectedIds]:[reference.noteId],r=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId);execute([scoreNoteGroupAction(session,r,ids,'delete')],'Deleted score notes');}});
  }
  bindScoreClipboard(panel,{session,selectionRoot,selection:()=>({region:selectedRegion,ids:[...selectedIds]}),execute,guard,getSession,scoreShortcutsBlocked});
  bindScoreTimingTools(form,{session,selection:()=>({region:selectedRegion,ids:[...selectedIds]}),execute,guard});
