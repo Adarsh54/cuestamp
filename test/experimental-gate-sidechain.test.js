@@ -16,7 +16,7 @@ test('sidechain references validate atomically and deleting a source resets assi
  h.execute([{op:'effectPreset.save',target:'pad',values:{id:'p',name:'Gate'}}]);assert.equal(h.session.effectPresets[0].effects[0].sidechainTrackId,null);
 });
 test('agent sidechain assignments use the same validated command executor',async()=>{
- const h=setup(),commands=[{op:'effect.set',target:'gate',values:{sidechainTrackId:null}}];const result=await planDawEdit({session:h.session,instruction:'Return the pad gate to its own detector'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Use local detector',commands})}]})})});h.execute(result.commands);assert.equal(h.session.tracks[0].effects[0].sidechainTrackId,null);
+ const h=setup(),commands=[{op:'effect.set',target:'gate',values:{sidechainTrackId:null,mode:'duck',reductionDb:-12}}];const result=await planDawEdit({session:h.session,instruction:'Use the pad’s own signal to duck it by 12 dB'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Use local detector',commands})}]})})});h.execute(result.commands);assert.equal(h.session.tracks[0].effects[0].sidechainTrackId,null);assert.equal(h.session.tracks[0].effects[0].mode,'duck');
 });
 
 test('bypassed gate assignments survive isolated export without decoding their detector',()=>{

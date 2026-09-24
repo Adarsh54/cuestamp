@@ -37,3 +37,15 @@ test('detector filtering settings reject reversed bands and cannot be automated 
  for(const values of [{lowCutHz:1000,highCutHz:1000},{lowCutHz:0},{highCutHz:22000}])assert.throws(()=>effectSchema.parse({id:'g',kind:'gate',...values}));
  const e=effectSchema.parse({id:'g',kind:'gate'});assert.equal(e.filterEnabled,false);assert.throws(()=>effectSchema.parse({...e,automation:[{id:'p',parameter:'lowCutHz',time:0,value:200}]}));
 });
+
+test('ducker preserves idle audio and lowers both channels only during the trigger and recovery',()=>{
+ const rate=48000,gate=new NoiseGate(rate,'duck'),left=new Float32Array(rate).fill(.4),right=new Float32Array(rate).fill(-.2),trigger=new Float32Array(rate);trigger.fill(.5,rate*.2,rate*.4);
+ const values={threshold:-40,reductionDb:-12,hysteresis:6,attack:.01,hold:.05,release:.1},parameters=Object.fromEntries(Object.entries(values).map(([key,v])=>[key,new Float32Array([v])])),out=[new Float32Array(rate),new Float32Array(rate)];
+ gate.process([left,right],out,parameters,[trigger]);assert.equal(out[0][rate*.1],left[0]);assert.ok(Math.abs(out[0][rate*.35]/left[0]-10**(-12/20))<1e-5);assert.ok(out[0][rate*.45]<.102);assert.ok(out[0][rate*.9]>.39);
+ for(let i=0;i<rate;i++)assert.equal(out[0][i],-2*out[1][i]);assert.ok(left.every(v=>v===left[0]));
+});
+
+test('ducker mode is validated, saved in presets and undoable',()=>{
+ const h=new SessionHistory();h.execute([{op:'effect.add',target:h.session.id,values:{id:'duck',kind:'gate',mode:'duck',reductionDb:-12}},{op:'effectPreset.save',target:h.session.id,values:{id:'preset',name:'Voice duck'}}]);assert.equal(h.session.effectPresets[0].effects[0].mode,'duck');
+ h.execute([{op:'effect.set',target:'duck',values:{mode:'gate'}}]);h.undo();assert.equal(h.session.masterEffects[0].mode,'duck');assert.throws(()=>h.execute([{op:'effect.set',target:'duck',values:{mode:'unknown'}}]));
+});
