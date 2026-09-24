@@ -4,18 +4,18 @@ import {duplicateTrack} from './duplicate-track.js';
 import {validateAudioStretch} from './audio-stretch-options.js';
 const semitoneSchema=z.number().finite().min(-12).max(12);
 const ratioSchema=z.number().finite().min(.5).max(2);
-export function audioStretchPlan(session,regionId,ratio){
+export function audioStretchPlan(session,regionId,ratio,{preview=false}={}){
  ratio=ratioSchema.parse(ratio);const source=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=source?.regions.find(r=>r.id===regionId);
  if(source?.kind!=='audio'||!region?.assetId)throw Error('Select an audio region with a source file.');
- if(source.protected)throw Error('Unprotect the track before stretching audio.');
+ if(source.protected&&!preview)throw Error('Unprotect the track before stretching audio.');
  if(region.mute)throw Error('Unmute the region before stretching audio.');
- if(session.tracks.length>=128)throw Error('Stretching needs room for a new audio track.');
+ if(session.tracks.length>=128&&!preview)throw Error('Stretching needs room for a new audio track.');
  if(region.duration<.05||region.duration>600)throw Error('Stretch audio regions between 50 ms and 10 minutes.');
  if(region.start+region.duration*ratio>86400)throw Error('The stretched audio would exceed the timeline.');
  return {source,region,ratio,name:region.name.slice(0,180)+' stretched'};
 }
-export function stretchedRegionTrack(session,regionId,values){
- const v=z.object({ratio:ratioSchema,assetId:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),sampleRate:z.number().int(),channels:z.number().int().min(1).max(2),frames:z.number().int().positive()}).strict().parse(values),plan=audioStretchPlan(session,regionId,v.ratio),r=plan.region;
+export function stretchedRegionTrack(session,regionId,values,{preview=false}={}){
+ const v=z.object({ratio:ratioSchema,assetId:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),sampleRate:z.number().int(),channels:z.number().int().min(1).max(2),frames:z.number().int().positive()}).strict().parse(values),plan=audioStretchPlan(session,regionId,v.ratio,{preview}),r=plan.region;
  const frames=validateAudioStretch({sampleRate:v.sampleRate,frames:Math.round(r.duration*v.sampleRate),channels:v.channels,ratio:v.ratio});if(v.frames!==frames)throw Error('Stretched frame count does not match this region. Render it again.');
  if(v.assetId===r.assetId)throw Error('Stretching must create a new audio asset.');
  const copy=duplicateTrack(plan.source,{name:plan.name,includeRegions:false}),duration=v.frames/v.sampleRate,scale=duration/r.duration;

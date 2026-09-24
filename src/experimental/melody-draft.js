@@ -2,7 +2,7 @@ import {melodyGraphView,bindMelodyGraph} from './melody-graph.js';
 import {z} from 'zod';
 const values={pitch:z.number().int().min(0).max(127),start:z.number().finite().min(0),duration:z.number().finite().min(.001).max(120),velocity:z.number().finite().min(0).max(1),excluded:z.boolean()};
 const editSchema=z.object({index:z.number().int().min(0).max(19999),...Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value.nullable()]))}).strict();
-export const melodyDraftActionSchema=z.object({operation:z.enum(['edit','reset','createMidi','retuneAudio']),edits:z.array(editSchema).max(128)}).strict();
+export const melodyDraftActionSchema=z.object({operation:z.enum(['edit','reset','createMidi','retuneAudio','previewAudio','previewOriginal']),edits:z.array(editSchema).max(128)}).strict();
 export const melodyDraftContextSchema=z.object({sessionId:z.string().min(1),revision:z.number().int().nonnegative(),regionId:z.string().min(1).max(100),token:z.string().uuid(),notes:z.array(z.object({index:z.number().int().min(0),...values}).strict()).max(128)}).strict();
 export function melodyDraftNotes(analysis){return analysis.notes.map((note,index)=>({...note,...analysis.edits?.[index]}));}
 export function melodyDraftContext(session,analysis){if(!analysis?.token||analysis.sessionId!==session.id||analysis.revision!==session.revision)return undefined;const start=analysis.page??0;return {sessionId:session.id,revision:session.revision,regionId:analysis.regionId,token:analysis.token,notes:melodyDraftNotes(analysis).slice(start,start+128).map((n,i)=>({index:start+i,pitch:n.pitch,start:n.start,duration:n.duration,velocity:n.velocity,excluded:n.excluded??false}))};}
@@ -17,7 +17,7 @@ export function validateMelodyDraftAction(session,context,value){
 }
 export function updateMelodyDraft(session,analysis,value,context=melodyDraftContext(session,analysis)){
  if(!analysis||context?.token!==analysis.token)throw Error('The melody draft changed. Try again.');
- const action=validateMelodyDraftAction(session,context,value);if(['createMidi','retuneAudio'].includes(action.operation))return analysis;
+ const action=validateMelodyDraftAction(session,context,value);if(['createMidi','retuneAudio','previewAudio','previewOriginal'].includes(action.operation))return analysis;
  const edits=action.operation==='reset'?{}:structuredClone(analysis.edits??{});
  for(const edit of action.edits){const patch=Object.fromEntries(Object.entries(edit).filter(([key,value])=>key!=='index'&&value!==null));edits[edit.index]={...edits[edit.index],...patch};}
  return {...analysis,edits,token:crypto.randomUUID()};
