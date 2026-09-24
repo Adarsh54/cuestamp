@@ -1,5 +1,5 @@
 import {audibleAssets} from './media-refs.js';
-import {routedTail} from './routing.js';
+import {routedTail,retainGateSources} from './routing.js';
 import {createBouncePlan} from './bounce-plan.js';
 import {duplicateTrack} from './duplicate-track.js';
 import {z} from 'zod';
@@ -12,7 +12,7 @@ export function regionBouncePlan(session,regionId){
  // Print only instrument/region/insert processing. The destination retains the
  // channel fader, pan, automation and routing, so they are applied exactly once.
  track.gainDb=0;track.pan=0;track.automation=[];track.sends=[];track.output=null;track.mute=false;track.solo=false;
- document.tracks=[track];document.masterDb=0;document.masterPan=0;document.masterAutomation=[];document.masterEffects=[];
+ document.tracks=[track];document.masterDb=0;document.masterPan=0;document.masterAutomation=[];document.masterEffects=[];retainGateSources(document,session);
  const plan=createBouncePlan(document,{mode:'region',regionId,masterMode:'bypass'});
  return {...plan,sourceTrackId:source.id,sourceRegionId:region.id,start:region.start,name:region.name.slice(0,185)+' bounced'};
 }
@@ -24,7 +24,7 @@ export function trackBouncePlan(session,trackId){
  const document=structuredClone(session),track=document.tracks.find(t=>t.id===source.id);track.regions=track.regions.filter(r=>!r.mute);
  if(!track.regions.length)throw Error('Add an unmuted region before bouncing this track.');
  track.gainDb=0;track.pan=0;track.automation=[];track.sends=[];track.output=null;track.mute=false;track.solo=false;
- document.tracks=[track];document.masterDb=0;document.masterPan=0;document.masterAutomation=[];document.masterEffects=[];
+ document.tracks=[track];document.masterDb=0;document.masterPan=0;document.masterAutomation=[];document.masterEffects=[];retainGateSources(document,session);
  const start=Math.min(...track.regions.map(r=>r.start)),duration=Math.max(...track.regions.map(r=>r.start+r.duration))+routedTail(document,track)-start,name=source.name.slice(0,185)+' bounced';
  if(duration>600)throw Error('Experimental offline bounce currently supports up to 10 minutes.');
  return {title:session.title,position:start,duration,entries:[{name:name+'.wav',document}],zip:false,assets:audibleAssets(document),sourceTrackId:source.id,start,name,trackBounce:true};

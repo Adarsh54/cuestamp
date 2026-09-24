@@ -5,7 +5,7 @@ import {sendAutomationTarget} from './automation-recording-lane.js';
 import {createLiveAutomation} from './automation-live.js';
 import {effectiveAutomationSession} from './automation-mode.js';
 import {createLevelMeters} from './meters.js';
-import {audibleSources,createRoutedTailReader,validateRouting} from './routing.js';
+import {audibleSources,renderingSources,createRoutedTailReader,validateRouting} from './routing.js';
 import {connectEffects,scheduleAutomation,effectTail} from './effects.js';
 export function sessionDuration(session){
  const tail=createRoutedTailReader(session);let end=1;
@@ -18,18 +18,20 @@ export function sessionDuration(session){
 }
 export function scheduleSession(context,session,buffers,position=0,options={}){
  if(options.endPosition!==undefined&&(!Number.isFinite(options.endPosition)||options.endPosition<=position||options.endPosition>86400))throw Error('Playback end must follow the start within the timeline.');
- session=effectiveAutomationSession(session);validateRouting(session);const active=audibleSources(session);for(const track of active)validateTrackSources(track,buffers);
+ session=effectiveAutomationSession(session);validateRouting(session);const active=renderingSources(session),detectorOnly=new Set(active.filter(t=>t.sidechainOnly).map(t=>t.id));for(const track of active)validateTrackSources(track,buffers);
  const effectMeters=options.meters?createEffectMeters():null,registerMeter=effectMeters?(effect,node)=>effectMeters.add(effect,node):undefined;
  const effectLanes=new Map(),register=(effect,parameter,param,transform,exponential)=>{
   const key=`${effect.id}:${parameter}`,spec=effectParameters[effect.kind][parameter];
   if(!effectLanes.has(key))effectLanes.set(key,{points:structuredClone(effect.automation||[]),fallback:effect[parameter],min:spec.min,max:spec.max,bindings:[]});
   effectLanes.get(key).bindings.push({param,transform,exponential});
  };
- const nodes=[],base=options.baseTime??context.currentTime+.025,master=context.createGain(),masterGain=context.createGain(),masterPan=context.createStereoPanner();scheduleAutomation(masterGain.gain,session.masterAutomation||[],'gainDb',position,base,session.masterDb);scheduleAutomation(masterPan.pan,session.masterAutomation||[],'pan',position,base,session.masterPan||0);connectEffects(context,master,session.masterEffects,nodes,{position,base,tempo:session.tempo,tempoChanges:session.tempoChanges,register,registerMeter}).connect(masterGain);masterGain.connect(masterPan);if(options.endPosition!==undefined){const gate=context.createGain();gate.gain.setValueAtTime(0,context.currentTime);gate.gain.setValueAtTime(1,base);gate.gain.setValueAtTime(0,base+options.endPosition-position);masterPan.connect(gate).connect(options.destination??context.destination);nodes.push(gate);}else masterPan.connect(options.destination??context.destination);nodes.push(master,masterGain,masterPan);
+ const sidechains=[],registerSidechain=(id,node)=>sidechains.push({id,node});
+ const nodes=[],base=options.baseTime??context.currentTime+.025,master=context.createGain(),masterGain=context.createGain(),masterPan=context.createStereoPanner();scheduleAutomation(masterGain.gain,session.masterAutomation||[],'gainDb',position,base,session.masterDb);scheduleAutomation(masterPan.pan,session.masterAutomation||[],'pan',position,base,session.masterPan||0);connectEffects(context,master,session.masterEffects,nodes,{position,base,tempo:session.tempo,tempoChanges:session.tempoChanges,register,registerMeter,registerSidechain}).connect(masterGain);masterGain.connect(masterPan);if(options.endPosition!==undefined){const gate=context.createGain();gate.gain.setValueAtTime(0,context.currentTime);gate.gain.setValueAtTime(1,base);gate.gain.setValueAtTime(0,base+options.endPosition-position);masterPan.connect(gate).connect(options.destination??context.destination);nodes.push(gate);}else masterPan.connect(options.destination??context.destination);nodes.push(master,masterGain,masterPan);
  const meters=options.meters?createLevelMeters(context):null;meters?.add(session.id,masterPan,{startTime:base});
  const channels=new Map(),sendNodes=new Map();
- for(const track of session.tracks.filter(t=>t.kind!=='video')){const input=context.createGain(),gain=context.createGain(),pan=context.createStereoPanner();const preFader=connectEffects(context,input,track.effects,nodes,{position,base,tempo:session.tempo,tempoChanges:session.tempoChanges,register:track.mute?undefined:register,registerMeter});preFader.connect(gain);if(track.mute)gain.gain.value=0;else scheduleAutomation(gain.gain,track.automation||[],'gainDb',position,base,track.gainDb);scheduleAutomation(pan.pan,track.automation||[],'pan',position,base,track.pan);gain.connect(pan);nodes.push(input,gain,pan);channels.set(track.id,{input,preFader,gain,pan});meters?.add(track.id,pan);}
- for(const track of session.tracks.filter(t=>t.kind!=='video')){const {pan,gain,preFader}=channels.get(track.id);pan.connect(track.output?channels.get(track.output).input:master);for(const send of track.sends||[]){const amount=context.createGain();sendNodes.set(sendAutomationTarget(track.id,send.busId),amount);if(track.mute)amount.gain.value=0;else scheduleAutomation(amount.gain,send.automation||[],'gainDb',position,base,send.gainDb);(send.tap==='preFader'?preFader:send.tap==='postFader'?gain:pan).connect(amount).connect(channels.get(send.busId).input);nodes.push(amount);}}
+ for(const track of session.tracks.filter(t=>t.kind!=='video')){const input=context.createGain(),gain=context.createGain(),pan=context.createStereoPanner();const preFader=connectEffects(context,input,track.effects,nodes,{position,base,tempo:session.tempo,tempoChanges:session.tempoChanges,register:track.mute?undefined:register,registerMeter,registerSidechain});preFader.connect(gain);if(track.mute||detectorOnly.has(track.id))gain.gain.value=0;else scheduleAutomation(gain.gain,track.automation||[],'gainDb',position,base,track.gainDb);scheduleAutomation(pan.pan,track.automation||[],'pan',position,base,track.pan);gain.connect(pan);nodes.push(input,gain,pan);channels.set(track.id,{input,preFader,gain,pan});meters?.add(track.id,pan);}
+ for(const track of session.tracks.filter(t=>t.kind!=='video')){const {pan,gain,preFader}=channels.get(track.id);pan.connect(track.output?channels.get(track.output).input:master);for(const send of track.sends||[]){const amount=context.createGain();sendNodes.set(sendAutomationTarget(track.id,send.busId),amount);if(track.mute||detectorOnly.has(track.id))amount.gain.value=0;else scheduleAutomation(amount.gain,send.automation||[],'gainDb',position,base,send.gainDb);(send.tap==='preFader'?preFader:send.tap==='postFader'?gain:pan).connect(amount).connect(channels.get(send.busId).input);nodes.push(amount);}}
+ for(const {id,node} of sidechains)channels.get(id).input.connect(node);
  const voices=new Map(),retired=new Set();let stopped=false;
  for(const track of active){const group=scheduleTrackVoices(context,track,buffers,channels.get(track.id).input,position,base);group.open(base);voices.set(track.id,{trackId:track.id,group,when:base,queued:false});}
  const collectVoices=()=>{for(const entry of retired)if(context.currentTime>=entry.when){entry.group.stop();retired.delete(entry);const current=voices.get(entry.trackId);if(current?.group===entry.group&&current.stopping)voices.delete(entry.trackId);}};
@@ -69,7 +71,7 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
  const addLane=(id,parameter,param,points,fallback)=>lanes.set(`${id}:${parameter}`,{param,points:structuredClone(points||[]),fallback});
  addLane(session.id,'gainDb',masterGain.gain,session.masterAutomation,session.masterDb);
  addLane(session.id,'pan',masterPan.pan,session.masterAutomation,session.masterPan||0);
- for(const track of session.tracks.filter(t=>t.kind!=='video'&&!t.mute)){
+ for(const track of session.tracks.filter(t=>t.kind!=='video'&&!t.mute&&!detectorOnly.has(t.id))){
   const channel=channels.get(track.id);
   addLane(track.id,'gainDb',channel.gain.gain,track.automation,track.gainDb);
   addLane(track.id,'pan',channel.pan.pan,track.automation,track.pan);

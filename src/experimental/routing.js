@@ -10,6 +10,7 @@ export function validateRouting(session){
   const sends=(track.sends||[]).map(s=>s.busId);if(new Set(sends).size!==sends.length)throw Error('Only one send per destination is supported.');
   for(const id of destinations(track))if(tracks.get(id)?.kind!=='bus')throw Error('Routing destination must be an existing bus.');
  }
+ for(const e of [...(session.masterEffects||[]),...session.tracks.flatMap(t=>t.effects||[])])if(e.kind==='gate'&&e.sidechainTrackId&&!['audio','midi'].includes(tracks.get(e.sidechainTrackId)?.kind))throw Error('Gate sidechain must be an existing audio or instrument track.');
  const visiting=new Set(),done=new Set();function visit(id){if(visiting.has(id))throw Error('Routing would create an audio feedback loop.');if(done.has(id))return;visiting.add(id);for(const next of destinations(tracks.get(id)))visit(next);visiting.delete(id);done.add(id);}for(const id of tracks.keys())visit(id);
 }
 export function audibleSources(session){
@@ -17,6 +18,10 @@ export function audibleSources(session){
  function reachesSolo(track,visited=new Set()){if(visited.has(track.id))return false;visited.add(track.id);return track.solo||destinations(track).some(id=>tracks.has(id)&&reachesSolo(tracks.get(id),visited));}
  return session.tracks.filter(t=>!['bus','video'].includes(t.kind)&&!t.mute&&(!solo||reachesSolo(t))).map(t=>({...t,regions:t.regions.filter(r=>!r.mute)}));
 }
+// Detector sources tap raw track input, before effects, mute, fader and pan.
+export function gateSourceIds(session,enabledOnly=true){return [...new Set([...(session.masterEffects||[]),...session.tracks.flatMap(t=>t.effects||[])].filter(e=>e.kind==='gate'&&(!enabledOnly||e.enabled)&&e.sidechainTrackId).map(e=>e.sidechainTrackId))];}
+export function renderingSources(session){const active=audibleSources(session),ids=new Set(active.map(t=>t.id));return [...active,...gateSourceIds(session).filter(id=>!ids.has(id)).map(id=>session.tracks.find(t=>t.id===id)).filter(Boolean).map(t=>({...t,sidechainOnly:true,regions:t.regions.filter(r=>!r.mute)}))];}
+export function retainGateSources(document,original){for(const id of gateSourceIds(document,false)){const existing=document.tracks.find(t=>t.id===id);if(existing?.regions.length)continue;const source=original.tracks.find(t=>t.id===id);if(source){const detector={...structuredClone(source),mute:true,solo:false,effects:[],sends:[],output:null};if(existing)Object.assign(existing,detector);else document.tracks.push(detector);}}return document;}
 // Scope memoization to one duration calculation; later edits get fresh values.
 export function createRoutedTailReader(session){
  const byId=new Map(session.tracks.map(t=>[t.id,t])),cache=new Map();
@@ -29,7 +34,7 @@ export function createRoutedTailReader(session){
  return track=>tail(track);
 }
 export function routedTail(session,track){return createRoutedTailReader(session)(track);}
-export function stemSession(session,track){return {...session,tracks:[...session.tracks.filter(t=>t.kind==='bus'),track].map(t=>({...t,solo:false}))};}
+export function stemSession(session,track){return retainGateSources({...session,tracks:[...session.tracks.filter(t=>t.kind==='bus'),track].map(t=>({...t,solo:false}))},session);}
 // Group by the final primary output bus, not by sends: each source belongs to
 // exactly one file. Keep buses/sends to render that group's full mix contribution.
 export function stemGroups(session,mode='tracks'){
@@ -42,7 +47,7 @@ export function stemGroups(session,mode='tracks'){
   if(!groups.has(owner.id))groups.set(owner.id,{id:owner.id,name:owner.name,sourceIds:[]});
   groups.get(owner.id).sourceIds.push(source.id);
  }
- return [...groups.values()].map(group=>({...group,document:{...session,tracks:session.tracks.filter(t=>t.kind==='bus'||group.sourceIds.includes(t.id)).map(t=>({...t,solo:false}))}}));
+ return [...groups.values()].map(group=>({...group,document:retainGateSources({...session,tracks:session.tracks.filter(t=>t.kind==='bus'||group.sourceIds.includes(t.id)).map(t=>({...t,solo:false}))},session)}));
 }
 const openSendEditors=new WeakMap();
 const tapOptions=selected=>[['preFader','Before volume'],['postFader','After volume'],['postPan','After pan']].map(([value,label])=>`<option value="${value}" ${value===(selected||'postPan')?'selected':''}>${label}</option>`).join('');

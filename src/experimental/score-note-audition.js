@@ -1,3 +1,4 @@
+import {retainGateSources,gateSourceIds} from './routing.js';
 import {prepareSessionEffects} from './noise-gate.js';
 import {audibleSources} from './routing.js';
 import {audibleAssets} from './media-refs.js';
@@ -10,7 +11,7 @@ export function scoreNoteAuditionPlan(session,{regionId,noteId}){
  if(duration<=0)return null;
  for(const t of document.tracks)t.regions=t.id===track.id?[{...structuredClone(region),notes:[{...structuredClone(note),duration}],duration:note.start+duration,fadeIn:0,fadeOut:0}]:[];
  document.metronomeEnabled=false;document.loopEnabled=false;
- return {document,position,end:Math.min(86400,position+4,sessionDuration(document)),assets:audibleAssets(document)};
+ const end=Math.min(86400,position+4,sessionDuration(document));retainGateSources(document,session);return {document,position,end,assets:audibleAssets(document)};
 }
 export function createScoreNoteAudition({getSession,getContext,loadAsset,buffers,blocked=()=>false,connected=()=>true,notify=()=>{},schedule=scheduleSession,setTimer=setTimeout,clearTimer=clearTimeout}){
  let epoch=0,playback=null,timer=null;

@@ -1,3 +1,5 @@
+import {sessionDuration} from './audio-engine.js';
+import {retainGateSources,gateSourceIds} from './routing.js';
 import {z} from 'zod';
 import {selectedRegions} from './region-selection.js';
 import {audibleSources} from './routing.js';
@@ -8,7 +10,8 @@ export function selectedRegionsAudition(session,ids){
  const regions=document.tracks.flatMap(t=>t.regions);
  if(!regions.length)throw Error('Select unmuted audio or MIDI clips that are audible with the current track solo settings.');
  document.loopEnabled=false;document.metronomeEnabled=false;
- return {kind:'regionSelection',document,position:Math.min(...regions.map(r=>r.start)),label:`Auditioning ${regions.length} selected ${regions.length===1?'clip':'clips'} through the current mixer`};
+ const gateEnd=gateSourceIds(document).length?{end:sessionDuration(document)}:{};retainGateSources(document,session);
+ return {kind:'regionSelection',document,...gateEnd,position:Math.min(...regions.map(r=>r.start)),label:`Auditioning ${regions.length} selected ${regions.length===1?'clip':'clips'} through the current mixer`};
 }
 
 export const selectionAuditionSchema=z.object({regionIds:z.array(z.string().min(1).max(100)).min(1).max(1000).nullable()}).strict();

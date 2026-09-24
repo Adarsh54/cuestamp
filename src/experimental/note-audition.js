@@ -1,3 +1,4 @@
+import {retainGateSources,gateSourceIds} from './routing.js';
 import {z} from 'zod';
 import {selectedMidiNotes} from './note-selection.js';
 import {audibleSources,createRoutedTailReader} from './routing.js';
@@ -17,5 +18,6 @@ export function selectedNotesAudition(session,value,captured=[]){
  const timelines=new Map();let last=0;
  for(const note of notes){const channel=note.channel??0;if(!timelines.has(channel))timelines.set(channel,compileMidiControllers((region.events||[]).filter(e=>(e.channel??0)===channel),track.pitchBendRange));last=Math.max(last,timelines.get(channel).sustainedEnd(note,region.duration));}
  const end=Math.min(86400,region.start+last+createRoutedTailReader(document)(track)+effectTail(document.masterEffects,document.masterAutomationMode==='off'));
+ retainGateSources(document,session);
  return {kind:'regionSelection',document,position:region.start+Math.min(...notes.map(n=>n.start)),end,label:`Playing ${notes.length} selected ${notes.length===1?'note':'notes'} through the current mixer`,options:{regionId:region.id,noteIds:[...ids]}};
 }
