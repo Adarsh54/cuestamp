@@ -5477,3 +5477,9 @@ Portable archive import and cloud media remapping update the saved source refere
 The agent uses `edit_melody_draft` operation `save` with empty edits and the captured draft token. It cannot fabricate stored measurements through a raw `region.saveMelody` edit batch. The underlying save/clear commands remain validated, undoable project operations.
 
 Verified 1,416 tests and production build. `test/experimental-melody-storage.test.js` covers serialization, unrelated edits, span invalidation/Undo, protection, actual archive export/import, media remapping, bounds and agent guards. `scripts/browser-experimental-melody-storage-check.cjs` verifies manual save, reload without reanalysis, graph restoration, mocked-agent save, removal/Undo and MIDI creation from restored corrections. The shared cloud remapper was tested locally; this checkpoint did not perform a live Neon/Blob save/restore or live model inference.
+
+### Melody fine tuning
+
+Detected melody notes support an audio fine-tuning offset from -100 to +100 cents in the correction form. The graph, tuned preview, rendered audio, saved region analysis, and captured agent context retain this offset. MIDI creation uses integer pitches only. Omitted or null agent offsets preserve existing tuning; reset clears it. Original recordings and measured detections remain unchanged.
+
+Validation: `npm test`, `npm run build`, and `scripts/browser-experimental-melody-storage-check.cjs` cover fractional targets, bounds, save/reload, agent context, and integer MIDI creation. Browser agent responses are mocked; live model inference is not covered.

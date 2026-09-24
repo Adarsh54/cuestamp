@@ -8,7 +8,7 @@ export function melodyRetunePlan(session,analysis,options={}){
  for(const [index,note] of melodyDraftNotes(analysis).entries()){
   if(note.excluded)continue;const original=analysis.notes[index];
   if(note.start!==original.start||note.duration!==original.duration)throw Error('Reset timing corrections before retuning audio. This render changes pitch only.');
-  const semitones=note.pitch-original.pitch-original.cents/100;
+  const semitones=note.pitch+(note.fineCents??0)/100-original.pitch-original.cents/100;
   if(Math.abs(semitones)>=.001)corrections.push({start:original.start,end:original.start+original.duration,semitones});
  }
  if(!corrections.length)throw Error('No included notes need pitch correction.');
