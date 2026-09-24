@@ -13,3 +13,10 @@ export function prepareScoreNotationExport(session,value){
  const options=scoreNotationExportSchema.parse(value),notation=scoreDisplayTiming(session,options.displayGrid),display=scorePitchView(notation,null,options.pitchMode);
  return {...options,xml:exportScoreMusicxml(display.session,options.trackIds)};
 }
+export const scorePrintActionSchema=z.object({regionId:z.string().min(1).max(100).nullable(),trackIds:z.array(z.string().min(1).max(100)).min(1).max(128).nullable(),pitchMode:z.enum(['written','concert']),displayGrid:z.enum(Object.keys(scoreDisplayGrids)),paper:z.enum(['A4','Letter'])}).strict();
+export function prepareScorePrint(session,value){
+ const options=scorePrintActionSchema.parse(value);
+ if((options.regionId===null)===(options.trackIds===null))throw Error('Choose either a score region or score parts for printing.');
+ const {pitchMode,displayGrid}=options,prepared=options.regionId===null?prepareScoreNotationExport(session,{trackIds:options.trackIds,pitchMode,displayGrid}):prepareRegionNotationExport(session,{regionId:options.regionId,pitchMode,displayGrid});
+ return {options,xml:prepared.xml,title:options.regionId===null?session.title:prepared.name,paper:options.paper};
+}

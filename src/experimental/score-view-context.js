@@ -1,7 +1,7 @@
 import {scoreDisplayGrids} from './score-display-timing.js';
 import {z} from 'zod';
 import {scoreTracks} from './musicxml.js';
-export const scoreViewContextSchema=z.object({sessionId:z.string().min(1).max(100),revision:z.number().int().nonnegative(),displayGrid:z.enum(Object.keys(scoreDisplayGrids)).optional(),scope:z.enum(['region','arrangement']),regionId:z.string().min(1).max(100).nullable(),trackIds:z.array(z.string().min(1).max(100)).min(1).max(128),pitchMode:z.enum(['written','concert'])}).strict();
+export const scoreViewContextSchema=z.object({sessionId:z.string().min(1).max(100),revision:z.number().int().nonnegative(),paper:z.enum(['A4','Letter']).optional(),displayGrid:z.enum(Object.keys(scoreDisplayGrids)).optional(),scope:z.enum(['region','arrangement']),regionId:z.string().min(1).max(100).nullable(),trackIds:z.array(z.string().min(1).max(100)).min(1).max(128),pitchMode:z.enum(['written','concert'])}).strict();
 export function validateScoreViewContext(session,context){
  if(context===undefined)return;
  scoreViewContextSchema.parse(context);
@@ -15,7 +15,8 @@ export function validateScoreViewContext(session,context){
 export function captureScoreView(root,session,track,region){
  const panel=root?.querySelector('[data-score-preview]');if(!panel?.open||panel.querySelector('[data-score-status]')?.textContent!=='Score preview ready.')return undefined;
  const scope=panel.querySelector('[data-score-scope]')?.value,pitchMode=panel.querySelector('[data-score-pitch-view]')?.value;
+ const paper=panel.querySelector('[data-score-paper]')?.value;
  const displayGrid=panel.querySelector('[data-score-display-grid]')?.value;
- const context={...(displayGrid&&displayGrid!=='off'?{displayGrid}:{}),sessionId:session.id,revision:session.revision,scope,pitchMode,regionId:scope==='region'?region?.id??null:null,trackIds:scope==='region'?[track?.id]:[...panel.querySelectorAll('[data-score-part]:checked')].map(input=>input.value)};
+ const context={...(paper&&paper!=='A4'?{paper}:{}),...(displayGrid&&displayGrid!=='off'?{displayGrid}:{}),sessionId:session.id,revision:session.revision,scope,pitchMode,regionId:scope==='region'?region?.id??null:null,trackIds:scope==='region'?[track?.id]:[...panel.querySelectorAll('[data-score-part]:checked')].map(input=>input.value)};
  try{validateScoreViewContext(session,context);return context;}catch{return undefined;}
 }

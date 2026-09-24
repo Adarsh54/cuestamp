@@ -4,8 +4,8 @@ export function scorePrintDocument(title,svgs,paper='A4'){
  const size=papers[paper];if(!size)throw Error('Choose A4 or Letter paper.');if(!svgs.length)throw Error('The score has no printable pages.');
  return `<!doctype html><html><head><meta charset="utf-8"><title>${escape(title)}</title><style>@page{size:${size.width}mm ${size.height}mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#ddd}.score-print-page{width:${size.width}mm;height:${size.height}mm;background:white;margin:12px auto;break-after:page;overflow:hidden}.score-print-page:last-child{break-after:auto}.score-print-page svg{display:block;width:100%;height:100%}@media print{html,body{background:white}.score-print-page{margin:0}}</style></head><body>${svgs.map(svg=>`<section class="score-print-page">${svg}</section>`).join('')}</body></html>`;
 }
-export async function openScorePrint(root,{xml,title,paper='A4'}){
- const size=papers[paper];if(!size)throw Error('Choose A4 or Letter paper.');
+export async function openScorePrint(root,{xml,title,paper='A4',signal}){
+ signal?.throwIfAborted();const size=papers[paper];if(!size)throw Error('Choose A4 or Letter paper.');
  const doc=root.ownerDocument,dialog=doc.createElement('dialog');dialog.dataset.scorePrint='';dialog.setAttribute('aria-label','Print score');dialog.style.cssText='width:min(960px,94vw);height:88vh;max-width:94vw;padding:16px;';
  const heading=doc.createElement('h2');heading.textContent='Print score';
  const status=doc.createElement('p');status.setAttribute('role','status');status.textContent='Preparing printable pages…';
@@ -16,8 +16,8 @@ export async function openScorePrint(root,{xml,title,paper='A4'}){
  const surface=doc.createElement('div');surface.style.cssText=`position:fixed;left:-10000px;top:0;width:${size.width/25.4*96}px;`;
  actions.append(print,close);dialog.append(heading,status,actions,frame);doc.body.append(dialog,surface);
  let renderer=null,closed=false;
- const cleanup=()=>{if(closed)return;closed=true;renderer?.clear();surface.remove();dialog.remove();};
- dialog.addEventListener('close',cleanup,{once:true});close.onclick=()=>dialog.close();dialog.showModal();
+ const cleanup=()=>{if(closed)return;closed=true;signal?.removeEventListener('abort',cleanup);renderer?.clear();surface.remove();dialog.remove();};
+ signal?.addEventListener('abort',cleanup,{once:true});dialog.addEventListener('close',cleanup,{once:true});close.onclick=()=>dialog.close();dialog.showModal();
  try{
   const module=await import('opensheetmusicdisplay');if(closed||!root.isConnected){cleanup();return;}
   const Display=module.OpenSheetMusicDisplay??module.default?.OpenSheetMusicDisplay;

@@ -31,8 +31,8 @@ const scoreViews=new WeakMap();
 export function bindScorePreview(root,{session,track,region,execute,guard,download,getSession,scoreShortcutsBlocked}){
  bindScoreSelection(root);const panel=root.querySelector('[data-score-preview]');if(!panel)return;
  const sheet=panel.querySelector('[data-score-sheet]'),status=panel.querySelector('[data-score-status]'),zoom=panel.querySelector('[data-score-zoom]'),scope=panel.querySelector('[data-score-scope]'),pitchView=panel.querySelector('[data-score-pitch-view]'),displayGrid=panel.querySelector('[data-score-display-grid]');
- let view=scoreViews.get(root);if(!view||view.sessionId!==session.id){view={sessionId:session.id,scope:scope.value,zoom:zoom.value,pitchMode:'written',displayGrid:'off',partIds:null,top:0,left:0};scoreViews.set(root,view);}
- if([...scope.options].some(o=>o.value===view.scope&&!o.disabled))scope.value=view.scope;zoom.value=view.zoom;pitchView.value=view.pitchMode??'written';displayGrid.value=view.displayGrid??'off';
+ let view=scoreViews.get(root);if(!view||view.sessionId!==session.id){view={sessionId:session.id,scope:scope.value,zoom:zoom.value,pitchMode:'written',displayGrid:'off',paper:'A4',partIds:null,top:0,left:0};scoreViews.set(root,view);}
+ if([...scope.options].some(o=>o.value===view.scope&&!o.disabled))scope.value=view.scope;zoom.value=view.zoom;pitchView.value=view.pitchMode??'written';displayGrid.value=view.displayGrid??'off';const paper=panel.querySelector('[data-score-paper]');paper.value=view.paper??'A4';paper.onchange=()=>{view.paper=paper.value;};
  const choices=[...panel.querySelectorAll('[data-score-part]')],partsPanel=panel.querySelector('[data-score-parts]');
  if(view.partIds)view.partIds=view.partIds.filter(id=>choices.some(input=>input.value===id));
  for(const input of choices)input.checked=view.partIds===null||view.partIds===undefined||view.partIds.includes(input.value);

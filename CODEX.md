@@ -5383,3 +5383,11 @@ The score toolbar now offers A4/Letter paper and **Print score**. It creates a s
 Printed pages contain fresh black notation on white paper, without interactive note highlights, transport markers or editor controls. Page breaks match renderer pages, with paper-sized CSS and zero browser page margins; engraving provides its own whitespace. Closing the preview or pressing Escape removes the dialog and temporary renderer. Original session data stays unchanged. Agent-driven print preparation is not yet exposed.
 
 Verified 1,385 tests and build. `scripts/browser-experimental-score-print-check.cjs` checks actual toolbar preparation, Letter/A4 sizes, a two-page long score, absence of UI controls/selection attributes, print-method invocation, cancellation and session nonmutation. The isolated printable page was visually inspected. Native OS printer/PDF-save completion is not automated in this check. Unit tests cover document title escaping, page structure and invalid inputs.
+
+### Agent score print preparation (2026-09-23)
+
+The agent's `prepare_score_print` tool now opens the same paginated preview as manual Print score. It requires one observed region or an explicit list of score parts, plus pitch mode, display grid and A4/Letter paper. The validated score-view context includes a nondefault paper choice, and the toolbar preserves paper across redraws. Shared notation preparation checks both server and browser requests without modifying the performance.
+
+The tool is export-capability gated, separate from edits and unavailable during editing continuations. The model only prepares a preview; the user presses **Print / Save as PDF** and completes the native browser dialog. Summaries do not claim a file was saved or printed. Abort signals remove pending print preparation, and closing the preview releases its temporary renderer.
+
+Verified 1,387 tests and production build. `test/experimental-agent-score-print.test.js` checks schema, options, capability/continuation gating, invalid and ambiguous targets and nonmutation. `scripts/browser-experimental-agent-score-print-check.cjs` uses a mocked provider response but renders real pages, checks captured Letter/display-grid context, persistent paper choice, print invocation, multiple pages, close/abort cleanup and unchanged session. Live model and native PDF-save completion remain unverified.
