@@ -6151,3 +6151,19 @@ Checks: `test/experimental-agent-meter-reset.test.js` and
 `scripts/browser-experimental-agent-meter-reset-check.cjs`. The latter uses native
 Web Audio, actual server planner validation and a controlled model response; it
 is not proof of live model inference. Peak hold remains scoped to playback/reset.
+
+### Experimental stereo flanger
+
+The flanger is prepared by `prepareSessionEffects`, alongside delay/gate/limiter.
+`flanger.js` schedules native LFOs into two delay AudioParams; the worklet applies
+per-sample signed feedback in bounded stereo rings. Center delay is 3 ms, depth
+0–2.9 ms, feedback ±0.95. It adds an intentional effect delay, not graph processing
+latency. Sync follows tempo-map changes and retained free-rate automation is ignored.
+Tail estimates include the maximum absolute automated feedback. Seeking clears
+feedback history while restoring modulation phase.
+
+Verification: `test/experimental-flanger.test.js` and
+`scripts/browser-experimental-flanger-check.cjs` with the documented Playwright
+environment variables. Browser checks use native OfflineAudioContext at 44.1,
+48 and 96 kHz and mocked account APIs. The agent command test controls the model
+response; live inference and broad sonic quality are not established by it.

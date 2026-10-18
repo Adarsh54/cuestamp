@@ -41,7 +41,7 @@ actual checkpoints and limitations.
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
 | Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
 | Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; processing-latency compensation covers exports, playback, recording backing and scene launches; other-browser calibration and physical recording latency remain unverified |
-| Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, sample-peak limiter, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, true-peak mastering limiting, external plug-ins and benchmarked sonic/performance parity |
+| Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, sample-peak limiter, gate/ducker with sidechain, delay, reverb, distortion, chorus, flanger, phaser, tremolo, gain/width | Full professional processor catalog, true-peak mastering limiting, external plug-ins and benchmarked sonic/performance parity |
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
 | Scenes/arrangement | [scene playback](../src/experimental/scene-playback.js), clip launch, performance recording, take transfer and arrangement insertion | Live performance stress/latency testing; not proof of complete Live Loops parity |
@@ -2632,3 +2632,33 @@ mocked model tool response and live audio graph; it verifies unchanged serialize
 session state and continuing playback. Unit checks cover capability gating, wrong
 effect IDs, unexpected fields, graph changes, stale observations and cancellation.
 Live model inference remains unverified; this check validates the harness plumbing.
+
+### Stereo flanger checkpoint
+
+Added original short-delay flanging with rate, depth, signed feedback, mix and
+stereo phase, plus tempo sync. Apple documents the corresponding core rate,
+intensity, feedback and mix controls:
+https://support.apple.com/en-asia/guide/logicpro/lgcef266e2fc/10.7/mac/11.0
+This implements the effect category rather than Apple's proprietary DSP.
+
+A bounded stereo delay line in an AudioWorklet uses per-sample feedback and linear
+fractional-delay interpolation, avoiding the render-quantum minimum of a native
+feedback loop. Delay sweeps around 3 ms, with depth 0–2.9 ms; feedback is limited
+to ±0.95. Mix zero is dry. Signed feedback changes resonances and can raise levels;
+there is no automatic loudness compensation. Linear interpolation changes the
+high-frequency response at fractional delays; broad sonic parity is unproven.
+
+Rate/depth/feedback/mix use shared automation and live controls. Tempo sync follows
+project tempo changes; free rate automation is retained but ignored while synced.
+Seeking restores LFO phase with empty delay history. Intentional delay is not
+reported as processing latency. Tail estimation uses maximum absolute feedback,
+including automation, and the maximum swept delay, within the existing chain cap.
+Presets, persistence, Undo/Redo, track/bus/master effect routing and agent commands
+use the shared validated schema.
+
+Native browser checks cover mixer persistence and Undo/Redo, impulse feedback,
+dry/fixed/modulated delay at 44.1/48/96 kHz, stereo phase, and synced seeks across
+a tempo change. Unit tests cover fractional impulses, signed feedback below a
+render quantum, block invariance, parameter rejection, presets and mocked agent
+commands. Live model inference and cross-browser sonic/performance parity remain
+unverified; true-peak limiting and the remaining workstation catalog are still open.

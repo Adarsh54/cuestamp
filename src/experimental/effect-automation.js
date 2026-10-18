@@ -7,6 +7,7 @@ export const effectParameters={
  gate:{threshold:field('Threshold · dB',-96,0,.5),reductionDb:field('Reduction · dB',-96,0,.5),hysteresis:field('Hysteresis · dB below threshold',0,24,.5),attack:field('Attack · seconds',0,1,.001),hold:field('Hold · seconds',0,2,.01),release:field('Release · seconds',.001,3,.01)},
  distortion:{driveDb:field('Drive · dB',0,36,.5),toneHz:field('Tone cutoff · Hz',20,20000,10),outputDb:field('Wet output · dB',-60,12,.5),mix:field('Wet mix',0,1,.01)},
  phaser:{rate:field('Rate · Hz',.05,10,.05),frequency:field('Center frequency · Hz',20,4000,10),depthCents:field('Sweep depth · cents',0,2400,10),mix:field('Wet mix',0,1,.01)},
+ flanger:{rate:field('Rate · Hz',.05,10,.05),depthMs:field('Depth · ms',0,2.9,.1),feedback:field('Feedback · signed amount',-.95,.95,.05),mix:field('Wet mix',0,1,.01)},
  chorus:{rate:field('Rate · Hz',.05,10,.05),depthMs:field('Delay modulation · ms',0,20,.1),mix:field('Wet mix',0,1,.01)},
  tremolo:{rate:field('Free rate · Hz',.05,20,.05),depth:field('Depth · 0–1',0,1,.01)},
  gain:{gainDb:field('Gain · dB',-96,24,.5),width:field('Width · 0 mono / 1 stereo',0,2,.01)},

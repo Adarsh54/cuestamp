@@ -1,3 +1,4 @@
+import {prepareFlanger} from './flanger.js';
 import {prepareLimiter} from './limiter.js';
 import {prepareDelay} from './delay.js';
 import {scheduleEffectParameter} from './effect-automation.js';
@@ -5,6 +6,7 @@ import {scheduleEffectParameter} from './effect-automation.js';
 const stateKey=Symbol.for('cuestamp.noiseGateProcessor');
 export async function prepareSessionEffects(context,session){
  await prepareDelay(context,session);
+ await prepareFlanger(context,session);
  await prepareLimiter(context,session);
  if(!session||![...(session.masterEffects||[]),...session.tracks.flatMap(t=>t.effects||[])].some(e=>e.enabled&&e.kind==='gate'))return;
  if(!context.audioWorklet)throw Error('Noise gate requires AudioWorklet support in this browser.');
