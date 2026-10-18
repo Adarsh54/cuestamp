@@ -28,7 +28,7 @@ export function musicxmlRegionPlan(session,track,region){
  while(at<endBeat-1e-9){if(measures.length>=2048)throw Error('Export up to 2,048 measures at a time.');const next=Math.min(endBeat,meter.barStart(bar+1)),signature=meter.signatureAtBar(bar),start=tick(at),end=tick(next);if(end>start)measures.push({bar,start,end,signature,partial:at>meter.barStart(bar)+1e-9||next<meter.barStart(bar+1)-1e-9,tempos:[...(measures.length===0?[{beat:at,bpm:tempo.tempoAtBeat(at)}]:[]),...tempo.points.filter(p=>p.beat>=at&&p.beat<next&&(measures.length>0||p.beat>at))].map(p=>({offset:tick(p.beat)-start,bpm:p.bpm}))});at=next;bar++;}
  return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
 }
-function regionMeasures(session,track,region){
+function regionMeasures(session,track,region,partId='P1'){
  const percussion=isPercussionRegion(track,region),transposition=scoreTransposition(percussion?{scoreInstrument:'concert'}:track),keys=compileKeyMap(session),tempo=compileTempoMap(session),origin=tempo.beatAtTime(region.start);
  const plan=musicxmlRegionPlan(session,track,region),parts=[],clefs={treble:['G',2],bass:['F',4],alto:['C',3],tenor:['C',4]},clef=clefs[track.scoreClef??'treble'];if(!clef)throw Error('Choose a supported score clef.');let lastSignature='',lastKey='';
  for(const [index,m] of plan.measures.entries()){
@@ -61,7 +61,7 @@ function regionMeasures(session,track,region){
      const writtenPitch=n.pitch+transposition.semitones;if(writtenPitch>131)throw Error('Written pitch exceeds MusicXML octave 9. Use concert pitch for this part.');
      const {step,alter,octave}=spelledPitch(writtenPitch,writtenKey(keys.keyAtBeat(tempo.beatAtTime(region.start+n.start)),transposition)),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
      const drum=percussion?drumNotation(n.pitch):null,pitchTag=percussion?`<unpitched><display-step>${drum.step}</display-step><display-octave>${drum.octave}</display-octave></unpitched>`:`<pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch>`;
-     music.push(`<note dynamics="${(n.velocity*127/90*100).toFixed(3)}">${chordIndex?'<chord/>':''}${pitchTag}<duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}${percussion?`<instrument id="${drumInstrumentId(n.pitch)}"/>`:''}<voice>${voice}</voice>${rhythm.duration}${drum?.cross?'<notehead>x</notehead>':''}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
+     music.push(`<note dynamics="${(n.velocity*127/90*100).toFixed(3)}">${chordIndex?'<chord/>':''}${pitchTag}<duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}${percussion?`<instrument id="${drumInstrumentId(n.pitch,partId)}"/>`:''}<voice>${voice}</voice>${rhythm.duration}${drum?.cross?'<notehead>x</notehead>':''}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
      }
     }
    }
@@ -74,9 +74,10 @@ function scoreDocument(title,parts){
 }
 export function exportRegionMusicxml(session,track,region){return scoreDocument(region.name||session.title,[{name:track.name,instruments:isPercussionRegion(track,region)?drumDefinitions(region):'',measures:regionMeasures(session,track,region)}]);}
 export function scoreTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.instrument!=='drumKit'&&t.regions.length&&!t.regions.some(r=>r.notes.some(n=>n.channel===9)));}
+export function scoreExportTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.regions.length);}
 export function scorePartRegions(session,trackIds=scoreTracks(session).map(t=>t.id)){
- if(!Array.isArray(trackIds)||!trackIds.length||trackIds.length>128||new Set(trackIds).size!==trackIds.length)throw Error('Choose between 1 and 128 distinct pitched MIDI tracks.');
- const eligible=scoreTracks(session),tracks=trackIds.map(id=>{const track=eligible.find(t=>t.id===id);if(!track)throw Error('Choose existing pitched MIDI tracks with regions; percussion notation is not supported.');return track;});
+ if(!Array.isArray(trackIds)||!trackIds.length||trackIds.length>128||new Set(trackIds).size!==trackIds.length)throw Error('Choose between 1 and 128 distinct MIDI tracks.');
+ const eligible=scoreExportTracks(session),tracks=trackIds.map(id=>{const track=eligible.find(t=>t.id===id);if(!track)throw Error('Choose existing MIDI tracks with regions.');return track;});
  const end=Math.max(...tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration)));
  return tracks.map(track=>{
   // Align all parts to the same timeline, retaining gaps as rests and overlapping regions as voices.
@@ -84,7 +85,7 @@ export function scorePartRegions(session,trackIds=scoreTracks(session).map(t=>t.
   return {track:{...track,regions:[region]},region};
  });
 }
-export function exportScoreMusicxml(session,trackIds){
- return scoreDocument(session.title,scorePartRegions(session,trackIds).map(({track,region})=>({name:track.name,measures:regionMeasures(session,track,region)})));
+export function exportScoreMusicxml(session,trackIds=scoreExportTracks(session).map(t=>t.id)){
+ return scoreDocument(session.title,scorePartRegions(session,trackIds).map(({track,region},index)=>{const partId=`P${index+1}`;return {name:track.name,instruments:isPercussionRegion(track,region)?drumDefinitions(region,partId):'',measures:regionMeasures(session,track,region,partId)};}));
 }
 export function resolveMusicxmlRegion(session,regionId){if(typeof regionId!=='string'||!regionId||regionId.length>100)throw Error('Choose an existing MIDI region.');const track=session.tracks.find(t=>t.regions.some(r=>r.id===regionId)),region=track?.regions.find(r=>r.id===regionId);musicxmlRegionPlan(session,track,region);return {track,region};}
