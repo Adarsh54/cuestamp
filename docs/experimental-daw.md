@@ -2870,3 +2870,27 @@ now initialize to their seek values before scheduling; live rescheduling is unch
 The maximum measured real-time/offline difference after the fix was 2.98e-8.
 Actual file-save UI checks cover both scopes; agent planning uses mock responses.
 Long-duration scope-specific and cross-browser stress runs remain unverified.
+
+### Paste copied regions onto another track
+
+The arrangement clipboard now offers **Paste into selected track** alongside the
+existing original-track paste. It places all copied clips on the selected compatible
+audio/MIDI/video track, aligns the earliest clip to the playhead and retains relative
+spacing, source offsets, notes, controllers, fades and region settings. The
+receiving track's instrument, effects, automation and routing apply. It does not
+copy track settings or spread clips across subsequent tracks.
+
+`regions.paste` accepts optional `values.trackId`; omitted keeps original-track
+behavior. A chosen destination can be used after the source tracks are deleted,
+while the session-local clipboard remains available. Media must still be available
+for playback. Mixed region types cannot be combined onto one destination; missing,
+wrong-type, protected, over-capacity and out-of-range destinations reject atomically.
+Paste creates fresh region/note/event IDs and is one undoable edit.
+
+The agent `region_clipboard` tool accepts explicit observed `trackId` for paste,
+null for original tracks, and null for copy/cut. Model payloads must include that
+nullable field; older browser responses may omit it. Existing revision, clipboard
+epoch, transport-change and cancellation guards still apply. The browser validates
+actual clipboard content, which is not sent to the model. Unit and browser fixtures
+cover manual/agent destination paste, unchanged receiving instrument, Undo/Redo,
+source-track deletion, wrong types and rollback. Model responses remain mocked.

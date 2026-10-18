@@ -6290,3 +6290,20 @@ range/region files and ordinary mix/agent handoff. The former also guards the
 first-sample mixer initialization regression at 44.1 kHz: newly created gain/pan
 nodes must receive the seek value before future scheduling. Do not apply that
 initializer to existing live automation nodes.
+
+### Destination-track region paste
+
+Use **Paste into selected track** to put the session clipboard onto a compatible
+selected audio/MIDI/video track at the playhead. Existing Paste at playhead and
+keyboard paste retain original destinations. Destination track settings apply;
+clip spacing/content remain intact. `regions.paste` takes optional `trackId` and
+`region_clipboard` takes nullable `trackId` (only paste may set it). The strict
+provider schema requires the field, while the local parser remains backward
+compatible with older omitted-field responses.
+
+Run `test/experimental-region-clipboard.test.js` and
+`test/experimental-agent-clipboard.test.js` for content/identity preservation,
+capacity/type/protection validation and provider schema checks. The existing
+`scripts/browser-experimental-agent-clipboard-check.cjs` also exercises manual
+selected-track paste, Undo/Redo, mismatch rollback, source-track deletion and
+explicit agent destination paste, in addition to clipboard/playhead races.
