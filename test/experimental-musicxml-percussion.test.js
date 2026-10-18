@@ -13,9 +13,26 @@ test('percussion import selects a drum instrument and remains undoable',()=>{
  const h=new SessionHistory();h.execute([{op:'midi.import',values:{data:encodeMidiImport(musicxmlMidi(score())),start:0}}]);
  assert.deepEqual(h.session.tracks.map(t=>t.instrument),['triangle','drumKit']);h.undo();assert.equal(h.session.tracks.length,0);
 });
-test('overlapping same-pitch drum gates reject instead of corrupting MIDI note pairing',()=>{
- const s=score();s.tracks[0].notes.push({pitch:36,start:.1,duration:.1,velocity:.8,percussion:true});assert.throws(()=>musicxmlMidi(s),/Overlapping/);
+test('nested overlapping drum hits preserve each duration in separate editable layers',()=>{
+ const s=score();s.tracks[0].notes.push({pitch:36,start:.1,duration:.1,velocity:.8,percussion:true});const before=structuredClone(s);
+ const midi=readMidi(musicxmlMidi(s).buffer),drums=midi.tracks.flatMap(t=>t.notes).filter(n=>n.channel===9&&n.pitch===36).sort((a,b)=>a.start-b.start);
+ assert.deepEqual(drums.map(n=>[n.start,n.duration]),[[0,.25],[.05,.05]]);
+ assert.equal(midi.tracks.length,3);assert.match(midi.tracks[1].name,/Layer 1/);assert.match(midi.tracks[2].name,/Layer 2/);assert.deepEqual(s,before);
+ const h=new SessionHistory();h.execute([{op:'midi.import',values:{data:encodeMidiImport(musicxmlMidi(s)),start:0}}]);assert.deepEqual(h.session.tracks.map(t=>t.instrument),['triangle','drumKit','drumKit']);h.undo();assert.equal(h.session.tracks.length,0);
 });
+test('percussion layers reuse available slots, share different pitches, and honor tick boundaries',()=>{
+ const hit=(pitch,start,duration,velocity=.8)=>({pitch,start,duration,velocity,percussion:true});
+ const notes=[hit(36,0,2),hit(36,.5,.5),hit(38,.5,1),hit(36,1,.5),hit(36,2,1),hit(36,0,9,0)];
+ const layers=musicxmlPlaybackTracks([{name:'Drums',notes}]);assert.equal(layers.length,2);assert.equal(layers.flatMap(t=>t.notes).length,5);
+ assert.deepEqual(layers[1].notes.map(n=>n.start),[.5,1]);
+ const rounded=musicxmlPlaybackTracks([{name:'Drums',notes:[hit(36,0,1.0001),hit(36,1,1)]}]);assert.equal(rounded.length,1);
+});
+test('percussion layer expansion rejects above session capacity without modifying input',()=>{
+ const notes=Array.from({length:129},()=>({pitch:36,start:0,duration:1,velocity:.8,percussion:true})),tracks=[{name:'Roll',notes}],before=structuredClone(tracks);
+ assert.throws(()=>musicxmlPlaybackTracks(tracks),/128-track/);assert.deepEqual(tracks,before);
+ const mixed=Array.from({length:65},()=>score().tracks[0]);assert.throws(()=>musicxmlPlaybackTracks(mixed),/128-track/);
+});
+
 
 test('pure percussion keeps its part name and chord hits share the drum channel',()=>{
  const s=score();s.tracks[0].notes=s.tracks[0].notes.filter(n=>n.percussion);s.tracks[0].notes[1].start=0;
