@@ -5559,3 +5559,11 @@ Read-only analysis/listening supports protected tracks and a full 128-track proj
 Agent `strip_audio_silence` operation `audition` analyzes the actual source then starts this same temporary playback. Captured transport epoch and subsequent playback-change checks prevent stale agent requests from taking over transport. Cancellation propagates to analysis and playback. Existing preview/apply behavior remains available.
 
 Verification: full repository tests, build and browser silence workflow pass. Tests cover generated cuts/fades, project nonmutation, stale revisions, protected/full-session listening and agent transport guards. Browser checks exercise manual and mocked-agent start/stop with unchanged saved state, then Apply, Undo/Redo and reload. Live provider inference and subjective listening remain unverified.
+
+### Minimum retained sound duration (2026-10-18)
+
+Strip silence includes **Minimum sound length · seconds** (0–60, default zero). The detector rejects activity spans shorter than this duration before adding pre/post padding. Brief quiet gaps joined by Minimum quiet gap remain part of an activity span and count toward its duration. The comparison uses sample frames rounded upward; an exactly qualifying span is retained. Both channels and the final span at the source boundary follow the same rule. This is a duration filter, not speech or noise classification.
+
+The shared worker settings and strict agent tool include `minimumSound`; older internal callers may omit it for zero. Changing it invalidates the preview. If it removes every span, the UI says no sound meets the settings, disables apply/listen, and preserves the original. Existing edge fades, source protection, undo and temporary auditions remain unchanged.
+
+Verified 1,439 tests, production build and browser silence workflow. Unit fixtures cover short clicks, exact boundaries, stereo/end-of-file activity, internal gap grouping, padding order, disabled behavior and invalid values. The browser verifies that raising the duration empties the preview without editing the project, then lowering it restores the retained phrases before audition/apply. Agent tests verify the required tool field and returned settings. Real-recording classification accuracy is not claimed.

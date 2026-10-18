@@ -397,7 +397,7 @@ export function createExperimentalWorkspace({account,esc}){
    const ranges=await analyzeAudioSilence(clip,settings,{signal,onProgress:p=>{check();const el=root.querySelector('.daw-status');if(el)el.textContent=`Analyzing quiet gaps · ${Math.round(p*100)}%`;}});check();
    if(prepared?.operation==='audition'&&transportEpoch!==auditionEpoch)throw Error('Transport changed during silence analysis. Try again.');
    silencePreview={regionId:r.id,sessionId:session().id,revision,settings,ranges:ranges.map(v=>({start:v.start,end:Math.min(v.end,r.duration)}))};selected=r.id;regionSelection=[r.id];status=`Silence preview ready: ${ranges.length} retained regions. No edits applied.`;
-   if(prepared?.operation==='apply'){if(!silencePreview.ranges.length)status='No sound above this threshold. Original kept.';else if(silencePreview.ranges.length===1&&silencePreview.ranges[0].start===0&&silencePreview.ranges[0].end===r.duration)status='No silence to remove at these settings. Original kept.';else {applySilencePreview(silencePreview,prepared);}}
+   if(prepared?.operation==='apply'){if(!silencePreview.ranges.length)status='No sound meets these settings. Original kept.';else if(silencePreview.ranges.length===1&&silencePreview.ranges[0].start===0&&silencePreview.ranges[0].end===r.duration)status='No silence to remove at these settings. Original kept.';else {applySilencePreview(silencePreview,prepared);}}
    return status;
   }finally{bounceController=null;busy=false;paint();if(silencePreview?.regionId===r.id&&silencePreview.revision===session().revision){const panel=root?.querySelector('[data-strip-silence-panel]');if(panel)panel.open=true;}}
  }
@@ -602,7 +602,7 @@ export function createExperimentalWorkspace({account,esc}){
   bindBatchNormalization(root,{session:session(),measurements:freshBatchLevels(),guard,run:applySelectedNormalization,busy:busy||agentBusy});
   root.querySelector('[data-measure-region]')?.addEventListener('click',guard(()=>measureRegion()));
   bindRegionNormalization(root,{session:session(),measurement:regionLevels,busy:busy||agentBusy,guard,run:applyRegionNormalization});
-  root.querySelector('[data-strip-silence]')?.addEventListener('submit',guard(async e=>{e.preventDefault();const form=e.currentTarget;await previewSilence(Object.fromEntries(['thresholdDb','minimumGap','preRoll','postRoll','edgeFade'].map(name=>[name,form.elements[name].value.trim()?Number(form.elements[name].value):NaN])));}));
+  root.querySelector('[data-strip-silence]')?.addEventListener('submit',guard(async e=>{e.preventDefault();const form=e.currentTarget;await previewSilence(Object.fromEntries(['thresholdDb','minimumGap','minimumSound','preRoll','postRoll','edgeFade'].map(name=>[name,form.elements[name].value.trim()?Number(form.elements[name].value):NaN])));}));
   root.querySelector('[data-strip-silence]')?.addEventListener('input',()=>{if(playback?.silencePreview)stop();silencePreview=null;root.querySelector('[data-silence-preview]')?.remove();});
   root.querySelector('[data-listen-silence]')?.addEventListener('click',guard(async()=>{if(busy||agentBusy||recordAbort||midiInput.active)return;if(playback?.silencePreview){stop();paint();return;}const preview=silenceAudition(session(),silencePreview);stop();await play({preview});}));
  root.querySelector('[data-apply-silence]')?.addEventListener('click',guard(()=>applySilencePreview(silencePreview)));

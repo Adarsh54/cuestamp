@@ -17,3 +17,13 @@ test('silence listening preview matches commit cuts without changing the project
  const measured={sessionId:h.session.id,revision:h.session.revision,regionId:'r',settings:{edgeFade:.005},ranges:[{start:.5,end:1},{start:2,end:2.5}]},before=structuredClone(h.session),p=silenceAudition(h.session,measured);assert.deepEqual(h.session,before);assert.equal(p.position,4);assert.equal(p.end,7);assert.equal(p.document.tracks.length,1);assert.deepEqual(p.document.tracks[0].regions.map(r=>[r.start,r.fadeIn,r.fadeOut]),[[4.5,.005,.005],[6,.005,.005]]);
  h.execute([{op:'track.set',target:'a',values:{protected:true}}]);assert.ok(silenceAudition(h.session,{...measured,revision:h.session.revision}));assert.throws(()=>silenceAudition(h.session,measured),/changed/);for(const length of [100,27])h.execute(Array.from({length},()=>({op:'track.add',values:{kind:'audio'}})));assert.ok(silenceAudition(h.session,{...measured,revision:h.session.revision}));
 });
+
+test('minimum sound length discards clicks before padding, preserves exact boundary and joins brief internal gaps',()=>{
+ const a=new Float32Array(rate*2);a.fill(.5,800,880);a.fill(.5,4000,4800);a.fill(.5,12000,12800);
+ assert.deepEqual(detectAudioActivity([a],rate,{...options,minimumSound:.1,preRoll:.05,postRoll:.05}),[{start:.45,end:.65},{start:1.45,end:1.65}]);
+ a.fill(0,4400,4600);assert.deepEqual(detectAudioActivity([a],rate,{...options,minimumSound:.1}),[{start:.5,end:.6},{start:1.5,end:1.6}]);
+ assert.deepEqual(detectAudioActivity([a],rate,{...options,minimumSound:.101}),[]);
+ assert.deepEqual(detectAudioActivity([a],rate,{...options,minimumSound:0}),detectAudioActivity([a],rate,options));
+ for(const minimumSound of [-1,61,NaN,Infinity])assert.throws(()=>detectAudioActivity([a],rate,{...options,minimumSound}));
+ const end=new Float32Array(rate);end.fill(.2,rate-800);assert.deepEqual(detectAudioActivity([new Float32Array(rate),end],rate,{...options,minimumSound:.1}),[{start:.9,end:1}]);
+});
