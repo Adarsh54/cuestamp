@@ -86,6 +86,6 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
   for(const send of track.sends||[]){const id=sendAutomationTarget(track.id,send.busId);addLane(id,'gainDb',sendNodes.get(id).gain,send.automation,send.gainDb,channelOffset(track.id));}
  }
  const automation=createLiveAutomation({context,base,position,lanes});
- return {base,outputBase,latencyFrames:latency?.totalFrames||0,meters,automation,replaceTrackRegions,stopTrackRegions,stopAllRegions,collectVoices,readEffectMeters:()=>effectMeters?.read(),stop(){if(stopped)return;stopped=true;for(const {group} of voices.values())group.stop();for(const {group} of retired)group.stop();voices.clear();retired.clear();effectMeters?.stop();automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
+ return {base,outputBase,latencyFrames:latency?.totalFrames||0,meters,automation,replaceTrackRegions,stopTrackRegions,stopAllRegions,collectVoices,readEffectMeters:()=>effectMeters?.read(),resetEffectMeters:id=>effectMeters?.reset(id),stop(){if(stopped)return;stopped=true;for(const {group} of voices.values())group.stop();for(const {group} of retired)group.stop();voices.clear();retired.clear();effectMeters?.stop();automation.stop();meters?.stop();for(const node of nodes){try{node.stop?.();}catch{}node.disconnect();}}};
 }
 export {encodeWav} from './wav.js';

@@ -6123,3 +6123,17 @@ Checks: `test/experimental-true-peak-meter.test.js`, existing FFmpeg-backed
 `browser-experimental-limiter-ui-check.cjs`. Use the Playwright module/executable
 environment variables documented above. The native fixture deliberately measures
 inter-sample overs while the sample limiter applies no gain reduction.
+
+### Limiter peak hold
+
+The live limiter meter includes processor-owned stereo peak hold and a reset button.
+Reset messages carry an increasing epoch so reports already queued from before the
+reset cannot restore old maxima. Reset clears measurement peaks but preserves FIR
+history and limiter DSP state. Holds are scoped to the current playback graph,
+not persisted with sessions, and are unavailable when telemetry is stale/stopped.
+The agent receives held values as historical peaks since playback/reset, separate
+from recent output windows. Agent-triggered meter reset is not implemented yet.
+
+Verification: `test/experimental-limiter-peak-hold.test.js`, limiter observation
+tests, and both limiter UI/true-peak browser scripts. Browser tests use native Web
+Audio with a silent output sink and mocked account APIs; no live model inference.

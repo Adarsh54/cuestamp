@@ -600,6 +600,7 @@ export function createExperimentalWorkspace({account,esc}){
   midiInput.bind(root);midiOutput.bind(root,guard);
   bindBounceSettings(root,bounceSettings);
   bindCycle(root,{session:session(),ids:[...regionSelection],execute,guard});
+  root.querySelectorAll('[data-limiter-reset]').forEach(button=>button.onclick=()=>{playback?.resetEffectMeters?.(button.dataset.limiterReset);updateCompressorMeters(root,playback);});
   bindMixer(root,{touch,touchMode,onTouchMode:value=>{if(value==='write')stop();else touch.finish();touchMode=value;paint();},cancelTouch:()=>{touch.cancel();if(touchMode==='write')touchMode='touch';paint();},isPlaying:()=>Boolean(playback),afterTouch:()=>{if(touchMode==='write'&&!touch.active)touchMode='touch';paint();},sampleRate:context?.sampleRate||48000,blocked:()=>busy||Boolean(recordAbort)||midiInput.active,session:session(),selected:mixerSelected,automationParameter,onAutomationParameter:value=>{automationParameter=value;},select:id=>{mixerSelected=id;paint();},execute,guard,duration:sessionDuration(session())});
   root.querySelector('[data-frame-rate]').onchange=guard(e=>execute([{op:'session.set',values:{frameRate:Number(e.target.value),dropFrame:Boolean(session().dropFrame&&supportsDropFrame(Number(e.target.value)))}}],'Changed frame rate'));
   root.querySelector('[data-drop-frame]').onchange=guard(e=>execute([{op:'session.set',values:{dropFrame:e.target.value==='true'}}],'Changed timecode format'));

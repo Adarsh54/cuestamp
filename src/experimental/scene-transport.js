@@ -33,7 +33,7 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
   sceneState(){return observation.read((stoppedAt??context.currentTime)-base);},
   performance(){const end=Math.max(0,(stoppedAt??context.currentTime)-base);return {sessionId:session.id,revision:session.revision,events:performanceLog?performanceLog.events(end):launches.flatMap((event,i)=>{const duration=Math.min(event.duration,end-event.start,(launches[i+1]?.start??Infinity)-event.start);return duration>1e-6?[{...event,duration}]:[];})};},
   get endPosition(){return (pending||current).when-base+(pending||current).plan.end;},
-  get meters(){return current.graph.meters;},get automation(){return current.graph.automation;},readEffectMeters:()=>current.graph.readEffectMeters?.(),
+  get meters(){return current.graph.meters;},get automation(){return current.graph.automation;},readEffectMeters:()=>current.graph.readEffectMeters?.(),resetEffectMeters:id=>current.graph.resetEffectMeters?.(id),
   advance(){current.graph.collectVoices?.();if(!pending||context.currentTime<pending.when)return null;current.stop();current=pending;pending=null;transport.scenePreview=current.plan.sceneId;return current.plan;},
   launchCell({plan,trackId,quantization,regions}){
    if(stopped)throw Error('Start scene playback before launching a cell.');

@@ -2598,3 +2598,20 @@ arbitrary block boundaries, stereo independence, window resets, end flushing and
 malformed input. Existing independent FFmpeg comparisons remain applicable.
 True-peak limiting, codec overshoot protection and large-session CPU characterization
 remain open. Reference: ITU-R BS.1770-5 Annex 2.
+
+### Limiter peak-hold checkpoint
+
+Live limiter output now retains stereo estimated true-peak maxima across reporting
+windows. The mixer shows Peak hold and a Reset peak hold button. Maxima accumulate
+in the audio processor, so slower UI polling does not lose a brief peak. Reset
+preserves filter history and all audible DSP state; numbered reset messages prevent
+queued old reports from restoring a cleared peak. Held values live only for the
+current playback graph and expire with stale telemetry. Stop/restart, seek or graph
+replacement begins a new measurement; this is not a whole-project peak history.
+
+The agent receives validated `heldOutputPeaksDbtp` observations with instructions
+to distinguish them from current output levels. Reset is currently a manual UI
+operation; a dedicated agent reset action remains open. Native browser checks cover
+loud-to-quiet hold/reset and the actual mixer control; unit checks cover message
+ordering, stale telemetry, unchanged audio and malformed observation rejection.
+The meter wraps on narrow panels. This does not implement true-peak limiting.
