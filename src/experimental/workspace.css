@@ -219,3 +219,5 @@ form.daw-note-editor{margin-top:8px}
 
 /* A contrasting inset cursor stays visible on both filled and empty drum steps. */
 .daw-step-row button[data-step-current="true"]{outline:2px solid var(--text);outline-offset:2px;box-shadow:inset 0 0 0 2px var(--bg);opacity:1}
+
+.daw-drum-row-tools{display:flex;align-items:end;flex-wrap:wrap;gap:12px;border-top:1px solid var(--line);padding:14px 0;margin-top:12px}.daw-drum-row-tools p{flex-basis:100%;margin:0;font-size:12px}.daw-drum-row-tools select{width:140px}.daw-drum-row-tools [hidden]{display:none}
