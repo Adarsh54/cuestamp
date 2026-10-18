@@ -2691,3 +2691,34 @@ broader phase/frequency/automation/transient verification remain necessary. Othe
 fixtures include a two-tone signal, isolated impulse, square bursts and a tone at
 one quarter of the sample rate. Local diagnostic timings are not an AudioWorklet
 load guarantee or a large-session performance benchmark.
+
+### Offline output-correction investigation checkpoint
+
+`true-peak-correction.js` adds an **offline-only prototype**, not a selectable
+limiter mode. It finds overs in the final buffer, applies stereo-linked local gain
+reduction over the reconstruction support, smooths the gain before/after peaks,
+and re-measures the changed audio. Iteration is bounded; if necessary, measured
+uniform attenuation of the complete buffer is a fallback. The returned report
+includes iteration count, maximum reduction and fallback gain. Compliant audio is
+copied unchanged, source buffers are preserved, and output length is unchanged.
+The prototype rejects input above 32 MiB; it is not wired into playback or export.
+
+Measurement combines the existing four-phase ITU detector with cascaded 4×
+interpolators (16× output). The first stage has an analysis-only 2049-tap option,
+256 base-rate samples of delay, and a measured <0.01 dB change at 0.49 cycles/sample.
+The default 257-tap resampling path remains unchanged. This longer analysis filter
+reduces near-Nyquist rolloff; finite interpolation still differs between meters.
+
+The earlier noise failure improves from about −0.7 dBTP in FFmpeg to −0.9 dBTP
+(−0.8861 dB from direct FFmpeg 192 kHz resampling), while the combined app detector
+reports −1.00001 dBTP for a −1 dB target. **The independent output ceiling still
+fails by about 0.114 dB.** That unresolved difference is recorded rather than hidden
+with a fixed safety margin. The other current diagnostic fixtures meet the rounded
+FFmpeg target. This is progress on correction, not proof of true-peak limiting.
+
+Next work must reconcile reconstruction measurements, expand adversarial audio and
+automation coverage, and design streaming correction with validated cross-block
+windows. Independently correcting chunks cannot reproduce whole-buffer correction;
+its final uniform fallback cannot repair audio already emitted. Reference for the
+post-limiting correction approach (not an implementation specification):
+https://www.fabfilter.com/help/pro-l/using/truepeaklimiting

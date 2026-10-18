@@ -17,7 +17,7 @@ const taps=[
 export class TruePeakMeter {
  constructor(channels=2){
   if(!Number.isInteger(channels)||channels<1||channels>2)throw Error('Choose one or two true-peak meter channels.');
-  this.channels=channels;this.history=Array.from({length:channels},()=>new Float64Array(12));this.peaks=new Float64Array(channels);this.index=0;this.finished=false;
+  this.channels=channels;this.history=Array.from({length:channels},()=>new Float64Array(12));this.peaks=new Float64Array(channels);this.framePeaks=new Float64Array(channels);this.index=0;this.finished=false;
  }
  pushFrame(left,right=left){
   if(this.finished)throw Error('True-peak measurement has finished.');
@@ -25,9 +25,11 @@ export class TruePeakMeter {
   for(let c=0;c<this.channels;c++){
    const sample=c===0?left:right,history=this.history[c];history[this.index]=sample;let a=0,b=0,d=0,e=0,k=this.index;
    for(let j=0;j<12;j++){const value=history[k],weights=taps[j];a+=value*weights[0];b+=value*weights[1];d+=value*weights[2];e+=value*weights[3];if(--k<0)k=11;}
-   this.peaks[c]=Math.max(this.peaks[c],Math.abs(sample),Math.abs(a),Math.abs(b),Math.abs(d),Math.abs(e));
+   this.framePeaks[c]=Math.max(Math.abs(sample),Math.abs(a),Math.abs(b),Math.abs(d),Math.abs(e));
+   this.peaks[c]=Math.max(this.peaks[c],this.framePeaks[c]);
   }
   this.index=(this.index+1)%12;
+  return this.framePeaks; // Reused view: consume before the next frame.
  }
  process(channels){
   if(this.finished)throw Error('True-peak measurement has finished.');

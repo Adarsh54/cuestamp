@@ -6184,3 +6184,20 @@ block-boundary, reset and validation checks. Run
 currently exceeds the requested −1 dB ceiling (~−0.76 dBTP app / −0.7 dBTP FFmpeg).
 That diagnostic reports evidence rather than treating an oversampled sample ceiling
 as a true-peak guarantee. Do not expose this candidate as a completed true-peak mode.
+
+### Offline true-peak correction prototype
+
+`correctTruePeakBuffer` applies linked local attenuation and re-measures after gain
+smoothing, with bounded iterations and an explicitly reported whole-buffer fallback.
+It is not integrated into playback/export and accepts at most 32 MiB of PCM. Its
+measurement combines four-phase ITU estimation and 16× FIR reconstruction using the
+new analysis-quality interpolation option (2049 taps, 256-frame stage delay).
+Default resampling remains 257 taps/32 frames per stage.
+
+Run `test/experimental-true-peak-correction.test.js` for nonmutation, compliant-audio
+preservation, stereo ratios, phase/rate variants, local/edge transients, bounded
+iteration and input validation. The diagnostic script now prints corrected FFmpeg
+and direct-resampling results. The noise fixture still reaches −0.8861 dB against
+a −1 dB target in FFmpeg despite passing the app's combined detector. Do not claim
+this is a completed true-peak mode. Detector disagreement and streaming boundary
+correction remain open; no fixed margin has been added to conceal the mismatch.
