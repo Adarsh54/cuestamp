@@ -35,7 +35,7 @@ actual checkpoints and limitations.
 | Workspace | [workspace](../src/experimental/workspace.js), [tool finder](../src/experimental/tool-finder.js), arrangement, inspectors and right-side assistant | Coherent large-session workflow, broader accessibility, mobile and sustained load testing |
 | Session/project | [session commands](../src/experimental/session.js), [cloud](../src/experimental/cloud.js), [archive](../src/experimental/archive.js), [recovery](../src/experimental/recovery.js) | Cross-device and concurrent-account lifecycle testing; native DAW interchange is not established by JSON/ZIP support |
 | Audio arrangement | Region move/trim/split/slip, normalization, fades, [crossfades](../src/experimental/comp-crossfades.js), clipboard, batch edits, section/time operations | Production-scale and codec-diverse fixture coverage; professional editing parity remains unproven |
-| Video/scoring | [movie sync](../src/experimental/movie-sync.js), [filmstrip](../src/experimental/movie-filmstrip.js), [timecode](../src/experimental/timecode.js), frame navigation and extraction into an audio track | **No DAW movie-with-new-mix export path found** in workspace actions or bounce plans; transport sync is not movie export |
+| Video/scoring | [movie sync](../src/experimental/movie-sync.js), [filmstrip](../src/experimental/movie-filmstrip.js), [timecode](../src/experimental/timecode.js), frame navigation and extraction into an audio track | [Selected-region movie export](../src/experimental/movie-export.js) now replaces the soundtrack with the aligned session mix (MP4/WebM); multi-region movie assembly, reverse export and broader codec coverage remain open |
 | MIDI | SMF import/export, piano-roll/event/controller editing, quantize/humanize, strum, dynamics, input/output, tuning and bend state | Real physical-device verification, wider interoperability and complete metadata/SysEx support |
 | Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
@@ -45,7 +45,7 @@ actual checkpoints and limitations.
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
 | Scenes/arrangement | [scene playback](../src/experimental/scene-playback.js), clip launch, performance recording, take transfer and arrangement insertion | Live performance stress/latency testing; not proof of complete Live Loops parity |
-| Deliverables | [bounce plans](../src/experimental/bounce-plan.js): stereo mix, range, regions and grouped/individual stems; [bounce in place](../src/experimental/bounce-in-place.js), WAV markers, MIDI/MusicXML and portable project archives | Movie-with-mix export, long-form streaming render, surround/ADM and native project interchange remain open |
+| Deliverables | [bounce plans](../src/experimental/bounce-plan.js): stereo mix, range, regions and grouped/individual stems; [bounce in place](../src/experimental/bounce-in-place.js), WAV markers, MIDI/MusicXML and portable project archives | Selected-video movie export now exists; full movie assembly, long-form streaming render, surround/ADM and native project interchange remain open |
 | Agent | [provider adapter](../server/daw-agent.js), typed commands, atomic validation, Undo, revision checks, tool context, analysis/audition/export actions and controlled-response tests | **Live inference unverified**: last config check lacks OPENAI_API_KEY and DAW_AGENT_MODEL. Every manual capability still needs a capability-by-capability harness audit |
 
 ### Hard limits confirmed in current source
@@ -63,9 +63,9 @@ actual checkpoints and limitations.
 
 ### Next implementation and verification priorities
 
-1. Add a real movie-with-mix export path, with explicit duration/offset semantics,
-   codec support, cancellation, and an audio/video synchronization fixture. Expose
-   the same capability to the agent; do not label audio extraction as export.
+1. Extend the selected-video movie export to full multi-region assembly and reverse
+   picture, with broader codec fixtures. The initial path now has trim/offset semantics,
+   MP4/WebM, cancellation and a synchronization fixture, plus the shared agent export action.
 2. Design bounded-memory long-form audio export while preserving effect state,
    automation, sampler tails and routing across chunks. Keep existing limits until
    the replacement is demonstrated with long sessions.
