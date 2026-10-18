@@ -5581,3 +5581,11 @@ MusicXML note import now accepts additive numerators such as 3+2/8 and composite
 The representation remains bounded to numerators 1–32 and denominators 1, 2, 4, 8, 16, 32. Invalid terms, misordered pairs, per-staff time signatures and multiple/mid-measure time changes reject explicitly. Reference: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/time/ .
 
 Verified 1,443 unit tests and production build. `scripts/browser-experimental-musicxml-meter-check.cjs` checks actual XML parsing, next-measure positions, MIDI timing, invalid inputs, file import and Undo. Grouping-preserving notation and full Logic parity remain unfinished.
+
+### MusicXML performed note timing (2026-10-18)
+
+Note import now honors explicit `attack` and `release` offsets in the active divisions units. These independently move note-on and note-off; they do not move following written notes, alter measure lengths, or change nominal tie matching. Ties take the attack from their first note and release from their last note, including when divisions change between measures. Dynamics are resolved at the written onset before performance offsets are applied. Resulting MIDI notes remain editable through the existing manual and agent note commands.
+
+Malformed/nonfinite offsets, negative onsets, nonpositive performed durations, out-of-timeline endpoints and attack/release attributes on incompatible tie segments reject explicitly. Repeat-specific `time-only` remains unsupported. Import preserves the performed timing as MIDI, not the separate engraving-versus-performance distinction. Reference: https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/note/ .
+
+Verified 1,446 tests and production build. `scripts/browser-experimental-musicxml-timing-check.cjs` covers ties across divisions changes, early/late chord notes, following bar alignment, MIDI times, rejected inputs and UI import/Undo. The existing timewise browser regression also passes, including compressed import and ordinary ties. Full notation fidelity and the overall workstation goal remain unfinished.

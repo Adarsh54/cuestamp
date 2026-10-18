@@ -1,3 +1,4 @@
+import {musicxmlTimingOffset,applyMusicxmlTiming} from './musicxml-timing.js';
 import {musicxmlTime} from './musicxml-meter.js';
 import {musicxmlDynamics,applyMusicxmlDynamics} from './musicxml-dynamics.js';
 import {musicxmlPedalValue,musicxmlSoundOffset,musicxmlPedalEvents,musicxmlPedalMarks} from './musicxml-pedal.js';
@@ -50,13 +51,15 @@ export function parseMusicxml(source){
      if(chord&&(!previous||previous.rest||previous.voice!==voice||previous.staff!==staff||duration>previous.duration+1e-8))throw Error('MusicXML chord has no matching preceding note.');
      const start=at+(chord?previous.start:cursor);if(!chord){previous={start:cursor,duration,voice,staff,rest};cursor+=duration;}extent=Math.max(extent,start-at+duration,cursor);
      if(rest||child(item,'cue'))continue;
-     if(item.hasAttribute('attack')||item.hasAttribute('release')||item.hasAttribute('time-only'))throw Error('MusicXML note timing overrides require a performed MIDI export.');
+     if(item.hasAttribute('time-only'))throw Error('MusicXML repeated-note playback requires a performed MIDI export.');
      const pitchNode=child(item,'pitch');if(!pitchNode)throw Error('MusicXML note requires a pitch.');const step=text(pitchNode,'step'),alter=number(text(pitchNode,'alter')??'0','pitch alteration'),octave=number(text(pitchNode,'octave'),'pitch octave'),pitch=(octave+1)*12+natural[step]+alter+transpose;
      if(!Number.isInteger(pitch)||pitch<0||pitch>127)throw Error('MusicXML notes must use whole MIDI pitches 0–127.');
      const tieTypes=children(item,'tie').map(t=>t.getAttribute('type')),key=`${voice}:${staff}:${pitch}`,pending=ties.get(key);
      if(tieTypes.some(t=>!['start','stop'].includes(t)))throw Error('Unsupported MusicXML tie.');
-     if(tieTypes.includes('stop')){if(!pending||Math.abs(pending.start+pending.duration-start)>1e-7)throw Error('MusicXML tie does not connect matching consecutive notes.');pending.duration+=duration;if(!tieTypes.includes('start'))ties.delete(key);}
-     else{if(pending)throw Error('MusicXML tie is missing its ending.');const n={pitch,start,duration,velocity:.8,explicitVelocity:item.hasAttribute('dynamics')};if(n.explicitVelocity)n.velocity=musicxmlDynamics(item.getAttribute('dynamics'));notes.push(n);if(tieTypes.includes('start'))ties.set(key,n);}
+     if(tieTypes.includes('start')&&item.hasAttribute('release')||tieTypes.includes('stop')&&item.hasAttribute('attack'))throw Error('MusicXML tie timing belongs on its first attack and final release.');
+     const attackOffset=musicxmlTimingOffset(item.getAttribute('attack'),divisions),releaseOffset=musicxmlTimingOffset(item.getAttribute('release'),divisions);
+     if(tieTypes.includes('stop')){if(!pending||Math.abs(pending.start+pending.duration-start)>1e-7)throw Error('MusicXML tie does not connect matching consecutive notes.');pending.duration+=duration;pending.releaseOffset=releaseOffset;if(!tieTypes.includes('start'))ties.delete(key);}
+     else{if(pending)throw Error('MusicXML tie is missing its ending.');const n={pitch,start,duration,attackOffset,releaseOffset,velocity:.8,explicitVelocity:item.hasAttribute('dynamics')};if(n.explicitVelocity)n.velocity=musicxmlDynamics(item.getAttribute('dynamics'));notes.push(n);if(tieTypes.includes('start'))ties.set(key,n);}
     }
    }
    if(extent<=0)extent=meter;
@@ -65,6 +68,7 @@ export function parseMusicxml(source){
   }
   if(ties.size)throw Error('MusicXML contains unfinished ties.');
   applyMusicxmlDynamics(notes,dynamics);
+  applyMusicxmlTiming(notes);
   return {name:definitions.get(part.id),notes,events,duration:at,measureEnds};
  });
  if(timewise)validateTimewiseBoundaries(tracks);
