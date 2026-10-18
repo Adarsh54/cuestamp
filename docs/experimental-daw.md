@@ -2578,3 +2578,23 @@ may exceed it. It does not bound inter-sample peaks or lossy codec overshoot.
 Native 44.1/48/96 kHz renders verify automated sample ceilings; the 48 kHz fixture
 has identical offline and real-time output. Broader sonic/performance testing and
 true-peak limiting remain open.
+
+### Streaming true-peak meter checkpoint
+
+The offline four-phase BS.1770 interpolation detector now shares a bounded,
+streaming implementation with live limiter output metering. Filter history survives
+render-block and reporting-window boundaries. Offline analysis flushes the final
+11 samples; live playback measures successive approximately 50 ms windows.
+The limiter panel displays estimated output dBTP alongside gain reduction, and
+validated agent observations include stereo `outputPeaksDbtp` values (null for
+silence). These are recent limiter-output measurements, not whole-file or final
+master measurements; later effects and faders can change levels. Offline rendering
+without meter registration does not run this additional detector.
+
+Native browser verification uses a signal with −1.43 dBFS sample peaks and +1.67
+dBTP estimated reconstructed peaks. Live and offline readings match, demonstrating
+why the current sample-peak ceiling is not a true-peak ceiling. Unit checks cover
+arbitrary block boundaries, stereo independence, window resets, end flushing and
+malformed input. Existing independent FFmpeg comparisons remain applicable.
+True-peak limiting, codec overshoot protection and large-session CPU characterization
+remain open. Reference: ITU-R BS.1770-5 Annex 2.

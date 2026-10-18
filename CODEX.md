@@ -6108,3 +6108,18 @@ ceiling. At 48 kHz offline versus real-time float WAV maximum sample error was 0
 UI browser check passed add/edit, native reduction meter, stop and persistence.
 Agent test used a mocked provider response; no live inference/deployment check.
 True-peak limiting and full professional DAW feature coverage remain unfinished.
+
+### Experimental streaming true-peak metering
+
+`true-peak-meter.js` shares the four-phase interpolation detector between offline
+analysis and live limiter output. Limiter UI and agent observations show estimated
+stereo output dBTP over recent ~50 ms windows, not final-master/whole-file peaks.
+This is metering only: the limiter still enforces a sample-peak ceiling. Metering
+is omitted when no meter callback is registered (including offline export).
+
+Checks: `test/experimental-true-peak-meter.test.js`, existing FFmpeg-backed
+`test/experimental-true-peak.test.js`, limiter tests, and native browser scripts
+`browser-experimental-limiter-true-peak-check.cjs` and
+`browser-experimental-limiter-ui-check.cjs`. Use the Playwright module/executable
+environment variables documented above. The native fixture deliberately measures
+inter-sample overs while the sample limiter applies no gain reduction.
