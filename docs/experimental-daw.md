@@ -40,7 +40,7 @@ actual checkpoints and limitations.
 | Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
 | Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
-| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; processing-latency compensation is enabled for offline and real-time exports; playback/recording clocks still need migration |
+| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; processing-latency compensation is enabled for exports, arrangement/cycle playback and score audition; scene/recording clocks still need migration |
 | Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, dedicated mastering limiter, external plug-ins and benchmarked sonic/performance parity |
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
@@ -2505,10 +2505,13 @@ when called with `compensateLatency: true`. It exposes source `base`, audible
 gating use their processing positions; live controls retain source timestamps.
 Offline export/analysis/region-bounce/movie callers now pad and trim through
 `offline-render.js`; real-time WAV/stem capture skips the processing delay.
-Playback, video preview, scene, cycle and recording clocks still need migration. The native session-graph fixture
+Arrangement playback and its video/playhead clock use audible output time; cycle
+rendering trims latency and aligns its metronome. Scene and recording clocks
+still need migration. The native session-graph fixture
 verifies parallel alignment at three sample rates, a muted-source gate detector,
 and exact range boundaries after a seek. Export compensation is enabled in the
-app UI; ordinary playback compensation is still opt-in.
+app UI, including arrangement playback and score-note audition. Scene and
+recording playback remain on the old timing path.
 
 ### Export latency checkpoint
 
@@ -2520,3 +2523,13 @@ latency is nonzero; zero-latency renders reuse the original buffer. The offline
 the full export. Browser fixtures verify sample positions and complete endings.
 Native compressor startup state still causes offline/real-time amplitude
 differences; latency alignment does not establish waveform identity.
+
+### Playback latency checkpoint
+
+`transportPosition` prefers the audible output clock, so Pause, playhead, video
+preview and meter observations track delayed sound. Live automation exposes its
+source clock to Touch/Latch/Write capture: gestures are saved at the same time
+the engine schedules their source audio, which can lead the audible playhead by
+processing latency. This does not provide zero-latency monitoring. Score-note
+audition leaves enough time for delayed output before disposal. Cycle buffers
+preserve their rounded frame count and trim latency before repetition.

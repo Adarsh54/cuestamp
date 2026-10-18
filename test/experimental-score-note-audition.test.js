@@ -16,3 +16,7 @@ test('score drum auditions use the sound duration rather than the short MIDI gat
  const before=structuredClone(h.session),plan=scoreNoteAuditionPlan(h.session,{regionId:'r',noteId:'a'});assert.equal(plan.document.tracks[0].regions[0].notes[0].duration,1.4);assert.equal(plan.position,3);assert.deepEqual(h.session,before);
  h.execute([{op:'note.set',target:'a',values:{start:3.9}}]);const clipped=scoreNoteAuditionPlan(h.session,{regionId:'r',noteId:'a'});assert.ok(Math.abs(clipped.document.tracks[0].regions[0].notes[0].duration-.1)<1e-12);
 });
+test('note audition enables compensation and leaves time for delayed output before cleanup',async()=>{
+ const h=setup();let options,delay,stops=0;const audition=createScoreNoteAudition({getSession:()=>h.session,getContext:async()=>({currentTime:10}),loadAsset:async()=>{},buffers:new Map(),preparePlan:()=>({document:h.session,position:2,end:3,assets:[]}),schedule:(_context,_document,_buffers,_position,value)=>{options=value;return {outputBase:10.121,stop(){stops++;}};},setTimer:(_callback,milliseconds)=>{delay=milliseconds;return 1;},clearTimer:()=>{}});
+ await audition.play({regionId:'r',noteId:'a'});assert.equal(options.compensateLatency,true);assert.equal(options.endPosition,3);assert.ok(Math.abs(delay-1221)<1e-8);audition.stop();assert.equal(stops,1);
+});

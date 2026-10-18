@@ -19,6 +19,7 @@ export function createLiveAutomation({context,base,position,lanes}){
   for(const binding of bindings){const scheduledTime=time+(binding.latencySeconds??0);binding.param.cancelScheduledValues(scheduledTime);scheduleCurveAutomation(binding.param,points,parameter,position+time-base,scheduledTime,fallback,binding.transform,binding.exponential);}
  }
  return {
+  position(){if(stopped)throw Error('Playback has stopped.');return position+now()-base;},
   set(target,parameter,value){
    const lane=resolve(target,parameter),min=lane.min??(parameter==='gainDb'?-96:-1),max=lane.max??(parameter==='gainDb'?12:1);
    if(!Number.isFinite(value)||value<min||value>max)throw Error('Invalid live automation value.');

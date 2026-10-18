@@ -69,3 +69,6 @@ test('latency-aware bindings retain transport positions through trim, return, ca
  assert.ok(a.events.some(e=>e[0]==='linear'&&Math.abs(e[1]-.25)<1e-12&&Math.abs(e[2]-14.01)<1e-12));
  live.trim('t','pan',.1);live.replace('t','pan',points,0);live.resume('t','pan');aligned();
 });
+test('automation exposes its source clock for recorded gestures independently of audible latency',()=>{
+ const {control,context}=setup();assert.equal(control.position(),4);assert.equal(control.set('t','gainDb',-6),control.position());context.currentTime=99;assert.equal(control.position(),2);control.stop();assert.throws(()=>control.position(),/stopped/);
+});

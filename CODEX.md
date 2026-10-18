@@ -5995,3 +5995,31 @@ zero-latency fixture, atomic undo/redo, second-render failure/cancel cleanup,
 failed-save cleanup, mocked agent execution and reload playback. Its stale
 “Cancel bounce” selector/status were updated to the existing “Cancel operation”
 UI; no application label was changed for the test.
+
+## Arrangement playback compensation checkpoint (2026-10-18)
+
+Normal arrangement and range/selection/comp/performance previews now enable
+session compensation. `transportPosition` prefers outputBase, keeping playhead,
+pause position, meter observation time and video-preview sync on the audible
+clock. The metronome uses that same clock. Score-note auditions enable
+compensation and include their scheduled output delay in timer cleanup.
+
+Touch/Latch/Write use the new live automation position() source clock in their
+capture state so recorded timestamps agree with the parameter schedule. The
+source clock can lead the audible playhead by processing latency; this is not
+zero-latency monitoring. Existing live parameter offset semantics are retained.
+
+Cycle playback now uses the compensated offline renderer. An explicit frameCount
+preserves the previously rounded loop length. An optional metronome is scheduled
+at the compensated output start before trimming, retaining phase and avoiding a
+second render. Scene launching/cell scheduling, recording playback and recording
+cycles remain unconverted and must be handled next; no claim of global completion.
+
+Validation: all 1,562 tests and build pass (existing chunk-size warning). Native
+browser cycle renders at 44.1/48/96 kHz match the zero-latency click reference,
+with nonzero energy and exact rounded frames. A controlled-clock UI fixture uses
+native audio nodes with a suspended clock to verify 16-compressor playhead delay,
+metronome start, Pause position, unchanged session and actual Touch commit at the
+source-clock timestamp. It is a scheduling/UI test, not a hardware listening test.
+Unit coverage includes source/audible clocks and delayed score audition cleanup.
+No live agent inference, physical hardware or deployment verification performed.

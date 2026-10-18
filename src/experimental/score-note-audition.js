@@ -25,8 +25,8 @@ export function createScoreNoteAudition({getSession,getContext,loadAsset,buffers
    if(plan.assets.length)notify('Loading note audition…');
    for(const id of plan.assets){await loadAsset(id);if(!valid())return false;}
    const context=await getContext();await prepareSessionEffects(context,plan.document);if(!valid())return false;
-   playback=schedule(context,plan.document,buffers,plan.position,{endPosition:plan.end});
-   notify('Auditioning note');timer=setTimer(()=>{if(current===epoch){stop();notify('');}},(plan.end-plan.position+.1)*1000);return true;
+   playback=schedule(context,plan.document,buffers,plan.position,{endPosition:plan.end,compensateLatency:true});
+   notify('Auditioning note');timer=setTimer(()=>{if(current===epoch){stop();notify('');}},(plan.end-plan.position+.1+Math.max(0,(playback.outputBase??context.currentTime??0)-(context.currentTime??0)))*1000);return true;
   }catch(error){if(current===epoch){stop();notify(error.message||'Unable to audition this note.');}return false;}
  }
  return {play,stop};
