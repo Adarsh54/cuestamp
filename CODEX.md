@@ -5541,3 +5541,11 @@ Scene audition and individual cell planning now include enabled gate/ducker dete
 Clip launches/stops reuse the existing mixer graph, so changing a trigger updates the gate envelope without restarting the music track or its effects. Source-cell observations and performance recordings retain the trigger passages. The agent's existing launch_scene_cell tool uses this shared planner and describes detector-only eligibility.
 
 Verified 1,435 tests and production build. Scene unit tests cover muted trigger inclusion, source-cell recording metadata, gate bypass and region mute rejection. `scripts/browser-experimental-sidechain-scene-check.cjs` runs the actual scene transport and worklet in OfflineAudioContext, pauses the audio clock, queues a muted trigger replacement, and measures the target changing from -12 dB ducking to unity. It verifies one uninterrupted music passage, both trigger passages, unchanged project state, and matching measured levels when replaying the captured performance. Real-time UI launch timing under heavy load and hardware output remain unverified.
+
+### Fades on silence-removal cuts (2026-10-18)
+
+Strip silence now offers **Fade new cuts · seconds**, defaulting to 5 ms in the manual form. Values from zero to 100 ms add editable linear fades at newly cut boundaries. Original outer fades and their shapes remain intact. New fades share only the remaining duration, so short retained regions never receive overlapping fades. Source audio, reversed offsets, timeline gaps and the original muted region are preserved.
+
+The agent's `strip_audio_silence` settings include `edgeFade`; the strict model schema requires it and recommends .005 seconds. Older internal callers that omit it retain zero new fades. The validated internal commit accepts the same bounded setting. Changing the form invalidates the old preview, and the chosen value is committed with the measured ranges in one Undo transaction.
+
+Verified: 1,436 tests, production build and the browser silence workflow passed. Tests cover short-region clamping, preserved outer fade shapes, invalid lengths, source preservation and Undo. Browser verification checks default fades in created regions, preview invalidation, apply, Undo/Redo and reload. Listening tests with real recordings remain outstanding.

@@ -1,6 +1,6 @@
 import {z} from 'zod';
-export const silenceOptionsSchema=z.object({thresholdDb:z.number().finite().min(-120).max(0),minimumGap:z.number().finite().min(.001).max(60),preRoll:z.number().finite().min(0).max(10),postRoll:z.number().finite().min(0).max(10)}).strict();
-export const defaultSilenceOptions={thresholdDb:-40,minimumGap:.1,preRoll:.01,postRoll:.05};
+export const silenceOptionsSchema=z.object({edgeFade:z.number().finite().min(0).max(.1).optional(),thresholdDb:z.number().finite().min(-120).max(0),minimumGap:z.number().finite().min(.001).max(60),preRoll:z.number().finite().min(0).max(10),postRoll:z.number().finite().min(0).max(10)}).strict();
+export const defaultSilenceOptions={edgeFade:.005,thresholdDb:-40,minimumGap:.1,preRoll:.01,postRoll:.05};
 // Analyze raw source PCM: all channels must be quiet before a gap is removed.
 // Sample intervals are half-open; short quiet gaps stay inside the retained region.
 export function detectAudioActivity(channels,sampleRate,options,onProgress=()=>{}){

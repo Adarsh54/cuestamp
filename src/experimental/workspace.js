@@ -403,7 +403,7 @@ export function createExperimentalWorkspace({account,esc}){
  function applySilencePreview(preview,prepared=null){
   if(!preview||preview.regionId!==region()?.id||preview.sessionId!==session().id||preview.revision!==session().revision)throw Error('The session changed. Preview silence removal again.');
   const previous={session:history.session,past:[...history.past],future:[...history.future]};stop();
-  try{history.execute([{op:'region.commitSilence',target:preview.regionId,values:{ranges:JSON.stringify(preview.ranges)}}],preview.revision);persist();}catch(error){Object.assign(history,previous);throw error;}
+  try{history.execute([{op:'region.commitSilence',target:preview.regionId,values:{ranges:JSON.stringify(preview.ranges),edgeFade:preview.settings.edgeFade??0}}],preview.revision);persist();}catch(error){Object.assign(history,previous);throw error;}
   if(prepared)prepared.committedSession=structuredClone(session());
   silencePreview=null;status=`Removed quiet gaps into ${preview.ranges.length} regions. Original region retained.`;trace.push({role:'action',text:status});paint();
  }
@@ -601,7 +601,7 @@ export function createExperimentalWorkspace({account,esc}){
   bindBatchNormalization(root,{session:session(),measurements:freshBatchLevels(),guard,run:applySelectedNormalization,busy:busy||agentBusy});
   root.querySelector('[data-measure-region]')?.addEventListener('click',guard(()=>measureRegion()));
   bindRegionNormalization(root,{session:session(),measurement:regionLevels,busy:busy||agentBusy,guard,run:applyRegionNormalization});
-  root.querySelector('[data-strip-silence]')?.addEventListener('submit',guard(async e=>{e.preventDefault();const form=e.currentTarget;await previewSilence(Object.fromEntries(['thresholdDb','minimumGap','preRoll','postRoll'].map(name=>[name,form.elements[name].value.trim()?Number(form.elements[name].value):NaN])));}));
+  root.querySelector('[data-strip-silence]')?.addEventListener('submit',guard(async e=>{e.preventDefault();const form=e.currentTarget;await previewSilence(Object.fromEntries(['thresholdDb','minimumGap','preRoll','postRoll','edgeFade'].map(name=>[name,form.elements[name].value.trim()?Number(form.elements[name].value):NaN])));}));
   root.querySelector('[data-strip-silence]')?.addEventListener('input',()=>{silencePreview=null;root.querySelector('[data-silence-preview]')?.remove();});
   root.querySelector('[data-apply-silence]')?.addEventListener('click',guard(()=>applySilencePreview(silencePreview)));
   bindAudioWarp(root,{session:session(),region:region(),run:stretchRegion,guard,previewing:Boolean(playback?.warpPreview),stopPreview:()=>{stop();paint();},preview:plan=>stretchRegion(plan,null,{previewOnly:true}),buffer:buffers.get(region()?.assetId),index:waveformIndexes.get(buffers.get(region()?.assetId)),loadWaveform:loadDetailWaveform,draft:warpDraft?.key===warpDraftKey(session(),region())?warpDraft.rows:undefined,onDraftChange:rows=>{warpDraft={key:warpDraftKey(session(),region()),rows};}});
