@@ -6244,3 +6244,18 @@ for native worker parity, main-thread responsiveness, and cancellation during th
 measurement pass. One second of stereo test audio took ~2.8–3.1 seconds in local
 browser runs. Optimize before considering live processing. No playback/export UI
 uses this client yet; existing correction tests still verify its DSP output.
+
+### Correction loop optimization
+
+Mirrored history rings and fused four-phase FIR loops preserve coefficient and
+summation order while reducing repeated reads/branches. Ring lengths double but
+remain bounded; the analysis interpolator now has 1026 history entries per channel.
+Measurement/verification also gathers the next required gain envelope, eliminating
+the duplicate pre-apply scan. There is no separate `correct` progress stage now;
+progress is measure/apply/verify, optional fallback, then complete.
+
+Ad hoc before/after comparison against commit 5266cd4 was bit-identical for the
+phase/window/rate/iteration fixtures. The existing browser worker check measured
+~0.75 seconds for its one-second stereo tone, versus ~2.8–3.1 seconds previously.
+This is a single local fixture, not a streaming implementation or general speed
+claim. Keep the independent reconstruction/boundary suite as the correctness gate.

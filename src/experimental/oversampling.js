@@ -21,28 +21,30 @@ function validate(input,output,channels,scale){
 function channelCount(channels){if(!Number.isInteger(channels)||channels<1||channels>2)throw Error('Choose one or two resampling channels.');return channels;}
 export const oversamplingLatencyFrames=64;
 export class FourTimesInterpolator {
- constructor(channels=2,{quality='standard'}={}){if(!['standard','analysis'].includes(quality))throw Error('Unknown interpolation quality.');this.channels=channelCount(channels);const filter=quality==='analysis'?(analysis??=kernel(2049)):standard;this.phases=filter.phases;this.size=Math.ceil(filter.coefficients.length/4);this.latencyFrames=(filter.coefficients.length-1)/8;this.history=Array.from({length:channels},()=>new Float64Array(this.size));this.index=0;}
+ constructor(channels=2,{quality='standard'}={}){if(!['standard','analysis'].includes(quality))throw Error('Unknown interpolation quality.');this.channels=channelCount(channels);const filter=quality==='analysis'?(analysis??=kernel(2049)):standard;this.phases=filter.phases;this.size=Math.ceil(filter.coefficients.length/4);this.latencyFrames=(filter.coefficients.length-1)/8;this.history=Array.from({length:channels},()=>new Float64Array(this.size*2));this.index=0;}
  reset(){for(const channel of this.history)channel.fill(0);this.index=0;}
  process(input,output){
   validate(input,output,this.channels,4);
   for(let i=0;i<input[0].length;i++){
    for(let c=0;c<this.channels;c++){
-    const history=this.history[c];history[this.index]=input[c][i];
-    for(let phase=0;phase<4;phase++){const taps=this.phases[phase];let result=0,k=this.index;for(let j=0;j<taps.length;j++){result+=taps[j]*history[k];if(--k<0)k=this.size-1;}output[c][i*4+phase]=result;}
+    const history=this.history[c],start=this.index+this.size;history[this.index]=history[start]=input[c][i];
+    const [f0,f1,f2,f3]=this.phases;let a=0,b=0,d=0,e=0;
+    for(let j=0;j<f1.length;j++){const sample=history[start-j];a+=f0[j]*sample;b+=f1[j]*sample;d+=f2[j]*sample;e+=f3[j]*sample;}
+    a+=f0[f1.length]*history[start-f1.length];output[c][i*4]=a;output[c][i*4+1]=b;output[c][i*4+2]=d;output[c][i*4+3]=e;
    }
    this.index=(this.index+1)%this.size;
   }
  }
 }
 export class FourTimesDecimator {
- constructor(channels=2){this.channels=channelCount(channels);this.latencyFrames=32;this.history=Array.from({length:channels},()=>new Float64Array(length));this.index=0;}
+ constructor(channels=2){this.channels=channelCount(channels);this.latencyFrames=32;this.history=Array.from({length:channels},()=>new Float64Array(length*2));this.index=0;}
  reset(){for(const channel of this.history)channel.fill(0);this.index=0;}
  process(input,output){
   validate(input,output,this.channels,1/4);
   for(let i=0;i<input[0].length;i++){
    for(let c=0;c<this.channels;c++){
-    const history=this.history[c];history[this.index]=input[c][i];
-    if(i%4===0){let result=0,k=this.index;for(let j=0;j<length;j++){result+=coefficients[j]*history[k];if(--k<0)k=length-1;}output[c][i/4]=result;}
+    const history=this.history[c],start=this.index+length;history[this.index]=history[start]=input[c][i];
+    if(i%4===0){let result=0;for(let j=0;j<length;j++)result+=coefficients[j]*history[start-j];output[c][i/4]=result;}
    }
    this.index=(this.index+1)%length;
   }

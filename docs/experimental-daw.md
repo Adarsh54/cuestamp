@@ -2798,3 +2798,26 @@ for real-time processing** and is not a general performance guarantee. Optimizat
 long-form resource measurements and a separate streaming algorithm are still
 needed. The full production app builds, but this unused prototype client/worker is
 not yet connected to playback or export UI. Browser checks use the Vite dev server.
+
+### Offline correction performance checkpoint
+
+Reconstruction and resampling FIR loops now use mirrored history rings to avoid
+wrap branches inside dot products. Four phases share each history read while
+retaining the original accumulation order and coefficients. History storage
+roughly doubles for these small bounded rings; PCM storage limits are unchanged.
+The correction processor also collects required gain reductions during measurement
+and verification, removing the redundant scan before every apply pass.
+
+Before/after comparisons were bit-identical across reconstruction windows/lengths,
+4/16 phase models, stereo resampling blocks and correction at 44.1/48/96 kHz with
+one/six-iteration budgets. Independent FFmpeg and boundary tests remain the audio
+verification gates. The native browser worker fixture improved from the previous
+~2.8–3.1 seconds to ~1.27 seconds after FIR loop changes, then ~0.75 seconds after
+removing duplicate scans, for the same one-second stereo tone and two correction
+passes. Worker/synchronous parity and active-pass cancellation still pass.
+
+These are local fixture measurements, not a real-time guarantee or a broad music
+benchmark. The algorithm still needs a complete buffer and can use a whole-buffer
+fallback; running faster than one particular clip's duration does not establish
+streaming correctness. Long-form/per-content performance and actual UI integration
+remain open, alongside the broader workstation requirements.

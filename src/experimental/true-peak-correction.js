@@ -30,16 +30,18 @@ export function truePeakCorrectionSettings({ceilingDb=-1,attackMs=2,releaseMs=20
 export function correctTruePeakBuffer(channels,sampleRate,settings={},onProgress=()=>{}){
  const {ceilingDb,attackMs,releaseMs,maxIterations}=truePeakCorrectionSettings(settings),report=(stage,iteration,progress)=>onProgress({stage,iteration,maxIterations,progress});
  if(!Array.isArray(channels)||!channels[0]?.length||channels.reduce((n,c)=>n+(c?.byteLength||0),0)>32*1024*1024)throw Error('Offline correction prototype accepts up to 32 MiB of PCM.');
- report('measure',0,0);truePeakStatistics(channels,sampleRate);const before=measure(channels,undefined,undefined,p=>report('measure',0,p)),frames=channels[0].length,output=channels.map(c=>new Float32Array(c)),gains=new Float64Array(frames).fill(1),required=new Float64Array(frames),ceiling=10**(ceilingDb/20),target=ceiling*(1-1e-6),attack=attackMs?Math.exp(-1/(attackMs*.001*sampleRate)):0,release=Math.exp(-1/(releaseMs*.001*sampleRate));
+ report('measure',0,0);truePeakStatistics(channels,sampleRate);const frames=channels[0].length,output=channels.map(c=>new Float32Array(c)),gains=new Float64Array(frames).fill(1),required=new Float64Array(frames).fill(1),ceiling=10**(ceilingDb/20),target=ceiling*(1-1e-6),attack=attackMs?Math.exp(-1/(attackMs*.001*sampleRate)):0,release=Math.exp(-1/(releaseMs*.001*sampleRate));
+ // Each measurement also collects the next correction, avoiding a second scan
+ // of identical audio before applying that correction.
+ const before=measure(channels,required,target,p=>report('measure',0,p));
  const peak=stats=>Math.max(0,...stats.peaksDbtp.map(db=>db===null?0:10**(db/20)));let measured=before,iterations=0,fallbackGain=1;
  while(peak(measured)>ceiling&&iterations<maxIterations){
-  required.fill(1);measure(output,required,target,p=>report('correct',iterations+1,p));
   report('apply',iterations+1,0);
   // Spread attenuation smoothly around every affected interpolation support.
   for(let i=frames-2;i>=0;i--)required[i]=Math.min(required[i],1+(required[i+1]-1)*attack);
   for(let i=1;i<frames;i++)required[i]=Math.min(required[i],1+(required[i-1]-1)*release);
   for(let i=0;i<frames;i++){gains[i]*=required[i];for(let c=0;c<channels.length;c++)output[c][i]=channels[c][i]*gains[i];}
-  report('apply',iterations+1,1);iterations++;measured=measure(output,undefined,undefined,p=>report('verify',iterations,p));
+  report('apply',iterations+1,1);iterations++;required.fill(1);measured=measure(output,required,target,p=>report('verify',iterations,p));
  }
  // Gain changes alter cancellation in the reconstruction filter. Re-measure;
  // bounded iteration can fall back to uniform scaling of the complete buffer.
