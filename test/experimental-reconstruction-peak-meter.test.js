@@ -11,3 +11,11 @@ test('corrected seeded noise holds its target across independent reconstruction 
 test('reconstruction validation cannot poison history and frame results are reused',()=>{
  const meter=new ReconstructionPeakMeter(2);const first=meter.pushFrame(.5,.25);assert.throws(()=>meter.pushFrame(NaN,0));const other=new ReconstructionPeakMeter(2);other.pushFrame(.5,.25);assert.deepEqual(meter.pushFrame(0,0),other.pushFrame(0,0));assert.equal(first,meter.framePeaks);for(const opts of [{size:12},{window:'unknown'},{phases:8}])assert.throws(()=>new ReconstructionPeakMeter(1,opts));
 });
+test('file-edge impulses, tones and unpadded noise respect independent reconstruction ceilings',()=>{
+ const n=2048;let state=7;const inputs=[Float32Array.from({length:n},(_,i)=>i===0?2:0),Float32Array.from({length:n},(_,i)=>i===n-1?2:0),Float32Array.from({length:n},(_,i)=>1.2*Math.cos(Math.PI/2*i)),Float32Array.from({length:n},()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return 2*(state/2**32-.5);})];
+ for(const rate of [44100,48000,96000])for(const [caseIndex,input]of inputs.entries()){const result=correctTruePeakBuffer([input],rate,{ceilingDb:-1});assert.equal(result.channels[0].length,n);for(const size of [16,32,64,128,512])for(const window of ['kaiser','blackmanNuttall']){const peak=reference(result.channels[0],rate,size,window);assert.ok(peak<=-1+.001,`${rate}/${caseIndex}/${size}/${window}: ${peak}`);}}
+});
+test('reflected boundary supports map repeated copies to the original short-buffer samples',async()=>{
+ const {measureReflectedBoundaries}=await import('../src/experimental/reconstruction-peak-meter.js');
+ for(const n of [1,2,3,17]){const channels=[new Float32Array(n).fill(.25)],meter=new ReconstructionPeakMeter(1,{size:512});let calls=0;const peaks=measureReflectedBoundaries(channels,meter,(_peak,indices)=>{calls++;assert.ok(indices.every(index=>index>=0&&index<n));});assert.equal(calls,n);assert.ok(Math.abs(peaks[0]-.25)<1e-12);const result=correctTruePeakBuffer([new Float32Array(n).fill(2)],48000);assert.ok(result.after.peaksDbtp[0]<=-1);assert.equal(result.channels[0].length,n);}
+});

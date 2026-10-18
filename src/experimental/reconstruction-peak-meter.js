@@ -14,3 +14,20 @@ export class ReconstructionPeakMeter {
   this.index=(this.index+1)%this.size;return this.framePeaks;
  }
 }
+
+// File resamplers may mirror the first samples around sample zero, and repeat
+// the final sample when reflecting the tail. Measure these edge windows in
+// addition to zero-extended reconstruction. A repeated source index shares gain.
+export function measureReflectedBoundaries(channels,meter,onPeak){
+ const frames=channels[0].length,period=2*frames-1,indices=new Int32Array(meter.size),maxima=new Float64Array(channels.length),half=meter.latencyFrames;
+ const reflect=index=>{const p=((index%period)+period)%period;return p<frames?p:period-p;};
+ const visit=t=>{
+  for(let j=0;j<meter.size;j++)indices[j]=reflect(t+half-j);
+  let level=0;
+  for(let c=0;c<channels.length;c++){let peak=0;for(const taps of meter.filters){let value=0;for(let j=0;j<taps.length;j++)value+=taps[j]*channels[c][indices[j]];peak=Math.max(peak,Math.abs(value));}maxima[c]=Math.max(maxima[c],peak);level=Math.max(level,peak);}
+  onPeak?.(level,indices); // indices is reused at the next boundary frame.
+ };
+ for(let t=0;t<Math.min(half,frames);t++)visit(t);
+ for(let t=Math.max(half,frames-half);t<frames;t++)visit(t);
+ return maxima;
+}

@@ -2750,3 +2750,27 @@ checks currently isolate interior reconstruction with silent padding; nonzero fi
 boundary conventions, more content, ceiling automation, streaming cross-block
 correction and real-time CPU budgets remain open. A finite family of reconstruction
 filters does not prove a bound for every DAC or encoded output.
+
+### Offline file-boundary correction checkpoint
+
+The independent checks now include nonzero starts/ends. A last-sample impulse
+initially passed the app's zero-extended measurement at −1 dBTP but reached about
++1.10 dBTP through FFmpeg's 512-tap resampling. A reflected-tail model reproduces
+that overshoot. Measurement now covers both zero extension and reflected file-edge
+windows, mapping repeated samples back to their original source gain positions.
+The start reflects around sample zero; the end repeats the last sample when
+reflecting. This is an additional finite reconstruction convention, not a claim
+that every player or DAC extends file boundaries this way.
+
+Local correction and its final verification now include these edge windows. The
+same end impulse is below −1 dBTP in independent checks. Start/end impulses, an
+edge tone and unpadded seeded noise pass all ten FFmpeg filter combinations at
+44.1/48/96 kHz, with a 0.001 dB comparison tolerance. Output frame count is preserved;
+no silence padding or automatic fade is added to the exported candidate buffer.
+Short buffers of 1/2/3/17 samples also retain valid source-index mappings.
+
+Use `scripts/experimental-true-peak-boundary-check.mjs` to reproduce the four 48 kHz
+fixtures, including independent peak positions. This supersedes the previous
+untested-boundary note for these cases only. The feature remains an offline
+prototype outside the UI: streaming cross-block correction, ceiling automation,
+processing performance and a broader corpus remain outstanding.

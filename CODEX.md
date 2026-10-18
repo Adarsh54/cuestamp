@@ -6214,3 +6214,18 @@ records that independent verification, and the diagnostic script now asserts its
 corrected ceilings. The script includes peak time and filter settings to aid future
 failures. Boundary-extension behavior for nonzero file edges and streaming remain
 unverified; do not expose this offline prototype as a completed live limiter mode.
+
+### Offline true-peak file edges
+
+Correction now measures reflected file-edge windows in addition to zero extension.
+`measureReflectedBoundaries` maps repeated reflected samples onto their original
+indices so local gain reduction affects every copy consistently. No extra samples
+or automatic fades are added to the output. The previous last-sample impulse error
+(+1.10 dBTP in FFmpeg against a −1 dB target) is corrected in the current fixture.
+
+`test/experimental-reconstruction-peak-meter.test.js` now checks start/end impulses,
+edge tones and unpadded noise across ten independent FFmpeg configurations at
+44.1/48/96 kHz, plus short-buffer reflection mappings. The standalone boundary
+check script reports measured peak positions and asserts ceilings. This is still
+an offline-only prototype; streaming boundary correctness and runtime budgets are
+not established by the file-boundary tests.

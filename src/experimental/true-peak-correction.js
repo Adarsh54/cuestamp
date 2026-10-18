@@ -1,4 +1,4 @@
-import {ReconstructionPeakMeter} from './reconstruction-peak-meter.js';
+import {ReconstructionPeakMeter,measureReflectedBoundaries} from './reconstruction-peak-meter.js';
 import {FourTimesInterpolator} from './oversampling.js';
 import {TruePeakMeter} from './true-peak-meter.js';
 import {truePeakStatistics} from './audio-true-peak.js';
@@ -16,6 +16,7 @@ function measure(channels,required,target){
    if(required&&level>target){const correction=target/level;for(let j=Math.max(0,offset+i-528);j<=Math.min(offset+i,frames-1);j++)required[j]=Math.min(required[j],correction);}
   }
  }
+ for(const reconstruction of reconstructions){const edge=measureReflectedBoundaries(channels,reconstruction,required?(level,indices)=>{if(level>target){const correction=target/level;for(const index of indices)required[index]=Math.min(required[index],correction);}}:undefined);for(let c=0;c<count;c++)maxima[c]=Math.max(maxima[c],edge[c]);}
  return {method:'combined-ITU-dense-FIR-and-windowed-sinc',peaksDbtp:Array.from(maxima,p=>p?20*Math.log10(p):null)};
 }
 // Offline prototype. A streaming version must revalidate windows across emitted
