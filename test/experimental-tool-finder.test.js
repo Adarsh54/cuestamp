@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {filterTools} from '../src/experimental/tool-finder.js';
+const entries=[{title:'Timing & feel',context:'Piano roll',keywords:'Quantize swing strength'},{title:'Quantize',context:'Piano roll',keywords:'Grid strength swing'},{title:'Bounce WAV',context:'Session toolbar',keywords:''}];
+test('tool finder matches every word across names, context and controls',()=>{assert.deepEqual(filterTools(entries,'  PIANO swing ').map(e=>e.title),['Quantize','Timing & feel']);assert.deepEqual(filterTools(entries,'wav').map(e=>e.title),['Bounce WAV']);assert.equal(filterTools(entries,'piano wav').length,0);});
+test('tool finder ranks direct title matches first without mutating the index',()=>{const before=structuredClone(entries);assert.deepEqual(filterTools(entries,'quant').map(e=>e.title),['Quantize','Timing & feel']);assert.equal(filterTools(entries,'').length,3);assert.deepEqual(entries,before);});
