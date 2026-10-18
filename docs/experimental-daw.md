@@ -40,7 +40,7 @@ actual checkpoints and limitations.
 | Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
 | Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
-| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting and latency compensation need separate work |
+| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; a measured processing-latency planner exists, but production playback/export compensation is not integrated |
 | Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, dedicated mastering limiter, external plug-ins and benchmarked sonic/performance parity |
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
@@ -2478,3 +2478,18 @@ excluded spans, unchanged duration/source, cancellation, persistence and Undo.
 This supersedes the previous absence of per-note audio retuning. Graphical pitch
 curves, formant control, vibrato/drift editing and broad real-recording quality
 validation remain incomplete; the workstation objective remains active.
+
+### Processing-latency planning checkpoint
+
+`processing-latency.js` computes per-insert timing, bus/master route delays and
+gate detector alignment without changing session data or production playback.
+The native browser fixture measures compressor delay at 44.1/48/96 kHz and
+verifies that planned delays align three parallel audio paths. On the tested
+Chromium host each compressor adds floor(0.006 × sample rate) frames; callers
+can override that measurement for other hosts. Intentional echo/reverb is not
+compensated. Muted channels retain static graph timing.
+
+Integration remains pending: effect/fader/send automation offsets, sidechain
+delays, export padding/trimming, real-time capture frame offsets, transport and
+video clocks, and scene scheduling must agree before enabling compensation.
+This fixture is not evidence that the production audio engine compensates yet.

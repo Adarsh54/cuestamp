@@ -5889,3 +5889,22 @@ Added **Save real-time stems** alongside the existing offline stem ZIP and real-
 `realtimeStemJobs` validates every file before folder creation. `saveRealtimeStems` removes the unfinished file on failure/cancellation and keeps completed stems; a failed first stem removes the new empty batch folder. Actual cleanup failures are reported, rather than silently claiming removal. Prior export folders are untouched. Partial-output information is retained in the workspace action trace. Agent `export_audio` accepts `realtimeStems` only with observed `realtimeStemsSupported`; it requires null region/range fields and hands off to a native folder picker through the app dialog. Prepared after-edit exports share the same plan and validation.
 
 Verification: 1,544 tests and production build pass with the existing chunk warning. Unit checks cover folder support, 601-second plan acceptance, strict scope, grouping, master bypass and edited snapshots, sequential rendering, partial cancellation, failed cleanup and preflight before filesystem writes. Real browser UI checks save two separate 440/880 Hz stems through manual and controlled-agent paths, verify identical frame lengths and the second track's delayed onset, and preserve the session. A subsequent cancellation leaves one completed file and removes the partial second file while prior folders remain intact. Routing both tracks into one output group produces one WAV matching the sum of the linear individual stems within 1e-6. The browser test substitutes an OPFS directory for native picker interaction and removes its test directory afterward. Batch runtime fixtures are short; the underlying renderer's earlier 601.91-second full-mix test remains the sustained-duration evidence. Multi-hour batches, broad browsers and live provider inference remain unverified.
+
+## Processing-latency planner checkpoint (2026-10-18)
+
+Added `src/experimental/processing-latency.js`: a pure routing plan for enabled
+compressors, parallel bus/send/master paths, per-insert timing and gate detector
+alignment. Muted tracks retain static graph timing; intentional delay/reverb does
+not count as processing latency. The compressor frame count is overridable.
+
+Verification: 1,549 tests pass; production build passes with the existing chunk
+size warning. `scripts/browser-experimental-compressor-latency-check.cjs` measured
+264/288/576 frames per compressor at 44.1/48/96 kHz on local Chromium, with two
+compressors doubling that delay. A native audio fixture using production effects
+and the planner aligned three parallel paths into one impulse at all three rates.
+These are host-specific measurements, not cross-browser guarantees.
+
+Production engine integration is still pending. Before enabling compensation,
+align per-effect/fader/send automation, sidechains, transport/video/scene clocks,
+export padding/trimming and real-time capture frame offsets. The planner alone
+does not change playback or export behavior. Full DAW scope remains open.
