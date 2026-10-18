@@ -1,3 +1,4 @@
+import {connectLimiter} from './limiter.js';
 import {connectDelay} from './delay.js';
 import {syncedDelayTiming} from './delay-timing.js';
 import {connectNoiseGate} from './noise-gate.js';
@@ -11,8 +12,9 @@ import {connectChorus} from './chorus.js';
 import {connectTremolo} from './tremolo.js';
 import {effectPointSchema,validateEffectPoints,scheduleEffectParameter} from './effect-automation.js';
 import {z} from 'zod';
-const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automationMuted:automationMutedSchema(['reductionDb','hysteresis','hold','makeupDb','driveDb','toneHz','outputDb','rate','depthCents','depthMs','mix','depth','gainDb','width','frequency','q','threshold','ratio','attack','release','knee','time','feedback']),automation:z.array(effectPointSchema).max(2000).default([])};
+const base={id:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),enabled:z.boolean().default(true),automationMode:automationModeSchema.optional(),automationMuted:automationMutedSchema(['ceilingDb','reductionDb','hysteresis','hold','makeupDb','driveDb','toneHz','outputDb','rate','depthCents','depthMs','mix','depth','gainDb','width','frequency','q','threshold','ratio','attack','release','knee','time','feedback']),automation:z.array(effectPointSchema).max(2000).default([])};
 export const effectSchema=z.discriminatedUnion('kind',[
+ z.object({...base,kind:z.literal('limiter'),gainDb:z.number().finite().min(-24).max(24).default(0),ceilingDb:z.number().finite().min(-24).max(0).default(-1),release:z.number().finite().min(.001).max(3).default(.1),lookaheadMs:z.number().finite().min(0).max(20).default(5)}).strict(),
  z.object({...base,kind:z.literal('gate'),mode:z.enum(['gate','duck']).default('gate'),sidechainTrackId:z.string().min(1).max(100).nullable().default(null),filterEnabled:z.boolean().default(false),lowCutHz:z.number().finite().min(20).max(20000).default(80),highCutHz:z.number().finite().min(20).max(20000).default(12000),threshold:z.number().finite().min(-96).max(0).default(-40),reductionDb:z.number().finite().min(-96).max(0).default(-60),hysteresis:z.number().finite().min(0).max(24).default(6),attack:z.number().finite().min(0).max(1).default(.003),hold:z.number().finite().min(0).max(2).default(.05),release:z.number().finite().min(.001).max(3).default(.1)}).strict(),
  z.object({...base,kind:z.literal('distortion'),driveDb:z.number().finite().min(0).max(36).default(12),toneHz:z.number().finite().min(20).max(20000).default(6000),outputDb:z.number().finite().min(-60).max(12).default(-6),mix:z.number().finite().min(0).max(1).default(1)}).strict(),
  z.object({...base,kind:z.literal('phaser'),rate:z.number().finite().min(.05).max(10).default(.5),frequency:z.number().finite().min(20).max(4000).default(1000),depthCents:z.number().finite().min(0).max(2400).default(1200),mix:z.number().finite().min(0).max(1).default(.5),stereoPhase:z.number().finite().min(-180).max(180).default(90),sync:z.boolean().default(false),beats:z.number().finite().min(.125).max(16).default(1)}).strict(),
@@ -36,7 +38,8 @@ export function connectEffects(context,input,effects,nodes,{position=0,base:sour
  const row=timingById.get(effect.id),offset=row?row.inputFrames/context.sampleRate:0,outputOffset=row?row.outputFrames/context.sampleRate:0;
  const base=sourceBase+(row?offset:0),register=registerBinding?((e,key,param,transform,exponential)=>registerBinding(e,key,param,transform,exponential,row?(key==='makeupDb'?outputOffset:offset):0)):undefined;
  const schedule=(param,effect,key,position,base,transform=v=>v)=>{register?.(effect,key,param,transform,false);scheduleEffectParameter(param,effect,key,position,base,transform);};
- if(effect.kind==='gate'){output=connectNoiseGate(context,output,effect,nodes,{position,base,register,registerMeter,registerSidechain});}
+ if(effect.kind==='limiter'){output=connectLimiter(context,output,effect,nodes,{position,base,register,registerMeter});}
+ else if(effect.kind==='gate'){output=connectNoiseGate(context,output,effect,nodes,{position,base,register,registerMeter,registerSidechain});}
  else if(effect.kind==='distortion'){output=connectDistortion(context,output,effect,nodes,{position,base,register});}
  else if(effect.kind==='phaser'){output=connectPhaser(context,output,effect,nodes,{position,base,tempo,tempoChanges,register});}
  else if(effect.kind==='chorus'){output=connectChorus(context,output,effect,nodes,{position,base,tempo,tempoChanges,register});}

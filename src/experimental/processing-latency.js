@@ -6,7 +6,7 @@ export function createProcessingLatencyPlan(session,sampleRate,{compressorFrames
  if(!Number.isSafeInteger(compressorFrames)||compressorFrames<0||compressorFrames>sampleRate)throw Error('Invalid measured compressor latency.');
  validateRouting(session);
  const channels=session.tracks.filter(track=>track.kind!=='video'),byId=new Map(channels.map(track=>[track.id,track])),incoming=new Map(channels.map(track=>[track.id,[]])),edges=[];
- const latency=effect=>effect.enabled&&effect.kind==='compressor'?compressorFrames:0;
+ const latency=effect=>!effect.enabled?0:effect.kind==='compressor'?compressorFrames:effect.kind==='limiter'?Math.round(effect.lookaheadMs*sampleRate/1000):0;
  for(const track of channels){edges.push({from:track.id,to:track.output||null,kind:'output'});for(const send of track.sends||[])edges.push({from:track.id,to:send.busId,kind:'send'});}
  for(const edge of edges)if(edge.to!==null)incoming.get(edge.to).push(edge);
  const tracks=new Map();

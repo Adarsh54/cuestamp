@@ -6080,3 +6080,31 @@ physical interface timing, compressor startup waveform differences and broader
 DAW requirements remain open. No live model inference or deployment verification.
 The browser scene UI regression also passed grid controls, native audio switching,
 placement and recorded performance persistence/save/undo.
+
+## Sample-peak limiter checkpoint (2026-10-18)
+
+Implemented original LookaheadLimiter DSP + AudioWorklet and shared effect kind
+limiter. Controls: gainDb -24..24 (0), ceilingDb -24..0 (-1), release .001..3 s
+(.1), static lookaheadMs 0..20 (5). Gain/ceiling/release automate at input time;
+DSP binds each ceiling to the corresponding delayed sample. Lookahead latency is
+round(sampleRate*ms/1000), included in processing-latency plans, routes and exports.
+Stereo channels share attenuation. A monotonic minimum-gain queue and moving
+average implement finite attack; a constrained release envelope recovers gain.
+Buffers are bounded by lookahead. Nonfinite input samples become silence.
+
+Mixer UI, preset schema, bypass/undo, automation/live controls, worklet preparation
+and gain-reduction metering are connected. Meter observations validate a distinct
+limiters list and the agent supports add/set/automation through shared commands.
+This is sample-peak limiting only, not true-peak or an encoded-output guarantee.
+Downstream effects, master gain or pan may raise levels after the limiter.
+Research reference: Apple's Limiter control guide, linked in the capability ledger.
+
+Validation: all 1,576 tests and build passed (existing chunk-size warning). DSP
+tests cover latency/pass-through at multiple rates/lookaheads, transient and
+sustained overload, stereo ratios, attack/release, changing drive/ceilings across
+arbitrary block boundaries, bounded buffers and invalid inputs. Native worklet
+renders at 44.1/48/96 kHz preserve length/endings and obey an automated -3 to -12
+ceiling. At 48 kHz offline versus real-time float WAV maximum sample error was 0.
+UI browser check passed add/edit, native reduction meter, stop and persistence.
+Agent test used a mocked provider response; no live inference/deployment check.
+True-peak limiting and full professional DAW feature coverage remain unfinished.

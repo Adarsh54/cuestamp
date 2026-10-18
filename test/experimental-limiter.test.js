@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {effectSchema,effectTail} from '../src/experimental/effects.js';import {SessionHistory} from '../src/experimental/session.js';import {createProcessingLatencyPlan} from '../src/experimental/processing-latency.js';
+test('limiter validates static lookahead and automation with no intentional tail',()=>{
+ const e=effectSchema.parse({id:'l',kind:'limiter'});assert.equal(e.lookaheadMs,5);assert.equal(e.ceilingDb,-1);assert.equal(effectTail([e]),0);
+ for(const values of [{gainDb:25},{ceilingDb:1},{release:0},{lookaheadMs:21},{automationMuted:['lookaheadMs']},{automation:[{id:'a',parameter:'ceilingDb',time:0,value:1}]}])assert.throws(()=>effectSchema.parse({...e,...values}));
+});
+test('limiter edits and automation persist atomically with compensated latency and bypass',()=>{
+ const h=new SessionHistory();h.execute([{op:'effect.add',target:h.session.id,values:{id:'l',kind:'limiter',lookaheadMs:7.5}}]);assert.equal(createProcessingLatencyPlan(h.session,48000).totalFrames,360);
+ h.execute([{op:'effect.automation.point',target:'l',values:{parameter:'ceilingDb',time:1,value:-6}},{op:'effect.set',target:'l',values:{gainDb:6}}]);const saved=structuredClone(h.session);assert.throws(()=>h.execute([{op:'effect.set',target:'l',values:{gainDb:12}},{op:'effect.set',target:'l',values:{lookaheadMs:-1}}]));assert.deepEqual(h.session,saved);h.undo();assert.equal(h.session.masterEffects[0].gainDb,0);h.redo();assert.equal(h.session.masterEffects[0].gainDb,6);h.execute([{op:'effect.set',target:'l',values:{enabled:false}}]);assert.equal(createProcessingLatencyPlan(h.session,48000).totalFrames,0);
+});
+test('agent can add and automate a limiter through shared validated operations',async()=>{
+ const {planDawEdit}=await import('../server/daw-agent.js');const h=new SessionHistory(),commands=[{op:'effect.add',target:h.session.id,values:{id:'l',kind:'limiter',gainDb:6,ceilingDb:-2,lookaheadMs:5}},{op:'effect.automation.point',target:'l',values:{parameter:'release',time:2,value:.2}}];
+ const result=await planDawEdit({session:h.session,instruction:'Add a limiter at -2 dBFS with 6 dB input gain and automate release to .2 seconds at two seconds.'},{key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Added limiter',commands})}]})})});h.execute(result.commands);assert.equal(h.session.masterEffects[0].ceilingDb,-2);assert.equal(h.session.masterEffects[0].automation[0].value,.2);
+});
+test('limiter telemetry is distinct from compressor readings and validates enabled ownership',async()=>{
+ const {captureMeterObservation,validateMeterObservation}=await import('../src/experimental/meter-context.js'),h=new SessionHistory();h.execute([{op:'effect.add',target:h.session.id,values:{id:'l',kind:'limiter'}}]);
+ const m=captureMeterObservation(h.session,new Map([[h.session.id,{left:.5,right:.5,peak:.5}]]),{position:1,mode:'linear',sampleRate:48000,effectValues:new Map([['l',{reductionDb:-6}]])});assert.deepEqual(m.limiters,[{id:'l',reductionDb:-6}]);assert.equal(m.compressors,undefined);assert.throws(()=>validateMeterObservation({...m,mode:'cycle'},h.session),/Limiter/);const bypass=structuredClone(h.session);bypass.masterEffects[0].enabled=false;assert.throws(()=>validateMeterObservation(m,bypass),/limiter meter/);
+});

@@ -41,7 +41,7 @@ actual checkpoints and limitations.
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
 | Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
 | Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; processing-latency compensation covers exports, playback, recording backing and scene launches; other-browser calibration and physical recording latency remain unverified |
-| Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, dedicated mastering limiter, external plug-ins and benchmarked sonic/performance parity |
+| Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, sample-peak limiter, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, true-peak mastering limiting, external plug-ins and benchmarked sonic/performance parity |
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
 | Scenes/arrangement | [scene playback](../src/experimental/scene-playback.js), clip launch, performance recording, take transfer and arrangement insertion | Live performance stress/latency testing; not proof of complete Live Loops parity |
@@ -2556,3 +2556,25 @@ checked against source start, so a late graph is disposed before opening output.
 Native 16-compressor tests verify first output, scene/cell switches and cell stop
 at the expected sample. This does not establish external plug-in compatibility,
 all-browser latency calibration or physical interface timing.
+
+### Sample-peak limiter checkpoint
+
+Added a stereo-linked lookahead limiter with input gain, sample ceiling, release
+and static lookahead. Apple documents these core controls for Logic's Limiter:
+https://support.apple.com/en-ae/guide/logicpro/lgcef1becd08/10.7/mac/11.0
+This is original DSP, not a reproduction of Apple's algorithm or true-peak mode.
+
+A rolling minimum of required sample gains, followed by a finite moving average,
+ramps attenuation ahead of peaks. Release is limited by the same required gain.
+Every averaged gain includes the delayed sample's requirement, so linked channels
+remain within that sample's ceiling, including ceiling/drive automation. State is
+bounded by lookahead rather than duration. The effect's reported latency is
+round(sampleRate × lookaheadMs / 1000), integrated with route/export compensation.
+
+Mixer, presets, undo/redo, automation, reduction meters and validated agent edits
+share the effect schema. Agent meter observations include a separate validated
+limiters list. The ceiling applies at the effect output; later processing/faders
+may exceed it. It does not bound inter-sample peaks or lossy codec overshoot.
+Native 44.1/48/96 kHz renders verify automated sample ceilings; the 48 kHz fixture
+has identical offline and real-time output. Broader sonic/performance testing and
+true-peak limiting remain open.
