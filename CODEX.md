@@ -6023,3 +6023,33 @@ metronome start, Pause position, unchanged session and actual Touch commit at th
 source-clock timestamp. It is a scheduling/UI test, not a hardware listening test.
 Unit coverage includes source/audible clocks and delayed score audition cleanup.
 No live agent inference, physical hardware or deployment verification performed.
+
+## Recording backing compensation checkpoint (2026-10-18)
+
+`recordingPlaybackLatency` reports the source pre-roll for live backing only.
+Audio recording and MIDI beforeRecord reserve this time before establishing the
+capture clock. The backing graph starts at captureTime minus processing latency
+and enables compensation, so its output arrives at capture time. MIDI's immediate
+no-count-in shortcut is retained only when no backing latency is present. Punch
+positions and external hardware offsets still use the capture clock. Missed
+backing start deadlines reject and clean up rather than silently playing late.
+
+Recording cycles use the compensated offline renderer and exact periodFrames;
+their already-trimmed buffers start directly at capture time, without added
+processing pre-roll. Cancellation reaches cycle preparation. A click-only cycle
+builds a neutral empty mixer, supporting minimal session settings and isolating
+the click from the microphone capture path. An initial browser failure exposed
+missing master defaults in that path; the neutral mixer fixed it.
+
+Native offline recording fixtures at 44.1/48/96 kHz verify source impulses arrive
+at capture frames and cycle endings stay intact. The browser overdub regression
+now includes a compressor: fake microphone and MIDI recording, placement,
+transport, stop/cancel cleanup and digital microphone isolation passed. The
+cycle-recording browser check passed synthetic capture, repeated backing/click,
+partial takes, source retention, undo/redo and click isolation. MIDI fixture waits
+past scheduled capture before sending note messages. These do not verify real
+physical audio interface/device latency. Scene/cell launching remains to migrate;
+full DAW scope remains active. No live model or deployment validation performed.
+
+Final checkpoint validation: all 1,563 tests and the production build passed;
+the existing chunk-size warning remains.
