@@ -1,3 +1,4 @@
+import {createProcessingLatencyPlan} from './processing-latency.js';
 import {createSceneObservation} from './scene-observation.js';
 import {createScenePerformanceLog} from './scene-performance-log.js';
 import {compileTempoMap} from './tempo-map.js';
@@ -14,14 +15,18 @@ export function sceneSwitchTime(session,position,quantization){
 // Both graphs are scheduled against AudioContext time. A JS tick updates UI and
 // releases old nodes, but never determines the audible switch boundary.
 export function startSceneTransport(context,preview,buffers,{schedule=scheduleSession}={}){
- const base=context.currentTime+.1,session=preview.document;
+ // Public positions, gates and receipts use audible time; graph sources run
+ // early by their own latency, including when an incoming graph differs.
+ const planLatency=plan=>createProcessingLatencyPlan(plan.document,context.sampleRate).seconds;
+ const base=context.currentTime+.1+planLatency(preview),session=preview.document;
  let current,pending=null,stopped=false,stoppedAt=null;const observation=createSceneObservation(preview),launches=[],performanceLog=preview.recordPerformance?createScenePerformanceLog(preview):null;
  function prepare(plan,when){
+  const latency=planLatency(plan),sourceWhen=when-latency;
   const output=context.createGain();output.gain.value=0;output.connect(context.destination);
   let graph;
-  try{graph=schedule(context,plan.document,buffers,0,{baseTime:when,endPosition:plan.end,meters:true,destination:output});if(context.currentTime>=when)throw Error('Preparing the scene missed its launch boundary. Try again.');}
+  try{graph=schedule(context,plan.document,buffers,0,{baseTime:sourceWhen,endPosition:plan.end,meters:true,destination:output,compensateLatency:true});if(context.currentTime>=sourceWhen)throw Error('Preparing the scene missed its launch boundary. Try again.');}
   catch(error){graph?.stop();output.disconnect();throw error;}
-  return {plan,when,output,graph,stop(){graph.stop();output.disconnect();}};
+  return {plan,when,latency,output,graph,stop(){graph.stop();output.disconnect();}};
  }
  current=prepare(preview,base);launches.push({sceneId:preview.sceneId,...(preview.sourceSignature?{sourceSignature:preview.sourceSignature}:{}),start:0,duration:preview.end});current.output.gain.setValueAtTime(1,base);
  const transport={base,position:0,preview:true,recordPerformance:Boolean(preview.recordPerformance),scenePreview:preview.sceneId,
@@ -33,32 +38,32 @@ export function startSceneTransport(context,preview,buffers,{schedule=scheduleSe
   launchCell({plan,trackId,quantization,regions}){
    if(stopped)throw Error('Start scene playback before launching a cell.');
    transport.advance();if(pending)throw Error('Wait for the queued scene before launching a cell.');
-   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1+current.latency,quantization),when=base+position;
    if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell can launch. Start a longer audition.');
-   performanceLog?.canAppend(plan);current.graph.replaceTrackRegions(trackId,regions,{when,duration:plan.end});performanceLog?.cell(plan,trackId,position);observation.launch(plan,trackId,position,context.currentTime-base);return {position,trackId};
+   performanceLog?.canAppend(plan);current.graph.replaceTrackRegions(trackId,regions,{when:when-current.latency,duration:plan.end});performanceLog?.cell(plan,trackId,position);observation.launch(plan,trackId,position,context.currentTime-base);return {position,trackId};
   },
   stopAll({quantization}){
    if(stopped)throw Error('Start scene playback before stopping clips.');
    transport.advance();
-   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1+Math.max(current.latency,pending?.latency||0),quantization),when=base+position;
    if(position>=transport.endPosition)throw Error('Scene playback ends before this clip stop.');
    // Include the queued graph: its future voice opens must not restart clips.
-   for(const entry of [current,pending])if(entry&&when<entry.when+entry.plan.end)entry.graph.stopAllRegions({when});
+   for(const entry of [current,pending])if(entry&&when<entry.when+entry.plan.end)entry.graph.stopAllRegions({when:when-entry.latency});
    performanceLog?.stop(undefined,position);observation.stop(undefined,position,context.currentTime-base);
    return {position};
   },
   stopCell({trackId,quantization}){
    if(stopped)throw Error('Start scene playback before stopping a cell.');
    transport.advance();if(pending)throw Error('Wait for the queued scene before stopping a cell.');
-   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1+current.latency,quantization),when=base+position;
    if(when>=current.when+current.plan.end)throw Error('The scene ends before this cell stop.');
-   current.graph.stopTrackRegions(trackId,{when});performanceLog?.stop(trackId,position);observation.stop(trackId,position,context.currentTime-base);return {position,trackId};
+   current.graph.stopTrackRegions(trackId,{when:when-current.latency});performanceLog?.stop(trackId,position);observation.stop(trackId,position,context.currentTime-base);return {position,trackId};
   },
   queue(plan,quantization){
    if(stopped)throw Error('Start scene playback before cueing another scene.');transport.advance();
    if(launches.length>=100)throw Error('Stop and save this performance before launching more than 100 scenes.');
    if(pending)throw Error('A scene is already queued. Wait for its launch or stop playback.');
-   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1,quantization),when=base+position;
+   const position=sceneSwitchTime(session,Math.max(0,context.currentTime-base)+.1+planLatency(plan),quantization),when=base+position;
    if(when>=current.when+current.plan.end)throw Error('The current audition ends before that boundary. Start a longer audition first.');
    if(position+plan.end>86400)throw Error('Scene playback exceeds the timeline.');
    performanceLog?.canAppend(plan);const next=prepare(plan,when);performanceLog?.scene(plan,position);observation.queue(plan,position,context.currentTime-base);

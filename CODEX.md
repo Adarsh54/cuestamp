@@ -6053,3 +6053,30 @@ full DAW scope remains active. No live model or deployment validation performed.
 
 Final checkpoint validation: all 1,563 tests and the production build passed;
 the existing chunk-size warning remains.
+
+## Live scene compensation checkpoint (2026-10-18)
+
+Scene transport now enables graph compensation. Its public base/positions and
+performance events remain audible time. prepare() starts each graph's source
+clock earlier by that graph's own measured latency and checks the preparation
+deadline against source start. Initial launch reserves pre-roll. Queue lookahead
+includes the incoming graph's latency before quantization; cell launches/stops
+include the active latency. Stop-all uses the maximum pending/current lookahead
+and converts the audible stop separately for both graphs. Gates and UI advance
+still switch on audible boundaries, independent of JS tick timing.
+
+Unit context fixtures now provide their real required sample rate and track
+array. New tests cover differing incoming latency, a missed source deadline even
+before audible launch, and stopping both graphs on one audible boundary.
+Native 48 kHz renders through 16 compressors verify first output, scene switch,
+cell launch and cell stop at expected frames, unchanged documents and audible
+performance receipts. Existing native performance/replay and Stop-all/relaunch
+regressions pass. All 1,566 tests and the build pass (existing chunk-size warning).
+
+All known app session-graph callers now request compensation, with source/audible
+clock or trim/capture handling. The low-level scheduler still defaults to opt-out
+for callers that do not account for its output delay. Cross-browser calibration,
+physical interface timing, compressor startup waveform differences and broader
+DAW requirements remain open. No live model inference or deployment verification.
+The browser scene UI regression also passed grid controls, native audio switching,
+placement and recorded performance persistence/save/undo.

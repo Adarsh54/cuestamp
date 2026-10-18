@@ -4,7 +4,7 @@ import {SessionHistory} from '../src/experimental/session.js';
 import {sceneAudition} from '../src/experimental/scene-playback.js';
 const setup=()=>{const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'a',kind:'midi'}},{op:'region.add',target:'a',values:{id:'r',duration:1}},{op:'scene.add',values:{id:'s',name:'Verse',regionIds:'r'}}]);return h;};
 test('stop all clips caps recording and queued observations at one boundary while keeping playback open',()=>{
- const h=setup(),context={currentTime:0,destination:{},createGain:()=>({gain:{value:0,setValueAtTime(){}},connect(){},disconnect(){}})},graphs=[],schedule=()=>{const g={stops:[],stop(){},stopAllRegions({when}){g.stops.push(when);}};graphs.push(g);return g;};
+ const h=setup(),context={currentTime:0,sampleRate:48000,destination:{},createGain:()=>({gain:{value:0,setValueAtTime(){}},connect(){},disconnect(){}})},graphs=[],schedule=()=>{const g={stops:[],stop(){},stopAllRegions({when}){g.stops.push(when);}};graphs.push(g);return g;};
  const preview={...sceneAudition(h.session,{sceneId:'s',duration:4}),recordPerformance:true},p=startSceneTransport(context,preview,new Map(),{schedule});
  p.queue(preview,'beat');assert.equal(p.stopAll({quantization:'immediate'}).position,.1);
  assert.deepEqual(graphs.map(g=>g.stops),[[.2],[.2]]);
@@ -13,7 +13,7 @@ test('stop all clips caps recording and queued observations at one boundary whil
  assert.equal(p.endPosition,4.5);p.stop();assert.throws(()=>p.stopAll({quantization:'beat'}),/Start scene/);
 });
 test('stop beyond the outgoing window targets the incoming graph; invalid timing changes neither',()=>{
- const h=setup(),context={currentTime:0,destination:{},createGain:()=>({gain:{value:0,setValueAtTime(){}},connect(){},disconnect(){}})},calls=[],schedule=()=>({stop(){},stopAllRegions({when}){calls.push(when);}}),p=startSceneTransport(context,sceneAudition(h.session,{sceneId:'s',duration:1}),new Map(),{schedule});
+ const h=setup(),context={currentTime:0,sampleRate:48000,destination:{},createGain:()=>({gain:{value:0,setValueAtTime(){}},connect(){},disconnect(){}})},calls=[],schedule=()=>({stop(){},stopAllRegions({when}){calls.push(when);}}),p=startSceneTransport(context,sceneAudition(h.session,{sceneId:'s',duration:1}),new Map(),{schedule});
  p.queue(sceneAudition(h.session,{sceneId:'s',duration:4}),'beat');p.stopAll({quantization:'bar'});assert.deepEqual(calls,[2.1]);
  assert.throws(()=>p.stopAll({quantization:'wrong'}),/Choose immediate/);assert.deepEqual(calls,[2.1]);
 });

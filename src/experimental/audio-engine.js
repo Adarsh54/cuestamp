@@ -20,7 +20,7 @@ export function sessionDuration(session){
 export function scheduleSession(context,session,buffers,position=0,options={}){
  if(options.endPosition!==undefined&&(!Number.isFinite(options.endPosition)||options.endPosition<=position||options.endPosition>86400))throw Error('Playback end must follow the start within the timeline.');
  session=effectiveAutomationSession(session);validateRouting(session);const active=renderingSources(session),detectorOnly=new Set(active.filter(t=>t.sidechainOnly).map(t=>t.id));for(const track of active)validateTrackSources(track,buffers);
- // Opt-in until transport clocks and every export consumer account for outputBase.
+ // Callers opt in and use outputBase for audible clocks or trim render latency.
  const latency=options.compensateLatency?createProcessingLatencyPlan(session,context.sampleRate,{compressorFrames:options.compressorLatencyFrames}):null;
  const trackTiming=new Map(latency?.tracks.map(row=>[row.id,row])||[]),channelOffset=id=>latency?(trackTiming.get(id)?.outputFrames||0)/context.sampleRate:0;
  const masterOffset=latency?.seconds||0;

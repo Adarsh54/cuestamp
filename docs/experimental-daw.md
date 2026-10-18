@@ -40,7 +40,7 @@ actual checkpoints and limitations.
 | Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
 | Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
-| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; processing-latency compensation is enabled for exports, arrangement/cycle playback and score audition; scene clocks still need migration; physical recording latency remains unverified |
+| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; processing-latency compensation covers exports, playback, recording backing and scene launches; other-browser calibration and physical recording latency remain unverified |
 | Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, dedicated mastering limiter, external plug-ins and benchmarked sonic/performance parity |
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
@@ -2507,11 +2507,11 @@ Offline export/analysis/region-bounce/movie callers now pad and trim through
 `offline-render.js`; real-time WAV/stem capture skips the processing delay.
 Arrangement playback and its video/playhead clock use audible output time; cycle
 rendering trims latency and aligns its metronome. Live audio/MIDI backing and recording cycles now align to capture time.
-Scene clocks still need migration. The native session-graph fixture
+Scene graphs now reserve processing pre-roll and keep launches on audible time. The native session-graph fixture
 verifies parallel alignment at three sample rates, a muted-source gate detector,
 and exact range boundaries after a seek. Export compensation is enabled in the
-app UI, including arrangement playback and score-note audition. Scene playback remains on the old timing path; recording backing now reserves
-processing pre-roll and arrives at capture time.
+app UI, including arrangement playback and score-note audition. Scene playback and recording backing reserve processing pre-roll, meeting their
+audible launch and capture clocks respectively.
 
 ### Export latency checkpoint
 
@@ -2544,3 +2544,15 @@ Recording cycles are already compensated buffers and do not add this pre-roll
 again. Click-only cycles use a neutral empty mixer and support minimal recording
 settings. Browser verification uses synthetic microphone/MIDI input, not physical
 interface loopback; device/input/output latency calibration is still separate.
+
+### Scene latency checkpoint
+
+Scene transport retains an audible base clock. Incoming graphs start sources
+early by their own latency, with lookahead sized before beat/bar quantization.
+Output switches, UI observations and performance receipts retain audible times;
+cell launches/stops convert that boundary back to the active graph's source time.
+Stop-all handles current and queued graphs separately. Preparation deadlines are
+checked against source start, so a late graph is disposed before opening output.
+Native 16-compressor tests verify first output, scene/cell switches and cell stop
+at the expected sample. This does not establish external plug-in compatibility,
+all-browser latency calibration or physical interface timing.
