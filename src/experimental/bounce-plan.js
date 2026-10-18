@@ -6,7 +6,7 @@ import {effectTail} from './effects.js';
 const filename=name=>name.replace(/[^a-z0-9 _-]/gi,'').slice(0,80)||'region';
 // Capture the complete document before any asynchronous decoding/rendering.
 export function createBouncePlan(input,{mode='mix',stemMode='tracks',masterMode='full',regionId,renderMode='offline'}={}){
- if(!['offline','realtime'].includes(renderMode)||renderMode==='realtime'&&mode!=='mix')throw Error('Real-time export supports the full mix only.');
+ if(!['offline','realtime'].includes(renderMode)||renderMode==='realtime'&&!['mix','stems'].includes(mode))throw Error('Real-time export supports the full mix or stems.');
  if(!['full','noInserts','bypass'].includes(masterMode))throw Error('Choose a valid master processing mode.');
  const session=structuredClone(input);
  if(masterMode!=='full')session.masterEffects=[];

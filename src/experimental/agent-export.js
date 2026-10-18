@@ -1,10 +1,10 @@
-import {realtimeWavFormat} from './realtime-bounce-plan.js';
+import {realtimeWavFormat,realtimeStemJobs} from './realtime-bounce-plan.js';
 import {createMovieExportPlan,createMovieTimelinePlan} from './movie-export-plan.js';
 import {z} from 'zod';
 import {createBouncePlan} from './bounce-plan.js';
 export const exportSettingsSchema=z.object({sampleRate:z.union([z.literal(44100),z.literal(48000),z.literal(96000)]),bitDepth:z.union([z.literal(16),z.literal(24),z.literal(32)]),dither:z.enum(['none','tpdf']),stemMode:z.enum(['tracks','groups']),masterMode:z.enum(['full','noInserts','bypass'])}).strict();
-export const exportContextSchema=z.object({sessionId:z.string(),revision:z.number().int().nonnegative(),regionId:z.string().nullable(),settings:exportSettingsSchema,realtimeSupported:z.boolean().optional()}).strict();
-export const exportActionSchema=z.object({mode:z.enum(['mix','stems','region','range','movie','movieTimeline','realtimeMix']),regionId:z.string().nullable(),start:z.number().finite().min(0).max(86400).nullable(),end:z.number().finite().min(0).max(86400).nullable(),settings:exportSettingsSchema.nullable()}).strict();
+export const exportContextSchema=z.object({sessionId:z.string(),revision:z.number().int().nonnegative(),regionId:z.string().nullable(),settings:exportSettingsSchema,realtimeSupported:z.boolean().optional(),realtimeStemsSupported:z.boolean().optional()}).strict();
+export const exportActionSchema=z.object({mode:z.enum(['mix','stems','region','range','movie','movieTimeline','realtimeMix','realtimeStems']),regionId:z.string().nullable(),start:z.number().finite().min(0).max(86400).nullable(),end:z.number().finite().min(0).max(86400).nullable(),settings:exportSettingsSchema.nullable()}).strict();
 export function validateExportContext(value,session){
  const context=exportContextSchema.parse(value);
  if(context.sessionId!==session.id||context.revision!==session.revision)throw Error('Export context does not match the session.');
@@ -17,6 +17,7 @@ export function prepareAgentExport(session,value,context){
  if(action.mode!=='range'&&(action.start!==null||action.end!==null))throw Error('Start and end are only supported for range exports.');
  if((action.start===null)!==(action.end===null))throw Error('Supply both range boundaries.');
  if(['movie','movieTimeline'].includes(action.mode)){if(action.settings!==null)throw Error('Movie export uses fixed stereo 48 kHz audio; leave settings null.');return {plan:action.mode==='movieTimeline'?createMovieTimelinePlan(session):createMovieExportPlan(session,action.regionId??context.regionId??undefined),settings:null};}
+ if(action.mode==='realtimeStems'){if(context.realtimeStemsSupported!==true)throw Error('Real-time folder export is unavailable in this browser.');const plan=createBouncePlan(session,{mode:'stems',stemMode:settings.stemMode,masterMode:settings.masterMode,renderMode:'realtime'});realtimeStemJobs(plan,settings);return {plan,settings:{...settings}};}
  if(action.mode==='realtimeMix'){if(context.realtimeSupported!==true)throw Error('Real-time file export is unavailable in this browser.');const plan=createBouncePlan(session,{mode:'mix',masterMode:settings.masterMode,renderMode:'realtime'});realtimeWavFormat(plan,settings);return {plan,settings:{...settings}};}
  const snapshot=structuredClone(session);
  if(action.mode==='range'&&action.start!==null){snapshot.loopStart=action.start;snapshot.loopEnd=action.end;}

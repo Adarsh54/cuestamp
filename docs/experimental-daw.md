@@ -45,17 +45,18 @@ actual checkpoints and limitations.
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
 | Scenes/arrangement | [scene playback](../src/experimental/scene-playback.js), clip launch, performance recording, take transfer and arrangement insertion | Live performance stress/latency testing; not proof of complete Live Loops parity |
-| Deliverables | [bounce plans](../src/experimental/bounce-plan.js): stereo mix, range, regions and grouped/individual stems; [bounce in place](../src/experimental/bounce-in-place.js), WAV markers, MIDI/MusicXML and portable project archives | Selected-video and multi-clip arrangement export exist. Real-time full-mix WAV writes directly to a file with bounded output buffering; offline long-form rendering, long stems/movie output, surround/ADM and native interchange remain open |
+| Deliverables | [bounce plans](../src/experimental/bounce-plan.js): stereo mix, range, regions and grouped/individual stems; [bounce in place](../src/experimental/bounce-in-place.js), WAV markers, MIDI/MusicXML and portable project archives | Selected-video and multi-clip arrangement export exist. Real-time mix/stem WAV export writes directly to files with bounded output buffering; offline long-form rendering, long movie output, surround/ADM and native interchange remain open |
 | Agent | [provider adapter](../server/daw-agent.js), typed commands, atomic validation, Undo, revision checks, tool context, analysis/audition/export actions and controlled-response tests | **Live inference unverified**: last config check lacks OPENAI_API_KEY and DAW_AGENT_MODEL. Every manual capability still needs a capability-by-capability harness audit |
 
 ### Hard limits confirmed in current source
 
 - `workspace.js` rejects source audio over 250 MiB before browser decoding; several
   analyses separately cap PCM size, channel count and duration.
-- `bounce-plan.js` rejects offline exports longer than 600 seconds. Real-time full-mix
+- `bounce-plan.js` rejects offline exports longer than 600 seconds. Real-time mix/stem
   WAV uses a continuous graph and bounded capture/output buffering, with a 24-hour
   timeline ceiling and the stricter RIFF size limit. It takes the audio duration,
-  requires a supported file picker, and still decodes source audio in memory.
+  requires a supported file/folder picker, and still decodes source audio in memory.
+  Stems render sequentially into a new folder, taking the mix duration per file.
 - The rendered mix and current exports are stereo. Stereo width is not surround,
   spatial audio, object panning or ADM export.
 - Seeking initializes controller/automation state but does not reconstruct prior
@@ -68,7 +69,7 @@ actual checkpoints and limitations.
 1. Broaden movie export codec/browser fixtures and sustained-load coverage. Selected clips and
    complete arrangements now support forward/reversed picture, black gaps, letterboxing,
    MP4/WebM, cancellation and synchronization fixtures, plus shared agent export actions.
-2. Extend [real-time full-mix file export](../src/experimental/realtime-bounce.js) to more
+2. Extend [real-time mix/stem file export](../src/experimental/realtime-bounce.js) to more
    export scopes and broaden browser/large-session coverage. It uses the
    [streamed WAV writer](../src/experimental/wav-stream.js) and continuous effect state.
    Long offline rendering, movie output and source decoding still need separate
