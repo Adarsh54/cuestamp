@@ -17,16 +17,16 @@ export function createScoreNoteAudition({getSession,getContext,loadAsset,buffers
  let epoch=0,playback=null,timer=null;
  const stop=()=>{epoch++;if(timer!==null)clearTimer(timer);timer=null;playback?.stop();playback=null;notify('');};
  async function play(reference){
-  stop();if(blocked()||!connected())return;
-  const session=getSession(),revision=session.revision,plan=preparePlan(session,reference);if(!plan){notify('This note is muted or not audible in the current mix.');return;}
+  stop();if(blocked()||!connected())return false;
+  const session=getSession(),revision=session.revision,plan=preparePlan(session,reference);if(!plan){notify('This note is muted or not audible in the current mix.');return false;}
   const current=epoch,valid=()=>current===epoch&&connected()&&!blocked()&&getSession()===session&&getSession().revision===revision;
   try{
    if(plan.assets.length)notify('Loading note audition…');
-   for(const id of plan.assets){await loadAsset(id);if(!valid())return;}
-   const context=await getContext();await prepareSessionEffects(context,plan.document);if(!valid())return;
+   for(const id of plan.assets){await loadAsset(id);if(!valid())return false;}
+   const context=await getContext();await prepareSessionEffects(context,plan.document);if(!valid())return false;
    playback=schedule(context,plan.document,buffers,plan.position,{endPosition:plan.end});
-   notify('Auditioning note');timer=setTimer(()=>{if(current===epoch){stop();notify('');}},(plan.end-plan.position+.1)*1000);
-  }catch(error){if(current===epoch){stop();notify(error.message||'Unable to audition this note.');}}
+   notify('Auditioning note');timer=setTimer(()=>{if(current===epoch){stop();notify('');}},(plan.end-plan.position+.1)*1000);return true;
+  }catch(error){if(current===epoch){stop();notify(error.message||'Unable to audition this note.');}return false;}
  }
  return {play,stop};
 }

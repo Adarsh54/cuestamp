@@ -4,9 +4,9 @@ import {patternBar} from './pattern-bars.js';
 import {audibleSources,retainGateSources} from './routing.js';
 import {audibleAssets} from './media-refs.js';
 import {sessionDuration} from './audio-engine.js';
-const options=z.object({trackId:z.string(),regionId:z.string(),pitch:z.number().int().min(0).max(127),velocity:z.number().int().min(1).max(127),bar:z.number().int().min(1)}).strict();
+export const drumAuditionSchema=z.object({trackId:z.string(),regionId:z.string(),pitch:z.number().int().min(0).max(127),velocity:z.number().int().min(1).max(127),bar:z.number().int().min(1)}).strict();
 export function drumAuditionPlan(session,values){
- const v=options.parse(values),track=session.tracks.find(t=>t.id===v.trackId),region=track?.regions.find(r=>r.id===v.regionId);
+ const v=drumAuditionSchema.parse(values),track=session.tracks.find(t=>t.id===v.trackId),region=track?.regions.find(r=>r.id===v.regionId);
  if(track?.kind!=='midi'||track.instrument!=='drumKit'||!region)throw Error('Choose a drum-kit region.');
  const bar=patternBar(region,session,v.bar-1);
  if(bar.index!==v.bar-1||!bar.cells.length)throw Error('Choose a bar inside the drum region.');
