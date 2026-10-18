@@ -11,7 +11,7 @@ export async function prepareDelay(context,session){
 export function connectDelay(context,input,effect,nodes,{position=0,base=context.currentTime,tempo=120,tempoChanges=[],register}={}){
  if(!context[stateKey]?.ready)throw Error('Prepare delay processing before starting audio.');
  const timing={tempo,tempoChanges},maximum=effect.sync?syncedDelayTiming(effect,timing).maximum:2;
- const node=new AudioWorkletNode(context,'cuestamp-feedback-delay',{numberOfInputs:1,numberOfOutputs:1,...(effect.mode==='pingPong'?{outputChannelCount:[2],channelCount:2,channelCountMode:'explicit'}:{channelCount:2,channelCountMode:'max'}),channelInterpretation:'speakers',processorOptions:{maximum,mode:effect.mode??'stereo'}});
+ const node=new AudioWorkletNode(context,'cuestamp-feedback-delay',{numberOfInputs:1,numberOfOutputs:1,...(effect.mode==='pingPong'?{outputChannelCount:[2],channelCount:2,channelCountMode:'explicit'}:{channelCount:2,channelCountMode:'max'}),channelInterpretation:'speakers',processorOptions:{maximum,mode:effect.mode??'stereo',filterEnabled:effect.filterEnabled,lowCutHz:effect.lowCutHz,highCutHz:effect.highCutHz}});
  const time=node.parameters.get('time'),feedback=node.parameters.get('feedback');
  if(effect.sync)scheduleSyncedDelay(time,effect,timing,position,base);else{register?.(effect,'time',time,v=>v,false);scheduleEffectParameter(time,effect,'time',position,base);}
  register?.(effect,'feedback',feedback,v=>v,false);scheduleEffectParameter(feedback,effect,'feedback',position,base);
