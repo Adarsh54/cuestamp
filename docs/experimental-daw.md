@@ -21,24 +21,67 @@ We implement original Cuestamp code and controls. Apple instruments, proprietary
 plug-ins, bundled sound libraries, and native Logic project formats require
 separate compatible implementations or licensed integrations.
 
-## Required capability groups and evidence
+## Current capability audit — 2026-10-18
 
-| Group | Required outcomes | Status / verification |
+This section supersedes the early implementation statuses below. The original
+objective remains broad workstation functionality plus an agent that operates it.
+Code presence is evidence of implementation, **not** proof of full Logic parity.
+The latest complete test run had 1,522 passing tests; individual historical browser
+checks were not all rerun for this documentation audit. CODEX.md records their
+actual checkpoints and limitations.
+
+| Group | Current implementation evidence | Remaining requirements / verification |
 | --- | --- | --- |
-| Experimental workspace | Separate route/sidebar tab, arrangement, inspectors, right-side agent | Initial implementation; browser check passes |
-| Session document | Tracks, regions, assets, tempo, meter, markers, persistence, undo/redo | Local document, portable archives and account save/reopen with revision checks implemented |
-| Audio arrangement | Import, waveform, move/trim/split/copy/delete, fades, gain, reverse, crossfades | Basic operations and graphical audio/video trim plus audio/MIDI fade handles implemented; dedicated crossfades pending |
-| Transport and video | Synchronized multitrack playback, seek/loop, movie offset/timecode, scoring markers | Web Audio/video transport, source offsets, markers, frame stepping and non-drop timecode implemented; real MP4 regression added; cycle playback implemented; drop-frame timecode pending |
-| MIDI | SMF import/export, piano roll, note/velocity/CC editing, quantize/transpose/humanize, device input/output | SMF note import/export, note placement/removal, note inspector, drag/resize, velocity, quantize and transpose implemented; channel-event import/export/editing and core controller playback implemented; strength/swing quantization and seeded humanization implemented; standalone Web MIDI input capture implemented with simulated-device tests; hardware verification and device output pending |
-| Composition tools | Instruments/sampler, step sequencer, chord/key/meter tools, notation/event editors | Oscillator instruments, synthesized drum kit, bar-based step sequencer and MIDI event editor implemented; sampler, chord/key tools and notation pending |
-| Recording | Audio/MIDI capture, monitoring, takes, punch, comping, latency compensation | Standalone microphone WAV takes, input meter and Web MIDI takes implemented; overdub, monitoring, punch/comping and latency compensation pending |
-| Mix and effects | Gain/pan/mute/solo, master, buses/sends, EQ/dynamics/reverb/delay, plug-in chains | Channel strips, ordered EQ/compressor/delay/reverb inserts and bypass implemented; bus outputs, selectable pre/post-fader sends, shared inserts and master inserts implemented |
-| Automation | Editable parameter curves with playback/export parity | Track/master volume/pan and send-level points, interpolation and seek initialization implemented in shared playback/export renderer; effect automation and recording pending |
-| Advanced arrangement | Time stretching, pitch correction, tempo maps, grouping/stacks, loops/scenes | Pending |
-| Deliverables | Stereo and stem bounce, region export, video sound replacement, project interchange | Stereo WAV, aligned per-track WAV ZIP and MIDI export implemented; portable media archives implemented; output-group stems implemented; selected-region WAV implemented; isolated bus taps and movie export pending |
-| Agent | Typed instructions, real model adapter, schema-validated operations, atomic execution, undo, stale-state protection, trace | Adapter and command harness implemented; mocked tests pass; real model run unverified, local key/model absent |
-| Account/storage | Durable project/media save, restore, ownership, version conflicts | Existing Projects/Neon and private Blob integration added; ownership/revision and browser checks pass; live development Neon/Blob round trip verified with synthetic authentication |
-| Reliability | Unit, audio-render, MIDI-fixture, browser, accessibility and load checks | Pending |
+| Workspace | [workspace](../src/experimental/workspace.js), [tool finder](../src/experimental/tool-finder.js), arrangement, inspectors and right-side assistant | Coherent large-session workflow, broader accessibility, mobile and sustained load testing |
+| Session/project | [session commands](../src/experimental/session.js), [cloud](../src/experimental/cloud.js), [archive](../src/experimental/archive.js), [recovery](../src/experimental/recovery.js) | Cross-device and concurrent-account lifecycle testing; native DAW interchange is not established by JSON/ZIP support |
+| Audio arrangement | Region move/trim/split/slip, normalization, fades, [crossfades](../src/experimental/comp-crossfades.js), clipboard, batch edits, section/time operations | Production-scale and codec-diverse fixture coverage; professional editing parity remains unproven |
+| Video/scoring | [movie sync](../src/experimental/movie-sync.js), [filmstrip](../src/experimental/movie-filmstrip.js), [timecode](../src/experimental/timecode.js), frame navigation and extraction into an audio track | **No DAW movie-with-new-mix export path found** in workspace actions or bounce plans; transport sync is not movie export |
+| MIDI | SMF import/export, piano-roll/event/controller editing, quantize/humanize, strum, dynamics, input/output, tuning and bend state | Real physical-device verification, wider interoperability and complete metadata/SysEx support |
+| Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
+| Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
+| Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
+| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting and latency compensation need separate work |
+| Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, dedicated mastering limiter, external plug-ins and benchmarked sonic/performance parity |
+| Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
+| Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
+| Scenes/arrangement | [scene playback](../src/experimental/scene-playback.js), clip launch, performance recording, take transfer and arrangement insertion | Live performance stress/latency testing; not proof of complete Live Loops parity |
+| Deliverables | [bounce plans](../src/experimental/bounce-plan.js): stereo mix, range, regions and grouped/individual stems; [bounce in place](../src/experimental/bounce-in-place.js), WAV markers, MIDI/MusicXML and portable project archives | Movie-with-mix export, long-form streaming render, surround/ADM and native project interchange remain open |
+| Agent | [provider adapter](../server/daw-agent.js), typed commands, atomic validation, Undo, revision checks, tool context, analysis/audition/export actions and controlled-response tests | **Live inference unverified**: last config check lacks OPENAI_API_KEY and DAW_AGENT_MODEL. Every manual capability still needs a capability-by-capability harness audit |
+
+### Hard limits confirmed in current source
+
+- `workspace.js` rejects source audio over 250 MiB before browser decoding; several
+  analyses separately cap PCM size, channel count and duration.
+- `bounce-plan.js` rejects offline exports longer than 600 seconds. Full-length
+  scoring support requires bounded-memory rendering, not just increasing this number.
+- The rendered mix and current exports are stereo. Stereo width is not surround,
+  spatial audio, object panning or ADM export.
+- Seeking initializes controller/automation state but does not reconstruct prior
+  delay/reverb history. Effect-chain tails remain capped at 30 seconds.
+- Native Logic projects, Apple plug-ins/libraries and external Audio Unit hosting
+  are not provided by portable Cuestamp archives.
+
+### Next implementation and verification priorities
+
+1. Add a real movie-with-mix export path, with explicit duration/offset semantics,
+   codec support, cancellation, and an audio/video synchronization fixture. Expose
+   the same capability to the agent; do not label audio extraction as export.
+2. Design bounded-memory long-form audio export while preserving effect state,
+   automation, sampler tails and routing across chunks. Keep existing limits until
+   the replacement is demonstrated with long sessions.
+3. Run configured live-agent scenarios for arrangement, MIDI, scoring, effects,
+   export and multi-step edits. Controlled responses prove plumbing only.
+4. Audit manual-to-agent coverage and strengthen actual hardware, large-session,
+   accessibility and interoperability tests.
+5. Continue missing instrument/effect, advanced editing, spatial and interchange
+   capabilities. These remain part of the broad goal, not waived requirements.
+
+Apple's current [Logic Pro overview](https://www.apple.com/logic-pro/) includes
+spatial/ADM delivery, source separation, an extensive sound library and assisted
+players. Existing stem **export** must not be confused with separating instruments
+from a mixed recording. Automated generation of musical performances is outside
+the user's stated non-generative agent direction; editing user material remains
+central. This distinction does not remove the workstation requirements above.
 
 ## Architecture
 
@@ -53,7 +96,7 @@ connections must not masquerade as functioning controls. The scope remains open
 until all capability groups have authoritative implementation and verification.
 
 
-## Verified checkpoint — 2026-09-18
+## Historical checkpoint — 2026-09-18 (not current status)
 
 - `test/experimental-session.test.js`: atomic rollback, undo/redo, stale revisions,
   MIDI splits, SMF note round trip, tempo changes, model-output validation.
@@ -64,14 +107,14 @@ until all capability groups have authoritative implementation and verification.
 - Not verified: actual model inference, microphone/MIDI hardware, production DAW save,
   heavy sessions, mobile editing.
 
-Current limitations are substantive: simple oscillator instruments, no automation recording,
+At that historical checkpoint, limitations were substantive: simple oscillator instruments, no automation recording,
 overdub/comping, professional time stretching/pitch editing,
 notation, SysEx and full MIDI metadata preservation, Live Loops, or spatial audio. Browser source
 decoding currently caps individual audio at 250 MB; offline bounce caps ten minutes.
 Movie audio can be extracted to a separate track and mixed when the browser supports its codec. Session JSON references device-local assets. Export project bundles original media
 in a portable archive; account save/reopen now uses the existing project and media services. The full goal remains active.
 
-Next implementation priorities: MIDI event/device tools; recording; master metering; crossfades; movie render/export; connected model validation.
+Historical next priorities were MIDI event/device tools, recording, master metering, crossfades, movie export and connected model validation. Use the current audit above when choosing new work.
 
 ## Mixer and rendering checkpoint
 
