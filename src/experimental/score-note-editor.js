@@ -1,3 +1,4 @@
+import {drumRows} from './drums.js';
 import {isPercussionRegion} from './musicxml-drum-export.js';
 import {scoreTimingToolsView,bindScoreTimingTools} from './score-timing-tools.js';
 import {scoreClipboardView,bindScoreClipboard} from './score-clipboard.js';
@@ -21,7 +22,7 @@ export function resolveScoreNote(part,{pitch,tick,voice}){
  if(notes.length!==1||!notes[0].id)return null;
  return {noteId:notes[0].id,regionId:notes[0].scoreRegionId??part.regionId};
 }
-export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label><span data-score-pitch-label>Sounding MIDI pitch</span><input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-chord>Add chord tone</button><button type="button" data-score-note-play>Play selection</button><button type="button" data-score-note-copy>Copy notes</button><button type="button" data-score-note-cut>Cut notes</button><button type="button" data-score-note-duplicate>Duplicate after</button><button type="button" data-score-note-delete>Delete note</button><button type="button" data-score-note-close>Cancel</button></div>${scoreSelectionToolsView()}${scoreTimingToolsView()}</form>${scoreClipboardView()}`;
+export const scoreNoteEditorView=()=>`<form data-score-note-editor hidden><p data-score-note-label></p>${scoreRhythmView()}<div class="button-row"><label data-score-drum-choice hidden>Drum sound<select name="scoreDrumSound">${drumRows.map(row=>`<option value="${row.pitch}">${row.name} · ${row.pitch}</option>`).join('')}<option value="custom">Custom MIDI number</option></select></label><label><span data-score-pitch-label>Sounding MIDI pitch</span><input name="pitch" type="number" min="0" max="127" step="1" required></label><label>Start · seconds in region<input name="start" type="number" min="0" step="any" required></label><label>Duration · seconds<input name="duration" type="number" min="0.001" step="any" required></label><label>Velocity<input name="velocity" type="number" min="0" max="1" step="any" required></label><button type="submit">Apply note edit</button><button type="button" data-score-note-chord>Add chord tone</button><button type="button" data-score-note-play>Play selection</button><button type="button" data-score-note-copy>Copy notes</button><button type="button" data-score-note-cut>Cut notes</button><button type="button" data-score-note-duplicate>Duplicate after</button><button type="button" data-score-note-delete>Delete note</button><button type="button" data-score-note-close>Cancel</button></div>${scoreSelectionToolsView()}${scoreTimingToolsView()}</form>${scoreClipboardView()}`;
 // OSMD returns all chord heads for each graphical note; VexFlow's index identifies its own head.
 export function scoreNoteheads(graphical){
  const heads=graphical.getNoteheadSVGs()||[];
@@ -32,6 +33,10 @@ export function scoreNoteheads(graphical){
 export function bindScoreNotes(panel,renderer,{session,track,region,scope,execute,guard,selectionRoot,getSession,scoreShortcutsBlocked,notationSession=session,notationTrack=track,notationRegion=region,auditionNote,auditionSelection}){
  const tempo=compileTempoMap(session),origin=scope==='arrangement'?0:tempo.beatAtTime(region.start);
  const plans=scoreNotePlans(notationSession,notationTrack,notationRegion,scope),form=panel.querySelector('[data-score-note-editor]'),targets=new Map();let selected=null,selectedRegion=null,chordDraft=false,selectedIds=new Set(),restoring=false;
+ const pitchInput=form.elements.namedItem('pitch'),drumChoice=form.elements.namedItem('scoreDrumSound');
+ const syncDrumChoice=()=>{const pitch=pitchInput.valueAsNumber;drumChoice.value=drumRows.some(row=>row.pitch===pitch)?String(pitch):'custom';};
+ pitchInput.addEventListener('input',syncDrumChoice);
+ drumChoice.onchange=()=>{if(drumChoice.value!=='custom')pitchInput.value=drumChoice.value;else pitchInput.focus();};
  form.hidden=true;delete panel.dataset.selectedScoreNote;delete panel.dataset.selectedScoreRegion;delete panel.dataset.selectedScoreNotes;
  const select=(reference,extend=false,preserve=false)=>{
   const sourceRegion=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=reference.note??sourceRegion?.notes.find(n=>n.id===reference.noteId);if(!note)return;
@@ -54,6 +59,8 @@ export function bindScoreNotes(panel,renderer,{session,track,region,scope,execut
   form.querySelector('[data-score-note-delete]').textContent=multiple?'Delete selected notes':'Delete note';
   form.querySelector('[data-score-note-duplicate]').textContent=multiple?'Duplicate selection after':'Duplicate after';
   for(const key of ['pitch','start','duration','velocity'])form.elements.namedItem(key).value=note[key];
+  form.querySelector('[data-score-drum-choice]').hidden=!percussion||multiple;
+  syncDrumChoice();
   panel.querySelectorAll('[data-score-note]').forEach(el=>{const active=selectedIds.has(el.dataset.scoreNote);el.setAttribute('aria-pressed',String(active));el.style.fill=active?'#168544':'';});
  };
  for(const measures of renderer.GraphicSheet.MeasureList){for(const [partIndex,measure] of measures.entries()){

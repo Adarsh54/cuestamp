@@ -5647,3 +5647,9 @@ Verified 1,457 tests and production build. `scripts/browser-experimental-score-d
 Current local preflight still fails because OPENAI_API_KEY and DAW_AGENT_MODEL are absent. No live requests were sent and no live inference pass is claimed. Configure server-only settings using the provider table near the beginning of this guide; never paste keys into chat, tracked files or VITE_ variables. The model ID must be available to the configured provider account.
 
 Verified 1,459 tests and production build. New injected-plan tests check selected identity/context, follow-up conversation, correct export, wrong targets, extra edits, wrong follow-up values, missing parts, configuration gating and error redaction. These test the diagnostic's ability to detect incorrect results, not model intelligence. Live provider tool choice and end-to-end authenticated app inference remain unverified requirements of the active goal.
+
+### Named drum selection in the score editor (2026-10-18)
+
+Single drum-note editing now includes a Drum sound selector using the existing built-in kit names/pitches: kick, snare, closed/open hat, crash and ride. Selecting a name updates the draft MIDI number; typing another number switches the selector to Custom MIDI number. Apply remains the only commit, using the existing validated note command and Undo. The selector is hidden for pitched notes and multi-note selection. Custom mappings remain available; this does not add new synthesized instruments.
+
+Verified 1,459 tests and production build. The drum score browser regression verifies selector/number synchronization, a custom number, no revision change while choosing, apply and Undo. The rendered form was visually inspected. Live-model inference remains unavailable pending server provider configuration.
