@@ -66,9 +66,12 @@ actual checkpoints and limitations.
 1. Broaden movie export codec/browser fixtures and sustained-load coverage. Selected clips and
    complete arrangements now support forward/reversed picture, black gaps, letterboxing,
    MP4/WebM, cancellation and synchronization fixtures, plus shared agent export actions.
-2. Design bounded-memory long-form audio export while preserving effect state,
-   automation, sampler tails and routing across chunks. Keep existing limits until
-   the replacement is demonstrated with long sessions.
+2. Complete long-form audio export while preserving effect state, automation,
+   sampler tails and routing across chunks. The [streamed WAV writer](../src/experimental/wav-stream.js)
+   now provides bounded output blocks and awaited destination writes; it is not yet
+   connected to workspace bounce. A continuous audio graph must feed it without
+   accumulating rendered PCM or resetting effects. Keep existing limits until that
+   replacement is demonstrated with long sessions.
 3. Run configured live-agent scenarios for arrangement, MIDI, scoring, effects,
    export and multi-step edits. Controlled responses prove plumbing only.
 4. Audit manual-to-agent coverage and strengthen actual hardware, large-session,
