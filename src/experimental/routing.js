@@ -28,14 +28,14 @@ export function createRoutedTailReader(session){
  function tail(track,seen=new Set()){
   if(seen.has(track.id))return 0;
   if(cache.has(track.id))return cache.get(track.id);
-  const next=new Set(seen).add(track.id),value=samplerRelease(track)+effectTail(track.effects,track.automationMode==='off')+Math.max(0,...destinations(track).map(id=>byId.has(id)?tail(byId.get(id),next):0));
+  const next=new Set(seen).add(track.id),value=samplerRelease(track)+effectTail(track.effects,track.automationMode==='off',session)+Math.max(0,...destinations(track).map(id=>byId.has(id)?tail(byId.get(id),next):0));
   cache.set(track.id,value);return value;
  }
  return track=>tail(track);
 }
 export function routedTail(session,track){return createRoutedTailReader(session)(track);}
 // Duration belongs to the auditioned track, never its detector-only dependencies.
-export function trackAuditionEnd(session,track){return Math.min(86400,Math.max(0,...track.regions.map(r=>r.start+r.duration))+routedTail(session,track)+effectTail(session.masterEffects,session.masterAutomationMode==='off'));}
+export function trackAuditionEnd(session,track){return Math.min(86400,Math.max(0,...track.regions.map(r=>r.start+r.duration))+routedTail(session,track)+effectTail(session.masterEffects,session.masterAutomationMode==='off',session));}
 export function stemSession(session,track){return retainGateSources({...session,tracks:[...session.tracks.filter(t=>t.kind==='bus'),track].map(t=>({...t,solo:false}))},session);}
 // Group by the final primary output bus, not by sends: each source belongs to
 // exactly one file. Keep buses/sends to render that group's full mix contribution.

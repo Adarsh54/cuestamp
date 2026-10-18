@@ -35,7 +35,7 @@ export function silenceAudition(session,preview){
  const {track}=silenceRegionTrack(session,preview.regionId,{ranges:JSON.stringify(preview.ranges),edgeFade:preview.settings.edgeFade??0},{preview:true});
  const snapshot=structuredClone(session);snapshot.tracks.find(t=>t.id===source.id).regions.find(r=>r.id===region.id).mute=true;
  snapshot.tracks.push(track);const document=stemSession(snapshot,track);document.loopEnabled=false;document.metronomeEnabled=false;
- return {kind:'audioRange',silencePreview:true,document,position:region.start,end:Math.min(86400,region.start+region.duration+routedTail(document,track)+effectTail(document.masterEffects,document.masterAutomationMode==='off')),label:'Listening to silence removal. Project unchanged.'};
+ return {kind:'audioRange',silencePreview:true,document,position:region.start,end:Math.min(86400,region.start+region.duration+routedTail(document,track)+effectTail(document.masterEffects,document.masterAutomationMode==='off',document)),label:'Listening to silence removal. Project unchanged.'};
 }
 
 export function silenceRegionsView(region,kind,busy,preview,playing=false){

@@ -14,7 +14,7 @@ export function sessionDuration(session){
   for(const region of track.regions)lastEnd=Math.max(lastEnd,region.start+region.duration);
   end=Math.max(end,lastEnd+tail(track));
  }
- return end+effectTail(session.masterEffects,session.masterAutomationMode==='off');
+ return end+effectTail(session.masterEffects,session.masterAutomationMode==='off',session);
 }
 export function scheduleSession(context,session,buffers,position=0,options={}){
  if(options.endPosition!==undefined&&(!Number.isFinite(options.endPosition)||options.endPosition<=position||options.endPosition>86400))throw Error('Playback end must follow the start within the timeline.');
