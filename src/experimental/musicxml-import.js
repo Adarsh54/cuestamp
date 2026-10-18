@@ -1,3 +1,4 @@
+import {percussionMappings,percussionPitch,musicxmlPlaybackTracks} from './musicxml-percussion.js';
 import {musicxmlTimingOffset,applyMusicxmlTiming} from './musicxml-timing.js';
 import {musicxmlTime} from './musicxml-meter.js';
 import {musicxmlDynamics,applyMusicxmlDynamics} from './musicxml-dynamics.js';
@@ -15,9 +16,9 @@ export function parseMusicxml(source){
  const timewise=sourceRoot.localName==='score-timewise',root=partwiseMusicxmlRoot(sourceRoot);
  // Octave-shift directions change engraving, not the pitch data. Do not apply
  // another octave to notes; instrument <transpose> still applies below.
- const unsupported=root.querySelector('repeat,ending,grace,unpitched,tremolo,ornaments,scordatura,accordion-registration');
+ const unsupported=root.querySelector('repeat,ending,grace,tremolo,ornaments,scordatura,accordion-registration');
  if(unsupported)throw Error(`MusicXML ${unsupported.localName} playback is not supported yet. Export a performed MIDI file instead.`);
- const definitions=new Map(children(child(root,'part-list')??root,'score-part').map(p=>[p.id,text(p,'part-name')||'Score part']));
+ const definitions=new Map(children(child(root,'part-list')??root,'score-part').map(p=>[p.id,{name:text(p,'part-name')||'Score part',percussion:percussionMappings(p)}]));
  const parts=children(root,'part');if(!parts.length||parts.length>128)throw Error('Import between 1 and 128 score parts.');
  if(new Set(parts.map(p=>p.id)).size!==parts.length)throw Error('MusicXML part IDs must be distinct.');
  const tempos=new Map(),meters=new Map(),keys=new Map(),put=(map,beat,value,label)=>{const tick=Math.round(beat*960),previous=map.get(tick);if(previous!==undefined&&JSON.stringify(previous)!==JSON.stringify(value))throw Error(`Conflicting ${label} in MusicXML parts.`);map.set(tick,value);};
@@ -52,14 +53,15 @@ export function parseMusicxml(source){
      const start=at+(chord?previous.start:cursor);if(!chord){previous={start:cursor,duration,voice,staff,rest};cursor+=duration;}extent=Math.max(extent,start-at+duration,cursor);
      if(rest||child(item,'cue'))continue;
      if(item.hasAttribute('time-only'))throw Error('MusicXML repeated-note playback requires a performed MIDI export.');
-     const pitchNode=child(item,'pitch');if(!pitchNode)throw Error('MusicXML note requires a pitch.');const step=text(pitchNode,'step'),alter=number(text(pitchNode,'alter')??'0','pitch alteration'),octave=number(text(pitchNode,'octave'),'pitch octave'),pitch=(octave+1)*12+natural[step]+alter+transpose;
+     const pitchNode=child(item,'pitch'),percussion=Boolean(child(item,'unpitched'));if(Boolean(pitchNode)===percussion)throw Error('MusicXML note requires exactly one pitch or unpitched element.');
+     const step=pitchNode?text(pitchNode,'step'):null,alter=pitchNode?number(text(pitchNode,'alter')??'0','pitch alteration'):0,octave=pitchNode?number(text(pitchNode,'octave'),'pitch octave'):0,pitch=percussion?percussionPitch(item,definitions.get(part.id).percussion):(octave+1)*12+natural[step]+alter+transpose;
      if(!Number.isInteger(pitch)||pitch<0||pitch>127)throw Error('MusicXML notes must use whole MIDI pitches 0–127.');
-     const tieTypes=children(item,'tie').map(t=>t.getAttribute('type')),key=`${voice}:${staff}:${pitch}`,pending=ties.get(key);
+     const tieTypes=children(item,'tie').map(t=>t.getAttribute('type')),key=`${voice}:${staff}:${percussion}:${pitch}`,pending=ties.get(key);
      if(tieTypes.some(t=>!['start','stop'].includes(t)))throw Error('Unsupported MusicXML tie.');
      if(tieTypes.includes('start')&&item.hasAttribute('release')||tieTypes.includes('stop')&&item.hasAttribute('attack'))throw Error('MusicXML tie timing belongs on its first attack and final release.');
      const attackOffset=musicxmlTimingOffset(item.getAttribute('attack'),divisions),releaseOffset=musicxmlTimingOffset(item.getAttribute('release'),divisions);
      if(tieTypes.includes('stop')){if(!pending||Math.abs(pending.start+pending.duration-start)>1e-7)throw Error('MusicXML tie does not connect matching consecutive notes.');pending.duration+=duration;pending.releaseOffset=releaseOffset;if(!tieTypes.includes('start'))ties.delete(key);}
-     else{if(pending)throw Error('MusicXML tie is missing its ending.');const n={pitch,start,duration,attackOffset,releaseOffset,velocity:.8,explicitVelocity:item.hasAttribute('dynamics')};if(n.explicitVelocity)n.velocity=musicxmlDynamics(item.getAttribute('dynamics'));notes.push(n);if(tieTypes.includes('start'))ties.set(key,n);}
+     else{if(pending)throw Error('MusicXML tie is missing its ending.');const n={pitch,...(percussion?{percussion:true}:{}),start,duration,attackOffset,releaseOffset,velocity:.8,explicitVelocity:item.hasAttribute('dynamics')};if(n.explicitVelocity)n.velocity=musicxmlDynamics(item.getAttribute('dynamics'));notes.push(n);if(tieTypes.includes('start'))ties.set(key,n);}
     }
    }
    if(extent<=0)extent=meter;
@@ -69,11 +71,11 @@ export function parseMusicxml(source){
   if(ties.size)throw Error('MusicXML contains unfinished ties.');
   applyMusicxmlDynamics(notes,dynamics);
   applyMusicxmlTiming(notes);
-  return {name:definitions.get(part.id),notes,events,duration:at,measureEnds};
+  return {name:definitions.get(part.id).name,notes,events,duration:at,measureEnds};
  });
  if(timewise)validateTimewiseBoundaries(tracks);
  for(const track of tracks)delete track.measureEnds;
- if(!tracks.some(t=>t.notes.length))throw Error('The MusicXML score has no pitched notes.');
+ if(!tracks.some(t=>t.notes.length))throw Error('The MusicXML score has no playable notes.');
  return {tracks,tempos:[...tempos],meters:[...meters],keys:[...keys]};
 }
 const bytes=(n,size)=>Array.from({length:size},(_,i)=>(n>>>((size-i-1)*8))&255);
@@ -84,7 +86,7 @@ export function musicxmlMidi(score){
  const meta=(tick,type,data)=>({tick,order:0,data:[255,type,...vlq(data.length),...data]});
  const conductor=[...score.tempos.map(([tick,bpm])=>meta(tick,81,bytes(Math.round(60000000/bpm),3))),...score.meters.map(([tick,m])=>meta(tick,88,[m.beats,Math.log2(m.denominator),24,8])),...score.keys.map(([tick,k])=>meta(tick,89,[k.sharps&255,k.mode==='minor'?1:0]))];
  if(!score.tempos.some(([tick])=>tick===0))conductor.push(meta(0,81,bytes(500000,3)));
- const chunks=[chunk(conductor)];for(const track of score.tracks){const events=[meta(0,3,string(track.name.slice(0,200)))];const channels=new Map(),usedChannels=new Set([0]);for(const n of [...track.notes].sort((a,b)=>a.start-b.start)){const start=Math.round(n.start*960),end=Math.round((n.start+n.duration)*960);if(end<=start)throw Error('MusicXML note is shorter than one MIDI tick.');if(n.velocity<=0)continue;const ends=channels.get(n.pitch)??Array(16).fill(-1);let channel=ends.findIndex((end,i)=>i!==9&&end<=start);if(channel<0)throw Error('MusicXML has more than 15 overlapping notes at the same pitch.');usedChannels.add(channel);ends[channel]=end;channels.set(n.pitch,ends);events.push({tick:start,order:2,data:[144|channel,n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,order:1,data:[128|channel,n.pitch,0]});}for(const event of musicxmlPedalEvents(track,usedChannels))events.push(event);chunks.push(chunk(events));}
+ const chunks=[chunk(conductor)];for(const track of musicxmlPlaybackTracks(score.tracks)){const events=[meta(0,3,string(track.name.slice(0,200)))];const channels=new Map(),usedChannels=new Set([track.percussion?9:0]);for(const n of [...track.notes].sort((a,b)=>a.start-b.start)){const start=Math.round(n.start*960),end=Math.round((n.start+n.duration)*960);if(end<=start)throw Error('MusicXML note is shorter than one MIDI tick.');if(n.velocity<=0)continue;const ends=channels.get(n.pitch)??Array(16).fill(-1);let channel=track.percussion?9:ends.findIndex((end,i)=>i!==9&&end<=start);if(track.percussion&&ends[9]>start)throw Error('Overlapping MusicXML hits at the same drum pitch require separate parts.');if(channel<0)throw Error('MusicXML has more than 15 overlapping notes at the same pitch.');usedChannels.add(channel);ends[channel]=end;channels.set(n.pitch,ends);events.push({tick:start,order:2,data:[144|channel,n.pitch,Math.max(1,Math.round(n.velocity*127))]},{tick:end,order:1,data:[128|channel,n.pitch,0]});}for(const event of musicxmlPedalEvents(track,usedChannels))events.push(event);chunks.push(chunk(events));}
  const size=14+chunks.reduce((sum,c)=>sum+c.length,0),out=new Uint8Array(size);let offset=0;for(const chunk of [[...string('MThd'),0,0,0,6,0,1,...bytes(chunks.length,2),...bytes(960,2)],...chunks]){out.set(chunk,offset);offset+=chunk.length;}return out;
 }
 export function musicxmlImportData(source){return encodeMidiImport(musicxmlMidi(parseMusicxml(source)));}

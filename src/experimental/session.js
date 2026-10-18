@@ -169,7 +169,7 @@ export function applyCommands(input,commands,expectedRevision=input.revision){
     const imported=midi.tracks.map(source=>{
      if(source.notes.length>20000||source.events.length>20000)throw Error('Each imported MIDI track supports up to 20,000 notes and 20,000 channel events.');
      const duration=Math.max(.1,time.parse(v.minimumDuration??0),...source.notes.map(n=>n.start+n.duration),...source.events.map(e=>e.start+.001));
-     return track.parse({id:crypto.randomUUID(),name:source.name.slice(0,200),kind:'midi',gainDb:0,pan:0,mute:false,solo:false,instrument:'triangle',
+     return track.parse({id:crypto.randomUUID(),name:source.name.slice(0,200),kind:'midi',gainDb:0,pan:0,mute:false,solo:false,instrument:source.notes.length&&source.notes.every(n=>n.channel===9)?'drumKit':'triangle',
       regions:[{id:crypto.randomUUID(),name:source.name.slice(0,200),assetId:null,start:0,offset:0,duration,gainDb:0,fadeIn:0,fadeOut:0,reverse:false,notes:source.notes.map(n=>articulation?{...n,articulation:structuredClone(articulation)}:n),events:source.events}],
      });
     });
