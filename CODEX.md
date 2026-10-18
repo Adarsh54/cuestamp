@@ -5675,3 +5675,9 @@ Step sequencer Edit mode now offers Add/remove hits, Set velocity and Mute/unmut
 The shared planner emits ordinary validated note.set commands, also available to the agent. No alternate MIDI data or new storage format is introduced. The existing add/remove behavior remains the default.
 
 Verified 1,465 tests and production build. Unit checks cover multiple hits, channel isolation, identity/timing preservation, mute toggling and Undo. `scripts/browser-experimental-drum-step-edit-check.cjs` verifies mode selection, disabled empty cells, velocity, mute visuals, Undo and existing MIDI/audio output. Visual inspection caught and corrected a clipped selector label; the final mode selector is 160 px wide.
+
+### Drum step playback cursor (2026-10-18)
+
+The visible step-sequencer bar now highlights the current transport column across its drum rows. Cell boundaries use the region's tempo mapping and are clipped to its duration. The cursor clears on stop/pause and follows rewinds without changing notes, selection, or the chosen bar. Scene/performance previews do not show a misleading arrangement cursor. DOM references are cached per rendered panel; ticks only change cursor attributes.
+
+Verification: `npm test` passed 1,467 tests; `npm run build` passed with the existing large-chunk warning. `scripts/browser-experimental-drum-step-position-check.cjs` verified actual playback advancement, pause/resume/stop, existing drum edits/Undo/MIDI export and rendered PCM. Visually inspected `/tmp/cuestamp-step-position.png`. Unit checks cover exact cell boundaries, rewind, clearing, panel replacement, tempo changes and clipped region ends. This does not add automatic bar following or establish full DAW parity; live model inference remains unverified.
