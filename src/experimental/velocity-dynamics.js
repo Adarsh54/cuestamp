@@ -1,8 +1,8 @@
 import {z} from 'zod';
 import {selectedMidiNotes} from './note-selection.js';
-const options=z.object({threshold:z.number().finite().min(0).max(1).default(80/127),ratio:z.number().finite().min(.25).max(20).default(2),knee:z.number().finite().min(0).max(64/127).default(0),makeup:z.number().finite().min(-1).max(1).default(0),noteId:z.string().optional(),noteIds:z.string().max(2020000).optional()}).strict();
+export const velocityDynamicsOptions=z.object({threshold:z.number().finite().min(0).max(1).default(80/127),ratio:z.number().finite().min(.25).max(20).default(2),knee:z.number().finite().min(0).max(64/127).default(0),makeup:z.number().finite().min(-1).max(1).default(0),noteId:z.string().optional(),noteIds:z.string().max(2020000).optional()}).strict();
 export function velocityDynamicsEdits(region,values){
- const s=options.parse(values),notes=selectedMidiNotes(region,s);if(!notes.length)throw Error('Add or select notes first.');
+ const s=velocityDynamicsOptions.parse(values),notes=selectedMidiNotes(region,s);if(!notes.length)throw Error('Add or select notes first.');
  return notes.map(note=>{const x=note.velocity;if(x===0)return {id:note.id,velocity:0};const d=x-s.threshold;let y=x;
   if(s.knee>0&&Math.abs(d)<s.knee/2)y=x+(1/s.ratio-1)*(d+s.knee/2)**2/(2*s.knee);
   else if(d>=s.knee/2)y=s.threshold+d/s.ratio;

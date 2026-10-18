@@ -5791,3 +5791,11 @@ Piano roll now has Velocity dynamics → compress / expand with all/selected-not
 Research: Apple's Velocity Processor guide describes threshold, ratio, soft knee and makeup for compression/expansion (https://support.apple.com/en-ca/guide/logicpro/lgce7ce34b6a/mac). Our implementation does not claim complete plug-in parity or automatic gain matching.
 
 Verification: 1,513 tests and production build passed, with the existing chunk warning. Unit tests cover compression, expansion, soft-knee continuity/monotonicity, makeup/range limits, silent notes, selected scope, invalid settings, atomic rollback and Undo. Browser check verifies form/preview, Undo/Redo, persisted edits and actual PCM: below-threshold amplitude unchanged, loud note amplitude reduced to 0.833333 of its original, silent note still silent. Live model inference and full workstation parity remain unverified.
+
+### Agent context for visible MIDI edit tools (2026-10-18)
+
+Initial agent requests now include `noteToolsView` for open, valid strum/dynamics forms. Capture occurs before the agent-busy rerender. Context carries session/revision, owning MIDI track/region, command-unit settings and each form's explicit selected-note scope. Hidden, invalid or empty-selected forms are omitted. Context is omitted on continuation steps, preventing reuse after an edit. Shared option schemas validate both commands and UI context; server validation rejects stale ownership/revision and foreign note IDs before contacting the provider. Instructions treat visible settings as context only, require an actual user request and call out ambiguity when multiple forms are open.
+
+Verification: all 1,517 tests and production build passed (existing chunk warning). Provider-adapter tests verify context delivery, dynamics selection isolation, strum execution, unchanged planning input, Undo and invalid/stale rejection without provider calls. Browser controlled-response test verifies actual form capture before rerender, threshold 60 / ratio 3 / selected note n1, omission of closed strum controls, correct selected-only edit and Undo. These checks do not establish real model inference.
+
+Live configuration was rechecked with `npm run check:daw-agent -- --config-only`: `OPENAI_API_KEY` and `DAW_AGENT_MODEL` are still missing. No live request was made. Full workstation parity remains unfinished.
