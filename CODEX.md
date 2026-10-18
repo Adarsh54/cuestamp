@@ -5639,3 +5639,11 @@ The arrangement score view and part selector now include drum-kit tracks and MID
 Full-score export, displayed-score download/print and selected-region views continue using their corresponding part selection. An explicitly hidden drum part stays absent from Download displayed score. Pitched staff-step gestures remain disabled for drum notes.
 
 Verified 1,457 tests and production build. `scripts/browser-experimental-score-drum-arrangement-check.cjs` renders bass plus drums, selects a drum in the second part, edits its mapped pitch, undoes, and validates agent score context. The existing drum-region editor browser check also covers rest insertion and filtered score download. The mixed arrangement was visually inspected. Live-model inference and sophisticated percussion engraving remain unfinished.
+
+### Repeatable drum-agent verification (2026-10-18)
+
+`npm run check:daw-agent -- --drums` runs up to three configured-provider requests against a disposable in-memory session: change only a selected kick to MIDI snare 38, interpret a follow-up as halving its velocity, and export piano plus drums in the requested order. It supplies current drum score-view context and conversation deltas, validates exact resulting session state, generates the actual mixed MusicXML, and checks Undo. It saves no projects, media or exports. `--drums --config-only` checks configuration without requests. `--score` and `--drums` are mutually exclusive.
+
+Current local preflight still fails because OPENAI_API_KEY and DAW_AGENT_MODEL are absent. No live requests were sent and no live inference pass is claimed. Configure server-only settings using the provider table near the beginning of this guide; never paste keys into chat, tracked files or VITE_ variables. The model ID must be available to the configured provider account.
+
+Verified 1,459 tests and production build. New injected-plan tests check selected identity/context, follow-up conversation, correct export, wrong targets, extra edits, wrong follow-up values, missing parts, configuration gating and error redaction. These test the diagnostic's ability to detect incorrect results, not model intelligence. Live provider tool choice and end-to-end authenticated app inference remain unverified requirements of the active goal.
