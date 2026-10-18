@@ -5958,3 +5958,40 @@ Unit tests verify channel/send/master/insert live timestamps, output clocks,
 calibration override, end gate, session immutability and delay-node cleanup.
 No deployment or live-agent inference check was performed. Full DAW scope remains
 active; next work must migrate real rendering/playback callers.
+
+## Export compensation checkpoint (2026-10-18)
+
+Added `renderOfflineSession`: validate the existing <=600-second render range,
+render with `compensateLatency: true` into requested frames plus processing
+latency, trim only initial processing latency, and return a native AudioBuffer.
+The extra ending is preserved. Graphs stop in finally; cancellation during
+preparation/render rejects without returning a completed artifact. Offline browser
+rendering itself cannot be canceled via a standard close API; disconnecting the
+graph prevents further meaningful processing. A nonzero-latency trim temporarily
+holds a second full PCM buffer; zero-latency renders reuse the original.
+
+Workspace WAV mix/stem/range/region exports, analysis, movie soundtrack exports,
+and in-place region/track bounces use the helper. Real-time WAV and sequential
+stem exports enable graph compensation and shift capture start/end by the same
+integer latency frames; their requested duration and bounded writes are unchanged.
+Ordinary playback, cycle, recording, scene clocks and video preview are not yet
+migrated. This supersedes earlier notes saying all callers remain opt-out.
+
+Validation: 1,559 tests and build passed (existing chunk-size warning).
+`browser-experimental-export-latency-check.cjs` verifies native AudioBuffer reuse
+as a source, stereo WAV encoding, exact range lengths and impulses near both ends
+at 44.1/48/96 kHz; real-time 48 kHz capture preserves those sample positions.
+The existing agent export UI fixture now includes a compressor; mix/stem/range/
+region downloads, markers, settings, stale-request rejection and cancellation
+passed with mocked provider responses. Real-time bounded-write/slow-storage/
+cancel/stalled-clock regression passed (non-compressor reference error <2e-9).
+Native compressor startup means compensated offline and real-time amplitudes can
+still differ: in the pulse fixture late peaks were about .243 versus .250.
+Do not claim their compressed waveforms are identical. No live inference or
+production deployment verification was performed. Full DAW scope remains active.
+
+The batch-bounce browser regression also passed: PCM equivalence for its
+zero-latency fixture, atomic undo/redo, second-render failure/cancel cleanup,
+failed-save cleanup, mocked agent execution and reload playback. Its stale
+“Cancel bounce” selector/status were updated to the existing “Cancel operation”
+UI; no application label was changed for the test.

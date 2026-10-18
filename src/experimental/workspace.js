@@ -1,3 +1,4 @@
+import {renderOfflineSession} from './offline-render.js';
 import {saveRealtimeStems} from './realtime-stems.js';
 import {renderRealtimeWav} from './realtime-bounce.js';
 import {realtimeWavFormat,realtimeStemJobs} from './realtime-bounce-plan.js';
@@ -295,7 +296,7 @@ export function createExperimentalWorkspace({account,esc}){
   agentRequest?.signal.throwIfAborted();
   const original=history,plan=createBouncePlan(session()),snapshot=plan.entries[0].document,sampleRate=bounceSettings.sampleRate;
   busy=true;stop();const analysisTransportEpoch=transportEpoch;status='Rendering the full mix for analysis…';paint();
-  try{for(const id of plan.assets){await decode(id);agentRequest?.signal.throwIfAborted();}const frames=Math.max(1,Math.ceil(plan.duration*sampleRate)),offline=new OfflineAudioContext(2,frames,sampleRate);await prepareSessionEffects(offline,snapshot);scheduleSession(offline,snapshot,buffers,0,{baseTime:0});const rendered=await offline.startRendering();agentRequest?.signal.throwIfAborted();status='Measuring every audio sample…';paint();const {channels,stereo,stereoWindows,loudness,truePeak}=await analyzeRender(rendered,{signal:agentRequest?.signal,loudness:true,truePeak:true});
+  try{for(const id of plan.assets){await decode(id);agentRequest?.signal.throwIfAborted();}const frames=Math.max(1,Math.ceil(plan.duration*sampleRate)),rendered=await renderOfflineSession(snapshot,buffers,{duration:plan.duration,sampleRate,signal:agentRequest?.signal});agentRequest?.signal.throwIfAborted();status='Measuring every audio sample…';paint();const {channels,stereo,stereoWindows,loudness,truePeak}=await analyzeRender(rendered,{signal:agentRequest?.signal,loudness:true,truePeak:true});
    agentRequest?.signal.throwIfAborted();
    if(!root?.isConnected||history!==original||session().revision!==snapshot.revision)throw Error('The session changed during analysis. Analyze the mix again.');
    mixAnalysis=validateMixAnalysis({sessionId:snapshot.id,revision:snapshot.revision,measuredAt:Date.now(),sampleRate,frames,channels,stereo,stereoWindows,loudness,truePeak},session());status='Full mix analysis ready.';return {transportEpoch:analysisTransportEpoch};
@@ -315,9 +316,8 @@ export function createExperimentalWorkspace({account,esc}){
    const zip=plan.zip?new JSZip():null;let output,name;
    for(const [i,entry]of plan.entries.entries()){
     check();if(zip){status=`Bouncing stem ${i+1} of ${plan.entries.length}…`;paint();}
-    const offline=new OfflineAudioContext(2,Math.max(1,Math.ceil(plan.duration*settings.sampleRate)),settings.sampleRate);
-    await prepareSessionEffects(offline,entry.document);scheduleSession(offline,entry.document,buffers,plan.position,{baseTime:0});
-    const file=encodeWav(await wait(offline.startRendering()),{bitDepth:settings.bitDepth,dither:settings.dither,markers:bounceMarkers(entry.document,plan.position,plan.duration)});
+    const rendered=await wait(renderOfflineSession(entry.document,buffers,{position:plan.position,duration:plan.duration,sampleRate:settings.sampleRate,signal:request?.signal}));
+    const file=encodeWav(rendered,{bitDepth:settings.bitDepth,dither:settings.dither,markers:bounceMarkers(entry.document,plan.position,plan.duration)});
     if(zip)zip.file(entry.name,await wait(file.arrayBuffer()));else{output=file;name=entry.name;}
    }
    if(zip){output=await wait(zip.generateAsync({type:'blob'}));name=plan.title+'-stems.zip';}
@@ -357,7 +357,7 @@ export function createExperimentalWorkspace({account,esc}){
   const plan=prepared?.plan??createMovieExportPlan(session(),track()?.kind==='video'?region()?.id:undefined),file=plan.picture?new Map(plan.assetIds.map(id=>[id,files.get(id)])):files.get(plan.assetId),original=history,revision=session().revision,controller=request||new AbortController(),signal=controller.signal;
   const check=()=>{signal.throwIfAborted();if(history!==original||session().revision!==revision||!root?.isConnected)throw Error('The session changed. Movie export canceled.');};
   if(!file||(plan.picture&&[...file.values()].some(value=>!value)))throw Error('The video source is missing. Re-import it.');stop();busy=true;bounceController=controller;status='Rendering movie soundtrack…';paint();
-  try{for(const id of plan.audio.assets){await transportWait(decode(id),signal);check();}const offline=new OfflineAudioContext(2,Math.ceil(plan.duration*48000),48000);await prepareSessionEffects(offline,plan.audio.entries[0].document);check();const graph=scheduleSession(offline,plan.audio.entries[0].document,buffers,plan.audio.position,{baseTime:0});let mix;try{mix=await transportWait(offline.startRendering(),signal);}finally{graph.stop();}check();let percent=-1;
+  try{for(const id of plan.audio.assets){await transportWait(decode(id),signal);check();}const mix=await renderOfflineSession(plan.audio.entries[0].document,buffers,{position:plan.audio.position,duration:plan.duration,sampleRate:48000,signal});check();let percent=-1;
    const result=await encodeMovieMix(file,mix,plan,{signal,onProgress:p=>{const next=Math.floor(p*100);if(next!==percent){percent=next;status=`Encoding movie with mix · ${next}%`;paint();}}});check();const name=plan.name.replace(/[^a-z0-9 _-]/gi,'').slice(0,100)||'movie';download(result.blob,name+'-mix.'+result.extension);status='Movie with session mix downloaded.';return status;
   }finally{bounceController=null;busy=false;paint();}
  }
@@ -489,8 +489,7 @@ export function createExperimentalWorkspace({account,esc}){
    for(const [index,plan]of plans.entries()){
     status=plans.length>1?`Bouncing track ${index+1} of ${plans.length}: ${plan.name}`:plan.trackBounce?'Bouncing track to a new audio track…':'Bouncing region to a new audio track…';paint();check();
     for(const asset of plan.assets){await transportWait(decode(asset),signal);check();}
-    const offline=new OfflineAudioContext(2,Math.max(1,Math.ceil(plan.duration*sampleRate)),sampleRate);await prepareSessionEffects(offline,plan.entries[0].document);scheduleSession(offline,plan.entries[0].document,buffers,plan.position,{baseTime:0});
-    const rendered=await transportWait(offline.startRendering(),signal);check();const id=crypto.randomUUID(),file=new File([encodeWav(rendered,{bitDepth:32})],plan.name+'.wav',{type:'audio/wav'});
+    const rendered=await renderOfflineSession(plan.entries[0].document,buffers,{position:plan.position,duration:plan.duration,sampleRate,signal});check();const id=crypto.randomUUID(),file=new File([encodeWav(rendered,{bitDepth:32})],plan.name+'.wav',{type:'audio/wav'});
     await assetStore(scope,'readwrite',{id,file});renderedAssets.push({id,file,rendered,plan});check();
    }
    const previous={session:history.session,past:[...history.past],future:[...history.future]};
