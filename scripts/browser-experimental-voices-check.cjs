@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
   const {SessionHistory}=await import('/src/experimental/session.js'),{scheduleSession}=await import('/src/experimental/audio-engine.js');
   const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'a',kind:'audio'}},{op:'track.add',values:{id:'b',kind:'midi',instrument:'sine'}},{op:'track.add',values:{id:'bus',kind:'bus'}},{op:'track.set',target:'a',values:{pan:-1,output:'bus'}},{op:'track.set',target:'b',values:{pan:1}},{op:'effect.add',target:'a',values:{kind:'delay',time:.2,feedback:0,mix:1}},{op:'effect.add',target:'bus',values:{kind:'gain',gainDb:-6}},{op:'region.add',target:'a',values:{id:'ar',assetId:'positive',duration:2}},{op:'region.add',target:'b',values:{id:'br',duration:2}},{op:'note.add',target:'br',values:{pitch:69,start:0,duration:2,velocity:.7}}]);
   const before=JSON.stringify(h.session),c=new OfflineAudioContext(2,96000,48000),buffers=new Map();for(const [id,value] of [['positive',.2],['negative',-.2]]){const b=c.createBuffer(1,96000,48000);b.getChannelData(0).fill(value);buffers.set(id,b);}
-  const graph=scheduleSession(c,h.session,buffers,0,{baseTime:0,endPosition:2}),source=h.session.tracks[0].regions[0],errors=[];
+  await (await import('/src/experimental/noise-gate.js')).prepareSessionEffects(c,h.session);const graph=scheduleSession(c,h.session,buffers,0,{baseTime:0,endPosition:2}),source=h.session.tracks[0].regions[0],errors=[];
   try{graph.replaceTrackRegions('a',[{...source,assetId:'missing'}],{when:.4});}catch(e){errors.push(e.message);}
   graph.replaceTrackRegions('a',[{...source,assetId:'negative',duration:1}],{when:.5,duration:.4});
   try{graph.replaceTrackRegions('a',[source],{when:.6});}catch(e){errors.push(e.message);}
@@ -15,6 +15,7 @@ const assert=require('node:assert/strict');
   graph.collectVoices();graph.stop();graph.stop();try{graph.replaceTrackRegions('a',[source],{when:3});}catch(e){errors.push(e.message);}
   return {left:[sample(.4),sample(.55),sample(.65),sample(.8),sample(1.2)],right:[rms(.3),rms(.8)],unchanged:before===JSON.stringify(h.session),errors};
  });
+ console.log('Voice handoff PCM:',result);
  assert.ok(result.left[0]>.01&&result.left[0]<.2);
  assert.ok(result.left[1]>.01&&result.left[2]>.01,'existing delay history must continue after the clip handoff');
  assert.ok(result.left[3]<-.01,'new clip must enter the same delayed mixer path');
@@ -25,7 +26,7 @@ const assert=require('node:assert/strict');
   const {SessionHistory}=await import('/src/experimental/session.js'),{scheduleSession}=await import('/src/experimental/audio-engine.js'),h=new SessionHistory();
   h.execute([{op:'track.add',values:{id:'a',kind:'audio'}},{op:'track.add',values:{id:'b',kind:'audio'}},{op:'track.set',target:'a',values:{pan:-1}},{op:'track.set',target:'b',values:{pan:1}},{op:'effect.add',target:'a',values:{kind:'delay',time:.2,feedback:0,mix:1}},{op:'region.add',target:'a',values:{id:'ar',assetId:'positive',duration:2}},{op:'region.add',target:'b',values:{id:'br',assetId:'positive',duration:2}}]);
   const c=new OfflineAudioContext(2,96000,48000),buffers=new Map();for(const [id,value] of [['positive',.2],['negative',-.2]]){const b=c.createBuffer(1,96000,48000);b.getChannelData(0).fill(value);buffers.set(id,b);}
-  const graph=scheduleSession(c,h.session,buffers,0,{baseTime:0,endPosition:2}),source=h.session.tracks[0].regions[0];
+  await (await import('/src/experimental/noise-gate.js')).prepareSessionEffects(c,h.session);const graph=scheduleSession(c,h.session,buffers,0,{baseTime:0,endPosition:2}),source=h.session.tracks[0].regions[0];
   graph.replaceTrackRegions('a',[{...source,assetId:'negative'}],{when:.5});
   graph.stopTrackRegions('a',{when:.2});
   const suspended=c.suspend(.3),rendering=c.startRendering();await suspended;
