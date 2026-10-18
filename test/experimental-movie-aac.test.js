@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {estimateEncoderDelay} from '../src/experimental/movie-aac.js';
+function noise(length){let seed=54;return Float32Array.from({length},()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2147483648-1;});}
+test('AAC timing calibration recovers exact priming lag despite gain and small codec noise',()=>{const reference=noise(4096);for(const lag of [0,1024,2112,4096]){const decoded=new Float32Array(reference.length+8192);decoded.set(reference.map((x,i)=>x*.7+Math.sin(i)*.01),lag);assert.equal(estimateEncoderDelay(reference,decoded),lag);}});
+test('AAC timing calibration refuses silence or an unrelated response',()=>{const reference=noise(4096);assert.throws(()=>estimateEncoderDelay(reference,new Float32Array(14000)),/verify AAC/);assert.throws(()=>estimateEncoderDelay(reference,Float32Array.from({length:14000},(_,i)=>Math.sin(i*.1))),/verify AAC/);});
