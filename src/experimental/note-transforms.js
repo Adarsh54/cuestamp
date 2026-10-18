@@ -3,13 +3,13 @@ import {selectedMidiNotes} from './note-selection.js';
 import {z} from 'zod';
 
 const noteId=z.string().min(1).max(100).optional();
-const quantizeOptions=z.object({
+export const quantizeOptions=z.object({
  timing:z.enum(['seconds','beats']).default('seconds'),
  grid:z.number().finite().min(.0001).max(60),
  strength:z.number().min(0).max(1).default(1),
  swing:z.number().min(0).max(.75).default(0),noteId,noteIds:z.string().max(2020000).optional(),
 }).strict();
-const humanizeOptions=z.object({
+export const humanizeOptions=z.object({
  timing:z.number().min(0).max(1).default(0),
  duration:z.number().min(0).max(1).default(0),
  velocity:z.number().min(0).max(1).default(0),
