@@ -6167,3 +6167,20 @@ Verification: `test/experimental-flanger.test.js` and
 environment variables. Browser checks use native OfflineAudioContext at 44.1,
 48 and 96 kHz and mocked account APIs. The agent command test controls the model
 response; live inference and broad sonic quality are not established by it.
+
+### 4× oversampling foundation — not yet an enabled limiter mode
+
+`src/experimental/oversampling.js` provides separate streaming interpolation and
+decimation stages. They require exact 4× frame ratios, independent output buffers
+and matching mono/stereo channels. State is bounded; both stages delay by 32
+base-rate frames, so the round trip is 64 frames with a 128-frame impulse support.
+Callers own buffer allocation and must explicitly flush/trim tails and compensate
+latency when integrating. No existing playback/export path has changed yet.
+
+Run `node --test test/experimental-oversampling.test.js` for spectral, latency,
+block-boundary, reset and validation checks. Run
+`node scripts/experimental-oversampled-limiter-check.mjs` to reproduce the proposed
+4× limiter chain and independent FFmpeg true-peak measurements. Its noise fixture
+currently exceeds the requested −1 dB ceiling (~−0.76 dBTP app / −0.7 dBTP FFmpeg).
+That diagnostic reports evidence rather than treating an oversampled sample ceiling
+as a true-peak guarantee. Do not expose this candidate as a completed true-peak mode.

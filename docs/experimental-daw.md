@@ -2662,3 +2662,32 @@ a tempo change. Unit tests cover fractional impulses, signed feedback below a
 render quantum, block invariance, parameter rejection, presets and mocked agent
 commands. Live model inference and cross-browser sonic/performance parity remain
 unverified; true-peak limiting and the remaining workstation catalog are still open.
+
+### Oversampled limiter investigation checkpoint
+
+`oversampling.js` provides streaming 4× audio interpolation and decimation using
+an original 257-tap Blackman–Harris-windowed sinc FIR. This is a DSP building block,
+not an enabled effect or a true-peak limiter. Each stage has 32 base-rate samples
+of linear-phase group delay (64 round trip); the combined impulse support lasts
+128 base-rate samples. Callers must handle latency and filter tails explicitly.
+It uses bounded per-channel history, caller-owned buffers and polyphase evaluation
+for interpolation, with filtered decimation. Arbitrary base-rate block sizes have
+identical output. Reset clears history; malformed/nonfinite/aliased buffers reject
+before state changes. Both mono/stereo and Float32/Float64 buffers are supported.
+
+Measured tests show <0.01 dB round-trip change at normalized base-rate frequencies
+0.01, 0.1, 0.25, 0.4 and 0.44. Tested high-rate stopband tones from 0.14 to 0.45
+cycles/sample are rejected by >85 dB. These are measured frequency points, not a
+claim of flat response all the way to Nyquist. Reference methodology:
+https://www.dsprelated.com/freebooks/pasp/Windowed_Sinc_Interpolation.html
+
+The diagnostic `scripts/experimental-oversampled-limiter-check.mjs` evaluates the
+candidate upsample → existing limiter at 192 kHz → downsample chain at 48 kHz.
+The deterministic noise fixture exceeded a −1 dB ceiling: approximately −0.76 dBTP
+in the app's detector and −0.7 dBTP in independent FFmpeg analysis. Downsampling and
+reconstruction can introduce peaks beyond the high-rate sample ceiling. Therefore
+this chain is deliberately not exposed as true-peak mode. Output correction and
+broader phase/frequency/automation/transient verification remain necessary. Other
+fixtures include a two-tone signal, isolated impulse, square bursts and a tone at
+one quarter of the sample rate. Local diagnostic timings are not an AudioWorklet
+load guarantee or a large-session performance benchmark.
