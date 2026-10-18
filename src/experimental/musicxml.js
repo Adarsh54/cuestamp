@@ -1,3 +1,4 @@
+import {isPercussionRegion,drumNotation,drumInstrumentId,drumDefinitions} from './musicxml-drum-export.js';
 import {scoreTransposition,writtenKey} from './score-transposition.js';
 import {musicxmlRhythm,musicxmlTripletGroups} from './musicxml-rhythm.js';
 import {compileTempoMap,regionBeatTiming} from './tempo-map.js';
@@ -18,7 +19,7 @@ export function spelledPitch(pitch,key){
 const keyXml=key=>key?`<key><fifths>${key.sharps}</fifths><mode>${key.mode}</mode></key>`:'';
 export function musicxmlRegionPlan(session,track,region){
  if(track?.kind!=='midi'||!track.regions.some(r=>r.id===region?.id))throw Error('Select a MIDI region to export notation.');
- if(track.instrument==='drumKit'||region.notes.some(n=>n.channel===9))throw Error('Percussion notation is not supported yet. Select a pitched MIDI region.');
+ if(!isPercussionRegion(track,region)&&region.notes.some(n=>n.channel===9))throw Error('Separate pitched and percussion notes into different regions before notation export.');
  const timing=regionBeatTiming(region,session),tempo=compileTempoMap(session),meter=compileMeterMap(session),origin=tempo.beatAtTime(region.start),endBeat=tempo.beatAtTime(region.start+region.duration),tick=beat=>Math.round((beat-origin)*MUSICXML_DIVISIONS),total=tick(endBeat);
  if(total<1)throw Error('The region is shorter than one notation tick.');
  const notes=region.notes.filter(n=>!n.mute&&n.velocity>0).map(n=>({...n,startTick:Math.round(timing.beatAtTime(n.start)*MUSICXML_DIVISIONS),endTick:Math.round(timing.beatAtTime(n.start+n.duration)*MUSICXML_DIVISIONS)})).sort((a,b)=>a.startTick-b.startTick||b.pitch-a.pitch);
@@ -28,14 +29,14 @@ export function musicxmlRegionPlan(session,track,region){
  return {notes,measures,voices:Math.max(1,voiceEnds.length),total};
 }
 function regionMeasures(session,track,region){
- const transposition=scoreTransposition(track),keys=compileKeyMap(session),tempo=compileTempoMap(session),origin=tempo.beatAtTime(region.start);
+ const percussion=isPercussionRegion(track,region),transposition=scoreTransposition(percussion?{scoreInstrument:'concert'}:track),keys=compileKeyMap(session),tempo=compileTempoMap(session),origin=tempo.beatAtTime(region.start);
  const plan=musicxmlRegionPlan(session,track,region),parts=[],clefs={treble:['G',2],bass:['F',4],alto:['C',3],tenor:['C',4]},clef=clefs[track.scoreClef??'treble'];if(!clef)throw Error('Choose a supported score clef.');let lastSignature='',lastKey='';
  for(const [index,m] of plan.measures.entries()){
-  const key=keys.keyAtBeat(origin+m.start/MUSICXML_DIVISIONS),keyTag=keyXml(writtenKey(key,transposition)),startKey=keyTag!==lastKey?keyTag:'';
+  const key=keys.keyAtBeat(origin+m.start/MUSICXML_DIVISIONS),keyTag=percussion?'':keyXml(writtenKey(key,transposition)),startKey=keyTag!==lastKey?keyTag:'';
   lastKey=keyTag;
-  const changes=new Map(keys.points.map(p=>[Math.round((p.beat-origin)*MUSICXML_DIVISIONS),p]).filter(([tick])=>tick>m.start&&tick<m.end));
+  const changes=new Map((percussion?[]:keys.points).map(p=>[Math.round((p.beat-origin)*MUSICXML_DIVISIONS),p]).filter(([tick])=>tick>m.start&&tick<m.end));
   const boundaries=[m.start,...changes.keys(),m.end];
-  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions>':''}${startKey}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?`<clef><sign>${clef[0]}</sign><line>${clef[1]}</line></clef>`:''}${index===0&&transposition.semitones?`<transpose><diatonic>${-transposition.diatonic}</diatonic><chromatic>${-transposition.semitones}</chromatic></transpose>`:''}`;lastSignature=signature;
+  const signature=`${m.signature.numerator}/${m.signature.denominator}`,attributes=`${index===0?'<divisions>960</divisions>':''}${startKey}${signature!==lastSignature?`<time><beats>${m.signature.numerator}</beats><beat-type>${m.signature.denominator}</beat-type></time>`:''}${index===0?`<clef><sign>${percussion?'percussion':clef[0]}</sign><line>${percussion?2:clef[1]}</line></clef>`:''}${index===0&&transposition.semitones?`<transpose><diatonic>${-transposition.diatonic}</diatonic><chromatic>${-transposition.semitones}</chromatic></transpose>`:''}`;lastSignature=signature;
   const music=[attributes?`<attributes>${attributes}</attributes>`:'',...m.tempos.map(t=>`<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${t.bpm}</per-minute></metronome></direction-type><offset>${t.offset}</offset><sound tempo="${t.bpm}"/></direction>`)];
   for(let voice=1;voice<=plan.voices;voice++){
    if(voice>1)music.push(`<backup><duration>${m.end-m.start}</duration></backup>`);let cursor=m.start;
@@ -59,7 +60,8 @@ function regionMeasures(session,track,region){
      const noteTuplet=chordIndex===0?tuplet:'';
      const writtenPitch=n.pitch+transposition.semitones;if(writtenPitch>131)throw Error('Written pitch exceeds MusicXML octave 9. Use concert pitch for this part.');
      const {step,alter,octave}=spelledPitch(writtenPitch,writtenKey(keys.keyAtBeat(tempo.beatAtTime(region.start+n.start)),transposition)),ties=[...(n.startTick<start?['stop']:[]),...(n.endTick>end?['start']:[])];
-     music.push(`<note dynamics="${(n.velocity*127/90*100).toFixed(3)}">${chordIndex?'<chord/>':''}<pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch><duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}<voice>${voice}</voice>${rhythm.duration}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
+     const drum=percussion?drumNotation(n.pitch):null,pitchTag=percussion?`<unpitched><display-step>${drum.step}</display-step><display-octave>${drum.octave}</display-octave></unpitched>`:`<pitch><step>${step}</step>${alter?`<alter>${alter}</alter>`:''}<octave>${octave}</octave></pitch>`;
+     music.push(`<note dynamics="${(n.velocity*127/90*100).toFixed(3)}">${chordIndex?'<chord/>':''}${pitchTag}<duration>${end-start}</duration>${ties.map(type=>`<tie type="${type}"/>`).join('')}${percussion?`<instrument id="${drumInstrumentId(n.pitch)}"/>`:''}<voice>${voice}</voice>${rhythm.duration}${drum?.cross?'<notehead>x</notehead>':''}${ties.length||noteTuplet?`<notations>${ties.map(type=>`<tied type="${type}"/>`).join('')}${noteTuplet}</notations>`:''}</note>`);
      }
     }
    }
@@ -68,9 +70,9 @@ function regionMeasures(session,track,region){
  return parts.join('');
 }
 function scoreDocument(title,parts){
- return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list>${parts.map((p,i)=>`<score-part id="P${i+1}"><part-name>${xml(p.name)}</part-name></score-part>`).join('')}</part-list>${parts.map((p,i)=>`<part id="P${i+1}">${p.measures}</part>`).join('')}</score-partwise>`;
+ return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list>${parts.map((p,i)=>`<score-part id="P${i+1}"><part-name>${xml(p.name)}</part-name>${p.instruments??''}</score-part>`).join('')}</part-list>${parts.map((p,i)=>`<part id="P${i+1}">${p.measures}</part>`).join('')}</score-partwise>`;
 }
-export function exportRegionMusicxml(session,track,region){return scoreDocument(region.name||session.title,[{name:track.name,measures:regionMeasures(session,track,region)}]);}
+export function exportRegionMusicxml(session,track,region){return scoreDocument(region.name||session.title,[{name:track.name,instruments:isPercussionRegion(track,region)?drumDefinitions(region):'',measures:regionMeasures(session,track,region)}]);}
 export function scoreTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.instrument!=='drumKit'&&t.regions.length&&!t.regions.some(r=>r.notes.some(n=>n.channel===9)));}
 export function scorePartRegions(session,trackIds=scoreTracks(session).map(t=>t.id)){
  if(!Array.isArray(trackIds)||!trackIds.length||trackIds.length>128||new Set(trackIds).size!==trackIds.length)throw Error('Choose between 1 and 128 distinct pitched MIDI tracks.');

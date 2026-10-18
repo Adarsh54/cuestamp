@@ -1,3 +1,4 @@
+import {isPercussionRegion} from './musicxml-drum-export.js';
 import {openScorePrint} from './score-print.js';
 import {scoreDisplayTiming,scoreDisplayTimingView} from './score-display-timing.js';
 import {scorePartsView,scorePartView} from './score-parts.js';
@@ -20,6 +21,7 @@ export function scorePreviewDocument(session,track,region,scope,pitchMode='writt
   validateScorePreviewKeys(session,{start:0,duration:Math.max(...tracks.flatMap(t=>t.regions.map(r=>r.start+r.duration)))});
   return {xml:exportScoreMusicxml(session),label:`Arrangement score: ${tracks.length} parts`,name:session.title};
  }
+ if(isPercussionRegion(track,region))throw Error('Percussion score editing is not available yet. Use Export MusicXML for drum notation.');
  validateScorePreviewKeys(session,region);return {xml:exportRegionMusicxml(session,track,region),label:`Score for ${region.name}`,name:region.name};
 }
 export function scorePreviewView(track,region,session){
