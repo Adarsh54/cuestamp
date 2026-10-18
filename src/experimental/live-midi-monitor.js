@@ -1,3 +1,4 @@
+import {DRUM_CHOKE_FADE} from './drum-choke.js';
 import {samplerSourceRange} from './sampler-source-range.js';
 import {sampleZoneLevel,connectSampleZone,sampleGroupDestination} from './sampler-zone-voice.js';
 import {createPitchBendState} from './pitch-bend-state.js';
@@ -15,7 +16,7 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
  if(instrument==='sampler'&&!sampleBuffer&&!sampleResolver)throw Error('Assign a sampler source before monitoring MIDI.');
  const loop=instrument==='sampler'&&!sampleResolver?samplerLoop(sampleBuffer,{sampleStart,sampleEnd,sampleLoop:loopEnabled,sampleLoopStart,sampleLoopEnd}):null;
  const envelope=samplerEnvelope({sampleAttack,sampleDecay,sampleSustain,sampleRelease});
- const voices=new Set(),channels=new Map(),groups=new Map();let disposed=false;
+ const voices=new Set(),channels=new Map(),groups=new Map();let disposed=false,lastClosedHatTime=-Infinity;
  function channel(id){if(!channels.has(id)){const gain=context.createGain(),pan=context.createStereoPanner();gain.connect(pan);pan.connect(destination);channels.set(id,{gain,pan,volume:1,expression:1,bendState:createPitchBendState(pitchBendRange),sustain:false,sostenuto:false});update(channels.get(id));}return channels.get(id);}
  function update(c){c.gain.gain.setValueAtTime(c.volume*c.expression,context.currentTime);}
  function destroy(v){voices.delete(v);v.osc.disconnect();v.gain.disconnect();v.filter?.disconnect();v.zonePan?.disconnect();}
@@ -25,13 +26,22 @@ export function createLiveMidiMonitor(context, {destination=context.destination,
   if(status<0x80||status>=0xf0||a>127||a<0||([0x80,0x90,0xb0,0xe0].includes(kind)&&(!Number.isInteger(b)||b<0||b>127)))return;
   const c=channel(id),matching=()=>[...voices].filter(v=>v.channel===id);
   if(kind===0x90&&b){
+   if(instrument==='drumKit'&&[42,44,46].includes(a)){
+    const now=context.currentTime;
+    if(a===46&&lastClosedHatTime===now)return; // Closed/pedal hat wins either input order.
+    if(a!==46)lastClosedHatTime=now;
+    for(const v of [...voices])if(v.drum&&v.pitch===46&&!v.released){
+     if(v.startedAt===now){if(a!==46)release(v,true);continue;}
+     v.released=true;v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(v.level,now);v.gain.gain.linearRampToValueAtTime(0,now+DRUM_CHOKE_FADE);v.osc.stop(now+DRUM_CHOKE_FADE);
+    }
+   }
    const layers=instrument==='sampler'&&sampleResolver?sampleResolver({pitch:a,velocity:b/127}):[null],group={};
    for(const layer of layers){
    while(voices.size>=maxVoices)release(voices.values().next().value,true);
    const voiceEnvelope=layer?samplerEnvelope({sampleAttack,sampleDecay,sampleSustain,sampleRelease,...layer}):envelope;
    const drum=instrument==='drumKit',sampler=instrument==='sampler',osc=(drum||sampler)?context.createBufferSource():context.createOscillator(),gain=context.createGain(),now=context.currentTime;
    if(drum){osc.buffer=drumBuffer(context,a);gain.gain.value=b/127;}else if(sampler){osc.buffer=layer?.buffer??sampleBuffer;Object.assign(osc,layer?samplerLoop(layer.buffer,layer):loop);osc.playbackRate.value=samplerPlaybackRate(a,layer?.sampleRoot??sampleRoot,{sampleTune,sampleFineTune,...(layer??{})});osc.detune.value=c.bendState.cents;scheduleSamplerEnvelope(gain.gain,now,0,Infinity,b/127*sampleZoneLevel(layer??{}),voiceEnvelope);}else{osc.type=instrument;osc.frequency.value=440*2**((a-69)/12);osc.detune.value=c.bendState.cents;gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(b/127*.18,now+.008);}
-   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack,...(layer??{})},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,sampleGroupDestination(context,c.gain,layer??{},groups,id),layer??{});const v={startedAt:now,level:b/127*(sampler?sampleZoneLevel(layer??{}):.18),envelope:voiceEnvelope,zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);if(sampler){const range=samplerSourceRange(osc.buffer,layer??{sampleStart,sampleEnd});if(osc.loop||range.end===osc.buffer.duration)osc.start(0,range.start);else osc.start(0,range.start,range.end-range.start);}else osc.start();}
+   const filter=sampler?createSamplerFilter(context,{sampleFilterType,sampleFilterCutoff,sampleFilterResonance,sampleFilterKeyTrack,...(layer??{})},a,layer?.sampleRoot??sampleRoot):null;if(filter)osc.connect(filter).connect(gain);else osc.connect(gain);const zonePan=connectSampleZone(context,gain,sampleGroupDestination(context,c.gain,layer??{},groups,id),layer??{});const v={startedAt:now,level:b/127*(drum?1:sampler?sampleZoneLevel(layer??{}):.18),envelope:voiceEnvelope,zonePan,group,osc,gain,filter,drum,sampler,channel:id,pitch:a,held:true,released:false};voices.add(v);osc.onended=()=>destroy(v);if(sampler){const range=samplerSourceRange(osc.buffer,layer??{sampleStart,sampleEnd});if(osc.loop||range.end===osc.buffer.duration)osc.start(0,range.start);else osc.start(0,range.start,range.end-range.start);}else osc.start();}
 
   }else if(kind===0x80||(kind===0x90&&!b)){
    const v=matching().find(v=>v.pitch===a&&v.held);if(v)for(const layer of matching().filter(n=>n.group===v.group)){layer.held=false;if(!c.sustain&&!layer.sostenuto&&!layer.drum)release(layer);}
