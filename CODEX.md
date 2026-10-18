@@ -5931,3 +5931,30 @@ export and transport/video clocks together. Full DAW parity remains incomplete.
 Validation for this checkpoint: all 1,552 tests passed and the production build
 passed with the existing chunk-size warning. No live agent inference or
 production deployment validation was performed.
+
+## Compensated session graph checkpoint (2026-10-18)
+
+`scheduleSession(..., {compensateLatency: true})` now creates the latency plan,
+passes effect timing, adds bus/send/master summing delays and aligns gate detector
+feeds using the effect ID supplied by noise-gate registration. Channel, send and
+master curves/live bindings follow their local output latency. End-position
+output gating and master loudness start follow the audible output clock. All
+created delay nodes are disconnected on stop. The document is unchanged.
+
+The returned `base` remains the source scheduling clock; `outputBase` and
+`latencyFrames` expose delayed output. Optional `compressorLatencyFrames` allows
+host calibration. Existing callers keep the old behavior: compensation is opt-in
+until callers migrate. Do not turn it on globally without padding/trimming
+exports, shifting real-time capture, and reconciling transport/video, scene,
+recording and cycle timing. Source clip scheduling uses source time throughout.
+
+Validation: 1,555 tests and build passed (existing chunk-size warning).
+`browser-experimental-session-latency-check.cjs` renders the production session
+graph at 44.1/48/96 kHz: three parallel paths become one aligned impulse; seeked
+playback windows preserve the last in-range impulse and exclude the later one.
+At 48 kHz an external short gate detector pulse from a muted track opens at the
+compressed program's arrival (peak .200 versus .0024 without compensation).
+Unit tests verify channel/send/master/insert live timestamps, output clocks,
+calibration override, end gate, session immutability and delay-node cleanup.
+No deployment or live-agent inference check was performed. Full DAW scope remains
+active; next work must migrate real rendering/playback callers.

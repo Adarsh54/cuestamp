@@ -40,7 +40,7 @@ actual checkpoints and limitations.
 | Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
 | Recording | [recording](../src/experimental/recording.js), channel/input selection, playback monitoring, MIDI capture, punch, cycle takes, [comp lanes](../src/experimental/comp-lanes.js), hardware-return plans | Physical audio/MIDI hardware, real latency, dropout and long-session verification |
-| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; a measured processing-latency planner exists, but production playback/export compensation is not integrated |
+| Routing/mixing | Buses/sends, master channel, summing groups and hierarchy, meters, mix/loudness analysis | Multichannel/surround/object routing is not implemented by stereo buses; external plug-in hosting remains absent; a measured processing-latency planner and opt-in compensated session graph exist, but playback/export callers are not migrated |
 | Effects | [effect schema/rendering](../src/experimental/effects.js): EQ, compressor, gate/ducker with sidechain, delay, reverb, distortion, chorus, phaser, tremolo, gain/width | Full professional processor catalog, dedicated mastering limiter, external plug-ins and benchmarked sonic/performance parity |
 | Automation | [curves](../src/experimental/automation-curves.js), [touch](../src/experimental/automation-touch.js), trim, live controls, track/master/send/effect playback | Broader physical-controller integration and stress testing; some effect settings intentionally remain static |
 | Advanced audio | [stretch](../src/experimental/audio-stretch.js), [warp](../src/experimental/audio-warp.js), [retune](../src/experimental/audio-retune.js), transient/silence and monophonic analysis | Transparent professional-grade quality across diverse content is unproven; these processors are not polyphonic source separation |
@@ -2499,5 +2499,11 @@ uses the insert input time, while compressor makeup gain uses its output time.
 Live automation bindings carry the same offset through set/trim/release/cancel
 and resume, preserving recorded gesture timestamps in transport time. Native
 browser renders verify delayed makeup and following gain steps at 44.1/48/96 kHz.
-The session scheduler does not yet supply the plan or insert route delays;
-production compensation still requires the integration work listed above.
+The session scheduler now supplies those rows and inserts route/detector delays
+when called with `compensateLatency: true`. It exposes source `base`, audible
+`outputBase` and `latencyFrames`. Channel/master/send automation and range-end
+gating use their processing positions; live controls retain source timestamps.
+Existing callers remain uncompensated until export trimming/capture and transport,
+video, scene and recording clocks are migrated. The native session-graph fixture
+verifies parallel alignment at three sample rates, a muted-source gate detector,
+and exact range boundaries after a seek. This is not yet enabled in the app UI.
