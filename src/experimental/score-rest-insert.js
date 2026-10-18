@@ -1,3 +1,4 @@
+import {isPercussionRegion} from './musicxml-drum-export.js';
 import {compileTempoMap} from './tempo-map.js';
 // A rest in an arrangement may cover empty timeline or overlapping regions. Never guess its destination.
 export function scoreRestDraft(session,{trackId,regionId,scope,beat,beats}){
@@ -10,5 +11,5 @@ export function scoreRestDraft(session,{trackId,regionId,scope,beat,beats}){
  if(candidates.length!==1)return null;
  const destination=candidates[0],start=Math.max(0,time-destination.start),end=Math.min(destination.start+destination.duration,tempo.timeAtBeat(origin+beat+Math.min(1,beats))),duration=end-time;
  if(duration<.001)return null;
- return {regionId:destination.id,note:{pitch:60,start,duration,velocity:.8}};
+ return {regionId:destination.id,note:{pitch:isPercussionRegion(track,destination)?36:60,start,duration,velocity:.8}};
 }

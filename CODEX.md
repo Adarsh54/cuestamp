@@ -5621,3 +5621,13 @@ Export score MusicXML now includes MIDI drum tracks alongside pitched parts, wit
 Interactive score preview and its part selector remain limited to pitched parts; Download displayed score preserves that displayed selection. The full arrangement export is separate and includes percussion. Existing region drum export remains available. No project edits occur during export.
 
 Verified 1,455 tests and production build. `scripts/browser-experimental-musicxml-drum-score-check.cjs` downloads a three-part score (two drum parts and piano), parses it back, checks unique instrument IDs, pitch/timing alignment, ties and unchanged saved state. The downloaded file also passes the official MusicXML 4.0 schema via xmllint. Unit tests cover ordered drum export and mocked-agent eligibility. Percussion score editing and external notation-app rendering remain unverified/incomplete.
+
+### Drum-region score editing (2026-10-18)
+
+Selected drum regions now render in Score preview with clickable/keyboard-selectable notes. OSMD PlaybackInstrumentId maps the graphical note back to the exact drum pitch; its staff display pitch is never used as a MIDI identity. The editor supports drum-number, start, duration and velocity fields, tied-note edits, existing selection/delete/duplicate/audition paths, and rest insertion with a default kick on channel 10. Edits use the existing validated note commands and Undo; selected note IDs remain available to the agent.
+
+Pitched staff-step dragging/arrows, chord-tone creation and selection transposition controls are disabled/hidden for drum notation. Notation instrument/clef and pitch-display controls are hidden for a selected drum region. These are not percussion articulation or layout controls. Arrangement preview remains pitched-only; select a drum region for editing. Full arrangement MusicXML export still includes drum parts.
+
+Also corrected Download displayed score and Print score to export only the pitched arrangement parts actually shown when no explicit part filter is set. Previously they could include hidden percussion after full-score export gained drum support.
+
+Verified 1,456 tests and production build. `scripts/browser-experimental-score-drum-edit-check.cjs` checks exact tied-note selection, field edit, ignored pitched shortcuts, Undo, channel-10 rest insertion and a displayed-score download containing only the visible pitched part. Existing pitched multi-part note-edit regression passes. Rendered drum notation was visually inspected. Unit tests cover exact instrument identity and rejection of malformed/out-of-range IDs. Live-model selection of these notes and detailed percussion engraving remain unverified.

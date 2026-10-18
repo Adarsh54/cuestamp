@@ -10,7 +10,7 @@ export function scorePitchStep(pitch,steps,key,maxPitch=127){
  const deviation=spelling.alter-keyAlter(spelling.step),next=(octave+1)*12+naturals[nextIndex]+keyAlter(letters[nextIndex])+deviation;
  if(next<0||next>maxPitch)throw Error('That staff position is outside MIDI pitch 0–127.');return next;
 }
-export function bindScorePitchDrag(element,{session,reference,zoom,execute,guard,onSelect,onDelete}){
+export function bindScorePitchDrag(element,{session,reference,percussion=false,zoom,execute,guard,onSelect,onDelete}){
  const region=session.tracks.flatMap(t=>t.regions).find(r=>r.id===reference.regionId),note=region?.notes.find(n=>n.id===reference.noteId);if(!note)return;
  const track=session.tracks.find(t=>t.regions.some(r=>r.id===region.id)),transposition=scoreTransposition(track),key=writtenKey(compileKeyMap(session).keyAtBeat(compileTempoMap(session).beatAtTime(region.start+note.start)),transposition);
  const move=steps=>{const pitch=scorePitchStep(note.pitch+transposition.semitones,steps,key,131)-transposition.semitones;if(pitch<0||pitch>127)throw Error('That staff position is outside MIDI pitch 0–127.');return pitch;};
@@ -18,7 +18,7 @@ export function bindScorePitchDrag(element,{session,reference,zoom,execute,guard
  const restore=()=>{element.style.translate='';element.removeAttribute('data-score-drag-pitch');element.setAttribute('aria-label',`Edit MIDI note ${note.pitch}`);};
  const cancel=()=>{if(!gesture)return;const id=gesture.id;gesture=null;suppressClick=true;restore();if(element.hasPointerCapture(id))element.releasePointerCapture(id);};
  element.style.touchAction='none';
- element.onpointerdown=e=>{if(e.button!==0||!e.isPrimary)return;e.preventDefault();e.stopPropagation();element.focus();suppressClick=false;gesture={id:e.pointerId,y:e.clientY,steps:0,pitch:note.pitch};element.setPointerCapture(e.pointerId);};
+ element.onpointerdown=e=>{if(percussion||e.button!==0||!e.isPrimary)return;e.preventDefault();e.stopPropagation();element.focus();suppressClick=false;gesture={id:e.pointerId,y:e.clientY,steps:0,pitch:note.pitch};element.setPointerCapture(e.pointerId);};
  element.onpointermove=e=>{if(!gesture||gesture.id!==e.pointerId)return;e.preventDefault();e.stopPropagation();const steps=Math.round((gesture.y-e.clientY)/(5*zoom));gesture.steps=steps;
   try{gesture.pitch=move(steps);element.dataset.scoreDragPitch=String(gesture.pitch);element.style.translate=`0 ${-steps*5}px`;element.setAttribute('aria-label',`Move to MIDI note ${gesture.pitch}`);}catch{gesture.pitch=null;element.setAttribute('aria-label','Outside MIDI pitch range');}
  };
@@ -33,6 +33,6 @@ export function bindScorePitchDrag(element,{session,reference,zoom,execute,guard
   if(gesture)return;
   if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();e.stopPropagation();if(onDelete)onDelete();else execute([{op:'note.delete',target:note.id}],'Deleted score note');return;}
   if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();onSelect(e);return;}
-  if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();const steps=(e.key==='ArrowUp'?1:-1)*(e.shiftKey?7:1);execute([{op:'note.set',target:note.id,values:{pitch:move(steps)}}],'Changed score note pitch');}
+  if(!percussion&&(e.key==='ArrowUp'||e.key==='ArrowDown')){e.preventDefault();e.stopPropagation();const steps=(e.key==='ArrowUp'?1:-1)*(e.shiftKey?7:1);execute([{op:'note.set',target:note.id,values:{pitch:move(steps)}}],'Changed score note pitch');}
  });
 }

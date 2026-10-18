@@ -6,7 +6,7 @@ test('drum export includes mapped instruments, percussion clef and cymbal heads 
  const {session,track,region}=fixture(),before=structuredClone(session),xml=exportRegionMusicxml(session,track,region);
  assert.match(xml,/<sign>percussion<\/sign>/);assert.match(xml,/<midi-unpitched>37<\/midi-unpitched>/);assert.match(xml,/<midi-unpitched>43<\/midi-unpitched>/);assert.match(xml,/<notehead>x<\/notehead>/);
  assert.doesNotMatch(xml,/<pitch>|<transpose>|<key>/);assert.deepEqual(session,before);
- assert.throws(()=>scorePreviewDocument(session,track,region,'region'),/Percussion score editing/);
+ assert.match(scorePreviewDocument(session,track,region,'region').xml,/<unpitched>/);
 });
 test('channel-10 regions export percussion and muted mappings are excluded',()=>{
  const {session,track,region}=fixture();track.instrument='triangle';region.notes.push({pitch:127,channel:9,start:1,duration:.5,velocity:.8},{pitch:38,channel:9,start:1.5,duration:.5,velocity:.8,mute:true});
