@@ -35,7 +35,7 @@ actual checkpoints and limitations.
 | Workspace | [workspace](../src/experimental/workspace.js), [tool finder](../src/experimental/tool-finder.js), arrangement, inspectors and right-side assistant | Coherent large-session workflow, broader accessibility, mobile and sustained load testing |
 | Session/project | [session commands](../src/experimental/session.js), [cloud](../src/experimental/cloud.js), [archive](../src/experimental/archive.js), [recovery](../src/experimental/recovery.js) | Cross-device and concurrent-account lifecycle testing; native DAW interchange is not established by JSON/ZIP support |
 | Audio arrangement | Region move/trim/split/slip, normalization, fades, [crossfades](../src/experimental/comp-crossfades.js), clipboard, batch edits, section/time operations | Production-scale and codec-diverse fixture coverage; professional editing parity remains unproven |
-| Video/scoring | [movie sync](../src/experimental/movie-sync.js), [filmstrip](../src/experimental/movie-filmstrip.js), [timecode](../src/experimental/timecode.js), frame navigation and extraction into an audio track | [Selected-region movie export](../src/experimental/movie-export.js) now replaces the soundtrack with the aligned session mix (MP4/WebM); multi-region movie assembly, reverse export and broader codec coverage remain open |
+| Video/scoring | [movie sync](../src/experimental/movie-sync.js), [filmstrip](../src/experimental/movie-filmstrip.js), [timecode](../src/experimental/timecode.js), frame navigation and extraction into an audio track | [Selected-region movie export](../src/experimental/movie-export.js) now replaces the soundtrack with the aligned session mix (MP4/WebM); reversed picture also exports at project frame rate; multi-region movie assembly and broader codec coverage remain open |
 | MIDI | SMF import/export, piano-roll/event/controller editing, quantize/humanize, strum, dynamics, input/output, tuning and bend state | Real physical-device verification, wider interoperability and complete metadata/SysEx support |
 | Instruments | [sampler](../src/experimental/sampler.js), zones, loops, filters, envelopes, velocity layers, groups/articulations; oscillator voices and synthesized kit | Full synthesis/instrument catalog and licensed sound-library equivalents are absent; sampler availability is not instrument parity |
 | Composition/notation | Chords/scales, key/meter/tempo maps, arpeggiation, score editing, percussion, MusicXML import/export and [print](../src/experimental/score-print.js) | Professional engraving/layout coverage and interoperability with varied real scores; generative music is not this project's objective |
@@ -63,8 +63,8 @@ actual checkpoints and limitations.
 
 ### Next implementation and verification priorities
 
-1. Extend the selected-video movie export to full multi-region assembly and reverse
-   picture, with broader codec fixtures. The initial path now has trim/offset semantics,
+1. Extend the selected-video movie export to full multi-region assembly beyond selected forward/reversed clips,
+   with broader codec fixtures. The initial path now has trim/offset semantics,
    MP4/WebM, cancellation and a synchronization fixture, plus the shared agent export action.
 2. Design bounded-memory long-form audio export while preserving effect state,
    automation, sampler tails and routing across chunks. Keep existing limits until
