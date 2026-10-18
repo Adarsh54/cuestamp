@@ -5,7 +5,8 @@ import {sessionDuration} from './audio-engine.js';
 import {effectTail} from './effects.js';
 const filename=name=>name.replace(/[^a-z0-9 _-]/gi,'').slice(0,80)||'region';
 // Capture the complete document before any asynchronous decoding/rendering.
-export function createBouncePlan(input,{mode='mix',stemMode='tracks',masterMode='full',regionId}={}){
+export function createBouncePlan(input,{mode='mix',stemMode='tracks',masterMode='full',regionId,renderMode='offline'}={}){
+ if(!['offline','realtime'].includes(renderMode)||renderMode==='realtime'&&mode!=='mix')throw Error('Real-time export supports the full mix only.');
  if(!['full','noInserts','bypass'].includes(masterMode))throw Error('Choose a valid master processing mode.');
  const session=structuredClone(input);
  if(masterMode!=='full')session.masterEffects=[];
@@ -28,7 +29,8 @@ export function createBouncePlan(input,{mode='mix',stemMode='tracks',masterMode=
   position=region.start;duration=region.duration+routedTail(session,track)+effectTail(session.masterEffects,session.masterAutomationMode==='off',session);
   entries=[{name:session.title+'-'+filename(region.name)+'.wav',document:stemSession(session,{...track,regions:[region]})}];
  }else throw Error('Unknown bounce mode.');
- if(duration>600)throw Error('Experimental offline bounce currently supports up to 10 minutes.');
+ if(renderMode==='offline'&&duration>600)throw Error('Experimental offline bounce currently supports up to 10 minutes.');
+ if(renderMode==='realtime'&&duration>86400)throw Error('Real-time export supports up to 24 hours, subject to WAV size limits.');
  const assets=new Set(entries.flatMap(entry=>audibleAssets(entry.document)));
  return {title:session.title,position,duration,entries,zip,assets:[...assets]};
 }

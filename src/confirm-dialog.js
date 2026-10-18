@@ -1,5 +1,6 @@
 // App-styled confirmations with keyboard support and inline action errors.
-export function confirmDialog({title, message, confirmLabel='Continue', cancelLabel='Cancel', onConfirm, secondaryLabel}) {
+export function confirmDialog({title, message, confirmLabel='Continue', cancelLabel='Cancel', onConfirm, secondaryLabel, signal}) {
+  if(signal?.aborted)return Promise.resolve(false);
   return new Promise(resolve=>{
     const dialog=document.createElement('dialog');
     dialog.className='resume-workspace confirm-dialog';
@@ -25,7 +26,8 @@ export function confirmDialog({title, message, confirmLabel='Continue', cancelLa
       finally{busy=false;confirm.textContent=confirmLabel;dialog.querySelectorAll('button').forEach(button=>button.disabled=false);}
     };
     dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
-    dialog.addEventListener('close',()=>{dialog.remove();resolve(result);},{once:true});
+    const abort=()=>dialog.close();signal?.addEventListener('abort',abort,{once:true});
+    dialog.addEventListener('close',()=>{signal?.removeEventListener('abort',abort);dialog.remove();resolve(result);},{once:true});
     document.body.append(dialog);dialog.showModal();cancel.focus();
   });
 }
