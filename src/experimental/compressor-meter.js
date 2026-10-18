@@ -15,7 +15,7 @@ export function createEffectMeters(){
  return {
   add(effect,node){if(!stopped&&['compressor','gate','limiter'].includes(effect.kind))entries.set(effect.id,{node,kind:effect.kind});},
   read(){const values=new Map();if(stopped)return values;for(const [id,{node,kind}]of entries)if(Number.isFinite(node.reduction))values.set(id,{reductionDb:Math.min(0,node.reduction),...(kind==='gate'?{open:Boolean(node.gateOpen)}:{}),...(kind==='limiter'&&Array.isArray(node.outputPeaksDbtp)&&node.outputPeaksDbtp.length===2&&node.outputPeaksDbtp.every(v=>v===null||Number.isFinite(v))?{outputPeaksDbtp:[...node.outputPeaksDbtp],...(Array.isArray(node.heldOutputPeaksDbtp)&&node.heldOutputPeaksDbtp.length===2&&node.heldOutputPeaksDbtp.every(v=>v===null||Number.isFinite(v))?{heldOutputPeaksDbtp:[...node.heldOutputPeaksDbtp]}:{})}:{})});return values;},
-  reset(id){if(!stopped)entries.get(id)?.node.resetPeaks?.();},
+  reset(id){const entry=entries.get(id);if(stopped||entry?.kind!=='limiter'||typeof entry.node.resetPeaks!=='function')return false;entry.node.resetPeaks();return true;},
   stop(){stopped=true;entries.clear();},
  };
 }

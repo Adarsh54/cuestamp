@@ -2610,8 +2610,25 @@ current playback graph and expire with stale telemetry. Stop/restart, seek or gr
 replacement begins a new measurement; this is not a whole-project peak history.
 
 The agent receives validated `heldOutputPeaksDbtp` observations with instructions
-to distinguish them from current output levels. Reset is currently a manual UI
-operation; a dedicated agent reset action remains open. Native browser checks cover
+to distinguish them from current output levels. The agent can request a reset for one observed limiter through the
+validated `reset_limiter_peak_hold` action. Native browser checks cover
 loud-to-quiet hold/reset and the actual mixer control; unit checks cover message
 ordering, stale telemetry, unchanged audio and malformed observation rejection.
 The meter wraps on narrow panels. This does not implement true-peak limiting.
+
+### Agent limiter meter reset checkpoint
+
+The assistant can reset one observed limiter's peak hold during playback without
+editing the session, adding Undo history or changing audio/transport. A strict
+`effectId` action is available only with enabled transport capability, active
+playback and validated live limiter observations. The client checks both the
+transport epoch and the actual playback/meter graph identity before applying it;
+a scene switch can replace a graph without changing the outer transport object.
+Missing/stale readings and canceled requests reject. The cached old observation
+is cleared after reset so it cannot be reused as the new peak measurement.
+
+A native browser fixture exercises the assistant form, real planner validation,
+mocked model tool response and live audio graph; it verifies unchanged serialized
+session state and continuing playback. Unit checks cover capability gating, wrong
+effect IDs, unexpected fields, graph changes, stale observations and cancellation.
+Live model inference remains unverified; this check validates the harness plumbing.

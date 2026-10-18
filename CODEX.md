@@ -6137,3 +6137,17 @@ from recent output windows. Agent-triggered meter reset is not implemented yet.
 Verification: `test/experimental-limiter-peak-hold.test.js`, limiter observation
 tests, and both limiter UI/true-peak browser scripts. Browser tests use native Web
 Audio with a silent output sink and mocked account APIs; no live model inference.
+
+### Agent-triggered limiter peak reset
+
+The earlier manual-only limitation is resolved: `agent-meter-reset.js` validates
+`reset_limiter_peak_hold` for an observed limiter during active playback. It checks
+transport epoch plus playback and meter object identity before calling the same
+reset API as the UI. Scene graph changes, stopped/stale telemetry, invalid IDs and
+cancellation reject without editing or stopping audio. Reset returns a boolean
+from `createEffectMeters` so a missing callback cannot be reported as success.
+
+Checks: `test/experimental-agent-meter-reset.test.js` and
+`scripts/browser-experimental-agent-meter-reset-check.cjs`. The latter uses native
+Web Audio, actual server planner validation and a controlled model response; it
+is not proof of live model inference. Peak hold remains scoped to playback/reset.
