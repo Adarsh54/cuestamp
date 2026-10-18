@@ -221,3 +221,5 @@ form.daw-note-editor{margin-top:8px}
 .daw-step-row button[data-step-current="true"]{outline:2px solid var(--text);outline-offset:2px;box-shadow:inset 0 0 0 2px var(--bg);opacity:1}
 
 .daw-drum-row-tools{display:flex;align-items:end;flex-wrap:wrap;gap:12px;border-top:1px solid var(--line);padding:14px 0;margin-top:12px}.daw-drum-row-tools p{flex-basis:100%;margin:0;font-size:12px}.daw-drum-row-tools select{width:140px}.daw-drum-row-tools [hidden]{display:none}
+
+.daw-step-row button.daw-drum-name{position:sticky;left:0;width:90px;height:auto;min-height:28px;background:var(--surface);font-size:12px;text-align:left;padding:3px;border-color:transparent}.daw-step-row button.daw-drum-name:hover{background:var(--raised);border-color:var(--accent)}

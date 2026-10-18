@@ -13,12 +13,12 @@ export function scoreNoteAuditionPlan(session,{regionId,noteId}){
  document.metronomeEnabled=false;document.loopEnabled=false;
  const end=Math.min(86400,position+4,sessionDuration(document));retainGateSources(document,session);return {document,position,end,assets:audibleAssets(document)};
 }
-export function createScoreNoteAudition({getSession,getContext,loadAsset,buffers,blocked=()=>false,connected=()=>true,notify=()=>{},schedule=scheduleSession,setTimer=setTimeout,clearTimer=clearTimeout}){
+export function createScoreNoteAudition({getSession,getContext,loadAsset,buffers,blocked=()=>false,connected=()=>true,notify=()=>{},schedule=scheduleSession,preparePlan=scoreNoteAuditionPlan,setTimer=setTimeout,clearTimer=clearTimeout}){
  let epoch=0,playback=null,timer=null;
  const stop=()=>{epoch++;if(timer!==null)clearTimer(timer);timer=null;playback?.stop();playback=null;notify('');};
  async function play(reference){
   stop();if(blocked()||!connected())return;
-  const session=getSession(),revision=session.revision,plan=scoreNoteAuditionPlan(session,reference);if(!plan){notify('This note is muted or not audible in the current mix.');return;}
+  const session=getSession(),revision=session.revision,plan=preparePlan(session,reference);if(!plan){notify('This note is muted or not audible in the current mix.');return;}
   const current=epoch,valid=()=>current===epoch&&connected()&&!blocked()&&getSession()===session&&getSession().revision===revision;
   try{
    if(plan.assets.length)notify('Loading note audition…');
