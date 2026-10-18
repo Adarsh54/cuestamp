@@ -5908,3 +5908,26 @@ Production engine integration is still pending. Before enabling compensation,
 align per-effect/fader/send automation, sidechains, transport/video/scene clocks,
 export padding/trimming and real-time capture frame offsets. The planner alone
 does not change playback or export behavior. Full DAW scope remains open.
+
+## Latency-aware effect automation checkpoint (2026-10-18)
+
+`connectEffects` now accepts optional `timing` rows from the latency planner.
+All effect renderers inherit their input timestamp, including synchronized
+modulation; compressor makeup gain uses output latency. Registration carries a
+sixth `latencySeconds` argument into live automation bindings. Live set, trim,
+release, cancel and resume shift AudioParam schedules without changing gesture
+transport timestamps. Single-parameter lanes also accept `latencySeconds` for
+future channel/send integration. Callers without timing retain existing behavior.
+
+`browser-experimental-latency-automation-check.cjs` uses actual OfflineAudioContext
+renders: with a compressor before a volume step, the unadjusted step acts too
+early, while planned makeup/following-gain steps follow the delayed source at
+44.1/48/96 kHz. Unit tests cover all effect registrations and linked bindings,
+including live gesture return/cancel/trim. Production scheduleSession does not
+yet pass timing rows or connect compensating delays. Next integration must handle
+channel/master/send automation, route and gate detector delays, then capture,
+export and transport/video clocks together. Full DAW parity remains incomplete.
+
+Validation for this checkpoint: all 1,552 tests passed and the production build
+passed with the existing chunk-size warning. No live agent inference or
+production deployment validation was performed.

@@ -13,8 +13,10 @@ export function createLiveAutomation({context,base,position,lanes}){
  }
  function now(){return Math.max(base,context.currentTime);}
  function schedule(lane,parameter,points,time,fallback){
-  const bindings=lane.bindings||[{param:lane.param,transform:parameter==='gainDb'?v=>10**(v/20):v=>v,exponential:parameter==='gainDb'}];
-  for(const binding of bindings){binding.param.cancelScheduledValues(time);scheduleCurveAutomation(binding.param,points,parameter,position+time-base,time,fallback,binding.transform,binding.exponential);}
+  const bindings=lane.bindings||[{param:lane.param,transform:parameter==='gainDb'?v=>10**(v/20):v=>v,exponential:parameter==='gainDb',latencySeconds:lane.latencySeconds}];
+  // Keep gesture timestamps in transport time; only the destination AudioParam
+  // schedule moves to the point where that audio reaches its processing node.
+  for(const binding of bindings){const scheduledTime=time+(binding.latencySeconds??0);binding.param.cancelScheduledValues(scheduledTime);scheduleCurveAutomation(binding.param,points,parameter,position+time-base,scheduledTime,fallback,binding.transform,binding.exponential);}
  }
  return {
   set(target,parameter,value){

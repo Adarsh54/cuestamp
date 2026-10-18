@@ -2493,3 +2493,11 @@ Integration remains pending: effect/fader/send automation offsets, sidechain
 delays, export padding/trimming, real-time capture frame offsets, transport and
 video clocks, and scene scheduling must agree before enabling compensation.
 This fixture is not evidence that the production audio engine compensates yet.
+
+Effect rendering now accepts those per-insert timing rows: parameter automation
+uses the insert input time, while compressor makeup gain uses its output time.
+Live automation bindings carry the same offset through set/trim/release/cancel
+and resume, preserving recorded gesture timestamps in transport time. Native
+browser renders verify delayed makeup and following gain steps at 44.1/48/96 kHz.
+The session scheduler does not yet supply the plan or insert route delays;
+production compensation still requires the integration work listed above.

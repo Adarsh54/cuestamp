@@ -57,3 +57,15 @@ test('trim curve segments are expanded once and committed playback resumes exact
  assert.ok(events.length<70);context.currentTime=103;events.length=0;
  const committed=[...points,{parameter:'gainDb',time:5,value:-6,shape:'linear'},{parameter:'gainDb',time:6,value:-12,shape:'hold'}];control.replace('t','gainDb',committed,0);control.resume('t','gainDb');assert.equal(events[1][1],10**(-6/20));assert.ok(events.some(e=>e[0]==='exp'&&e[1]===10**(-12/20)&&e[2]===104));const length=events.length;control.cancel('t','gainDb');assert.equal(events.length,length);control.stop();assert.throws(()=>control.trim('t','gainDb',0),/stopped/);
 });
+
+test('latency-aware bindings retain transport positions through trim, return, cancel and resume',()=>{
+ const make=()=>({events:[],cancelScheduledValues(t){this.events.push(['cancel',t]);},setValueAtTime(v,t){this.events.push(['set',v,t]);},linearRampToValueAtTime(v,t){this.events.push(['linear',v,t]);}});
+ const a=make(),b=make(),context={currentTime:12},points=[{parameter:'pan',time:0,value:0},{parameter:'pan',time:10,value:.5}];
+ const lanes=new Map([['t:pan',{points,fallback:0,bindings:[{param:a,transform:v=>v,latencySeconds:.01},{param:b,transform:v=>v,latencySeconds:.02}]}]]);
+ const live=createLiveAutomation({context,base:10,position:1,lanes});
+ const aligned=()=>{assert.equal(a.events.length,b.events.length);for(let i=0;i<a.events.length;i++){const x=a.events[i],y=b.events[i];assert.deepEqual(x.slice(0,-1),y.slice(0,-1));assert.ok(Math.abs(y.at(-1)-x.at(-1)-.01)<1e-10);}};
+ assert.equal(live.trim('t','pan',.1),3);aligned();assert.ok(Math.abs(a.events[1][1]-.25)<1e-10);
+ live.cancel('t','pan');aligned();assert.equal(live.set('t','pan',.7),3);context.currentTime=13;live.release('t','pan',1);aligned();
+ assert.ok(a.events.some(e=>e[0]==='linear'&&Math.abs(e[1]-.25)<1e-12&&Math.abs(e[2]-14.01)<1e-12));
+ live.trim('t','pan',.1);live.replace('t','pan',points,0);live.resume('t','pan');aligned();
+});

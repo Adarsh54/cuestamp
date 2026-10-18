@@ -20,10 +20,10 @@ export function scheduleSession(context,session,buffers,position=0,options={}){
  if(options.endPosition!==undefined&&(!Number.isFinite(options.endPosition)||options.endPosition<=position||options.endPosition>86400))throw Error('Playback end must follow the start within the timeline.');
  session=effectiveAutomationSession(session);validateRouting(session);const active=renderingSources(session),detectorOnly=new Set(active.filter(t=>t.sidechainOnly).map(t=>t.id));for(const track of active)validateTrackSources(track,buffers);
  const effectMeters=options.meters?createEffectMeters():null,registerMeter=effectMeters?(effect,node)=>effectMeters.add(effect,node):undefined;
- const effectLanes=new Map(),register=(effect,parameter,param,transform,exponential)=>{
+ const effectLanes=new Map(),register=(effect,parameter,param,transform,exponential,latencySeconds=0)=>{
   const key=`${effect.id}:${parameter}`,spec=effectParameters[effect.kind][parameter];
   if(!effectLanes.has(key))effectLanes.set(key,{points:structuredClone(effect.automation||[]),fallback:effect[parameter],min:spec.min,max:spec.max,bindings:[]});
-  effectLanes.get(key).bindings.push({param,transform,exponential});
+  effectLanes.get(key).bindings.push({param,transform,exponential,latencySeconds});
  };
  const sidechains=[],registerSidechain=(id,node)=>sidechains.push({id,node});
  const nodes=[],base=options.baseTime??context.currentTime+.025,master=context.createGain(),masterGain=context.createGain(),masterPan=context.createStereoPanner();scheduleAutomation(masterGain.gain,session.masterAutomation||[],'gainDb',position,base,session.masterDb);scheduleAutomation(masterPan.pan,session.masterAutomation||[],'pan',position,base,session.masterPan||0);connectEffects(context,master,session.masterEffects,nodes,{position,base,tempo:session.tempo,tempoChanges:session.tempoChanges,register,registerMeter,registerSidechain}).connect(masterGain);masterGain.connect(masterPan);if(options.endPosition!==undefined){const gate=context.createGain();gate.gain.setValueAtTime(0,context.currentTime);gate.gain.setValueAtTime(1,base);gate.gain.setValueAtTime(0,base+options.endPosition-position);masterPan.connect(gate).connect(options.destination??context.destination);nodes.push(gate);}else masterPan.connect(options.destination??context.destination);nodes.push(master,masterGain,masterPan);
