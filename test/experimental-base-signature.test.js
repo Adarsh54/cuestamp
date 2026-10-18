@@ -7,7 +7,7 @@ test('base denominator persists and exports without changing musical content',()
 });
 test('drum sequencer uses correct steps per bar and bounds long bar selectors',()=>{
  const r={start:0,duration:6,notes:[]};const html=stepSequencerView(r,{tempo:120,meter:6,meterDenominator:8},0,100);
- assert.equal((html.match(/data-step-pitch=/g)||[]).length,72);assert.match(html,/repeat\(12,28px\)/);
+ assert.equal((html.match(/data-step-pitch=/g)||[]).length,13*12);assert.match(html,/repeat\(12,28px\)/);
  const small=stepSequencerView(r,{tempo:120,meter:3,meterDenominator:32},0,100);assert.match(small,/Each step is a 1\/32 note/);assert.match(small,/repeat\(3,28px\)/);
  const long=stepSequencerView({...r,duration:86400},{tempo:300,meter:1,meterDenominator:64},0,100);assert.match(long,/data-bar-one-based/);assert.ok(long.length<10000);
 });

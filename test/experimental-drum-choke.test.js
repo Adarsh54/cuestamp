@@ -11,3 +11,7 @@ test('silent/muted hats do not choke; later open hats retrigger and simultaneous
  r.notes.push(note(42,0));assert.equal(drumChokeLookup({regions:[r]})(r,open),-DRUM_CHOKE_FADE);
  assert.equal(drumChokeLookup({regions:[{start:0,notes:[open]}]})({start:0},open),null);
 });
+test('pedal hi-hat closes an open hat, including simultaneous pedal strikes',()=>{
+ const open=note(46,0),r={start:0,notes:[open,note(44,.2)]};assert.equal(drumChokeLookup({regions:[r]})(r,open),.2);
+ r.notes[1].start=0;assert.equal(drumChokeLookup({regions:[r]})(r,open),-DRUM_CHOKE_FADE);
+});

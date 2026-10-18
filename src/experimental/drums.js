@@ -1,13 +1,15 @@
 import {DRUM_CHOKE_FADE} from './drum-choke.js';
 import {regionBeatTiming} from './tempo-map.js';
 import {patternBar} from './pattern-bars.js';
-export const drumRows=[{pitch:36,name:'Kick'},{pitch:38,name:'Snare'},{pitch:42,name:'Closed hat'},{pitch:46,name:'Open hat'},{pitch:49,name:'Crash'},{pitch:51,name:'Ride'}];
-export const drumDuration=pitch=>pitch===36?.5:pitch===38?.4:pitch===42?.12:pitch===46?.9:1.4;
+export const drumRows=[{pitch:36,name:'Kick'},{pitch:38,name:'Snare'},{pitch:42,name:'Closed hat'},{pitch:46,name:'Open hat'},{pitch:44,name:'Pedal hat'},{pitch:41,name:'Low floor tom'},{pitch:43,name:'High floor tom'},{pitch:45,name:'Low tom'},{pitch:47,name:'Low-mid tom'},{pitch:48,name:'High-mid tom'},{pitch:50,name:'High tom'},{pitch:49,name:'Crash'},{pitch:51,name:'Ride'}];
+export const tomFrequencies={41:82,43:98,45:110,47:131,48:147,50:175};
+export const drumDuration=pitch=>pitch===36?.5:pitch===38?.4:pitch===42?.12:pitch===44?.18:pitch===46?.9:(tomFrequencies[pitch] ? .8 : 1.4);
 const cache=new WeakMap();
 export function drumBuffer(context,pitch){let buffers=cache.get(context);if(!buffers){buffers=new Map();cache.set(context,buffers);}if(buffers.has(pitch))return buffers.get(pitch);const length=Math.ceil(drumDuration(pitch)*context.sampleRate),buffer=context.createBuffer(1,length,context.sampleRate),data=buffer.getChannelData(0);let seed=1987+pitch,previous=0;for(let i=0;i<length;i++){const t=i/context.sampleRate;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const noise=seed/2147483648-1,high=(noise-previous)*.5;previous=noise;let sample;
  if(pitch===36)sample=Math.sin(2*Math.PI*(45*t+100/30*(1-Math.exp(-30*t))))*Math.exp(-12*t)+noise*.08*Math.exp(-100*t);
  else if(pitch===38)sample=(high*.85+Math.sin(2*Math.PI*180*t)*.15)*Math.exp(-16*t);
- else{const decay=pitch===42?45:pitch===46?7:4,metal=Math.sin(2*Math.PI*4100*t)*Math.sin(2*Math.PI*5671*t);sample=(high*.7+metal*.3)*Math.exp(-decay*t);}
+ else if(tomFrequencies[pitch]){const f=tomFrequencies[pitch],phase=2*Math.PI*(f*t+f*.18/35*(1-Math.exp(-35*t)));sample=(Math.sin(phase)*.78+Math.sin(phase*1.59)*.15)*Math.exp(-9*t)+high*.12*Math.exp(-70*t);}
+ else{const decay=pitch===42?45:pitch===44?32:pitch===46?7:4,metal=Math.sin(2*Math.PI*4100*t)*Math.sin(2*Math.PI*5671*t);sample=(high*.7+metal*.3)*Math.exp(-decay*t);}
  data[i]=sample*.6*Math.min(1,t/.001)*Math.min(1,(length-i)/(context.sampleRate*.015));}buffers.set(pitch,buffer);return buffer;}
 export function scheduleDrum(context,destination,note,relative,when,regionDuration,nodes,chokeAt=null){
  const buffer=drumBuffer(context,note.pitch),elapsed=Math.max(0,relative-note.start),naturalEnd=Math.min(note.start+buffer.duration,regionDuration),end=chokeAt===null?naturalEnd:Math.min(naturalEnd,chokeAt+DRUM_CHOKE_FADE),duration=end-note.start-elapsed;

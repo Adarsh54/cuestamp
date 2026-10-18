@@ -1,9 +1,9 @@
 export const DRUM_CHOKE_FADE=.005;
-// One built-in kit per track: later open/closed hats stop a ringing open hat.
+// One built-in kit per track: later open/closed/pedal hats stop a ringing open hat.
 // Regions may overlap or arrive out of timeline order; muted/silent hits cannot choke.
 export function drumChokeLookup(track){
- const hits=track.regions.filter(r=>!r.mute).flatMap(r=>r.notes.filter(n=>!n.mute&&n.velocity>0&&[42,46].includes(n.pitch)).map(n=>({time:r.start+n.start,pitch:n.pitch}))).sort((a,b)=>a.time-b.time);
- const closed=new Set(hits.filter(h=>h.pitch===42).map(h=>h.time));
+ const hits=track.regions.filter(r=>!r.mute).flatMap(r=>r.notes.filter(n=>!n.mute&&n.velocity>0&&[42,44,46].includes(n.pitch)).map(n=>({time:r.start+n.start,pitch:n.pitch}))).sort((a,b)=>a.time-b.time);
+ const closed=new Set(hits.filter(h=>[42,44].includes(h.pitch)).map(h=>h.time));
  return (region,note)=>{
   if(note.pitch!==46)return null;
   const start=region.start+note.start;
