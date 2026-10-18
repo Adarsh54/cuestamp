@@ -9,3 +9,16 @@ export function createMovieExportPlan(session,regionId){
  const audio=createBouncePlan(document,{mode:'range'});
  return {audio,reverse:Boolean(region.reverse),frameRate:session.frameRate,regionId:region.id,assetId:region.assetId,offset:region.offset,duration:region.duration,name:region.name||session.title};
 }
+
+export function createMovieTimelinePlan(session){
+ const picture={frameRate:session.frameRate,tracks:structuredClone(session.tracks.filter(t=>t.kind==='video'&&!t.mute))};
+ for(const track of picture.tracks)track.regions=track.regions.filter(r=>!r.mute);
+ const regions=picture.tracks.flatMap(t=>t.regions);
+ if(!regions.length)throw Error('Add an unmuted video region before exporting the video arrangement.');
+ if(regions.some(r=>!r.assetId))throw Error('A video source is missing. Re-import it.');
+ const duration=Math.max(...regions.map(r=>r.start+r.duration)),document=structuredClone(session);document.loopStart=0;document.loopEnd=duration;
+ const audio=createBouncePlan(document,{mode:'range'});
+ // First visible clip defines output dimensions; stable ordering matches preview priority.
+ const assetIds=[...new Set([...regions].sort((a,b)=>a.start-b.start).map(r=>r.assetId))];
+ return {audio,picture,assetIds,duration,frameRate:session.frameRate,name:session.title};
+}
