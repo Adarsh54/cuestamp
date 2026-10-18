@@ -6259,3 +6259,18 @@ phase/window/rate/iteration fixtures. The existing browser worker check measured
 ~0.75 seconds for its one-second stereo tone, versus ~2.8–3.1 seconds previously.
 This is a single local fixture, not a streaming implementation or general speed
 claim. Keep the independent reconstruction/boundary suite as the correctness gate.
+
+### Corrected WAV export integration
+
+`Bounce peak-corrected WAV` is inside Export settings. It invokes the correction
+worker after the compensated offline mix render, exports 32-bit float at −1 dBTP,
+and leaves the session untouched. The agent export mode is `correctedMix`; its
+32 MiB stereo PCM budget is validated before rendering, including edited plans.
+Ordinary offline WAV exports also use the cancel-operation controller now.
+
+Run `scripts/browser-experimental-corrected-export-check.cjs` with the documented
+Playwright runtime against Vite for a native UI download, decoded output peak,
+source-session preservation, cancellation during correction and early size errors.
+`test/experimental-agent-export.test.js` checks strict scope, output format, budget
+boundaries at all supported rates and mocked-provider planning. Production builds
+now include the correction worker because it is reachable from the workspace.

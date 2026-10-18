@@ -2821,3 +2821,23 @@ benchmark. The algorithm still needs a complete buffer and can use a whole-buffe
 fallback; running faster than one particular clip's duration does not establish
 streaming correctness. Long-form/per-content performance and actual UI integration
 remain open, alongside the broader workstation requirements.
+
+### Peak-corrected mix export
+
+Export settings now offers **Bounce peak-corrected WAV**. This explicitly applies
+experimental offline correction after rendering the full mix, with a fixed −1 dBTP
+estimated ceiling, 2 ms attack and 20 ms release. It respects export sample rate and
+master processing, but always writes 32-bit float without dither to preserve the
+verified samples. Source tracks, session state and playback remain unchanged.
+The completion report includes maximum gain reduction and any whole-mix fallback.
+
+The 32 MiB stereo PCM budget is checked before decoding/rendering (approximately
+95 seconds at 44.1 kHz, 87 seconds at 48 kHz or 43 seconds at 96 kHz). Existing
+ordinary WAV/stem/range exports remain available. All offline WAV exports now have
+cancellation and stale-session guards. Worker progress reports the current pass,
+not a claimed overall percentage. Navigation cancels pending exports.
+
+The agent's `export_audio` and follow-up export schema accept `correctedMix`, with
+null region/start/end and the same validation. Provider behavior is verified using
+mocked model responses, not live inference. This remains a finite reconstruction
+estimate, not a live limiter or a guarantee for all playback reconstruction filters.
