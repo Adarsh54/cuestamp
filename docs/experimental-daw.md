@@ -2894,3 +2894,31 @@ epoch, transport-change and cancellation guards still apply. The browser validat
 actual clipboard content, which is not sent to the model. Unit and browser fixtures
 cover manual/agent destination paste, unchanged receiving instrument, Undo/Redo,
 source-track deletion, wrong types and rollback. Model responses remain mocked.
+
+### Sampler filter envelope
+
+Sampler voices now have an independent filter ADSR: signed depth in semitones
+(−96..96, default 0), attack/decay 0..10 seconds, sustain 0..1, release 0..30 seconds.
+Defaults are .01/.2/.5/.2 for ADSR. Depth zero leaves existing static-filter audio
+unchanged. Positive depth raises cutoff and negative depth lowers it, relative to
+the key-tracked base. The sweep is linear in semitones (exponential in Hz), clamped
+to 20 Hz..20 kHz and below Nyquist. Explicit limit crossings retain flat clipped
+plateaus without changing the slope of the remaining sweep.
+
+The sampler form, track.add/set commands, agent documentation, presets and session
+persistence share the new fields. Arranged playback restores the correct envelope
+age on seeks, and live MIDI monitoring releases the envelope when the voice actually
+releases, including sustain/sostenuto behavior. The volume envelope and source end
+still determine audible voice duration; filter release does not extend playback.
+Group filter overrides retain the track envelope. Filter state starts empty on seek.
+
+Reference: [Apple's sampler modulation overview](https://support.apple.com/en-ca/guide/logicpro/lgsifc862cba/mac).
+This is a dedicated per-voice cutoff envelope, not a full modulation matrix or an
+implementation of all Logic sampler modulators.
+
+Verification: analytical tests cover signed depth, clamping, short gates, zero
+stages and seeks; native 44.1/48/96 kHz tests compare arranged playback with live
+MIDI sustain-pedal release and test seeking after filter settling. Maximum observed
+live/arranged PCM difference was 4.40e-7; seek difference 5.33e-7 in these fixtures.
+UI tests cover editing, Undo/Redo and reload; preset and mocked-agent tests cover
+shared settings. Physical MIDI hardware and broader sound-quality testing remain open.

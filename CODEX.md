@@ -6307,3 +6307,20 @@ capacity/type/protection validation and provider schema checks. The existing
 `scripts/browser-experimental-agent-clipboard-check.cjs` also exercises manual
 selected-track paste, Undo/Redo, mismatch rollback, source-track deletion and
 explicit agent destination paste, in addition to clipboard/playhead races.
+
+### Sampler filter envelope checks
+
+Sampler filter controls include sampleFilterEnvDepth and sampleFilterAttack,
+sampleFilterDecay, sampleFilterSustain, sampleFilterRelease. Depth defaults to zero
+for old sessions. The filter scheduler reuses ADSR timing through an exponential
+frequency adapter and inserts exact clamp crossings. It is shared by arranged
+sampler voices and live MIDI monitoring; pedal-delayed note release controls the
+filter release. Amplitude release/source length continue to bound voice lifetime.
+
+Run `test/experimental-sampler-filter-envelope.test.js` for analytical timing,
+clamp, seek, release, atomic validation, preset and mocked-agent checks. Run
+`scripts/browser-experimental-filter-envelope-check.cjs` for native arranged/live
+pedal-release parity and seeks at three sample rates, and the existing
+`scripts/browser-experimental-sampler-filter-check.cjs` for controls, persistence
+and static-filter spectral regressions. The latter writes a control screenshot to
+`/tmp/cuestamp-sampler-filter.png` for layout inspection.
