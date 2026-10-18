@@ -1,3 +1,4 @@
+import {drumDuration} from './drums.js';
 import {retainGateSources,gateSourceIds} from './routing.js';
 import {prepareSessionEffects} from './noise-gate.js';
 import {audibleSources} from './routing.js';
@@ -7,7 +8,7 @@ export function scoreNoteAuditionPlan(session,{regionId,noteId}){
  const track=session.tracks.find(t=>t.kind==='midi'&&t.regions.some(r=>r.id===regionId)),region=track?.regions.find(r=>r.id===regionId),note=region?.notes.find(n=>n.id===noteId);
  if(!note)throw Error('Choose an existing score note.');
  if(note.mute||note.velocity===0||region.mute||!audibleSources(session).some(t=>t.id===track.id))return null;
- const document=structuredClone(session),duration=Math.min(.5,note.duration,region.duration-note.start),position=region.start+note.start;
+ const document=structuredClone(session),duration=Math.min(track.instrument==='drumKit'?drumDuration(note.pitch):Math.min(.5,note.duration),region.duration-note.start),position=region.start+note.start;
  if(duration<=0)return null;
  for(const t of document.tracks)t.regions=t.id===track.id?[{...structuredClone(region),notes:[{...structuredClone(note),duration}],duration:note.start+duration,fadeIn:0,fadeOut:0}]:[];
  document.metronomeEnabled=false;document.loopEnabled=false;

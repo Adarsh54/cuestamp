@@ -10,3 +10,9 @@ test('session edits during preparation and blocked transport do not schedule sou
  const h=setup();let resume,scheduled=0,blocked=false;const pending=new Promise(resolve=>resume=resolve),audition=createScoreNoteAudition({getSession:()=>h.session,getContext:()=>pending,loadAsset:async()=>{},buffers:new Map(),blocked:()=>blocked,schedule:()=>{scheduled++;return {stop(){}};}});
  const playing=audition.play({regionId:'r',noteId:'a'});h.execute([{op:'note.set',target:'a',values:{pitch:62}}]);resume({});await playing;assert.equal(scheduled,0);blocked=true;await audition.play({regionId:'r',noteId:'a'});assert.equal(scheduled,0);
 });
+
+test('score drum auditions use the sound duration rather than the short MIDI gate, respecting region end',()=>{
+ const h=setup();h.execute([{op:'track.set',target:'t',values:{instrument:'drumKit'}},{op:'note.set',target:'a',values:{pitch:49,duration:.05}}]);
+ const before=structuredClone(h.session),plan=scoreNoteAuditionPlan(h.session,{regionId:'r',noteId:'a'});assert.equal(plan.document.tracks[0].regions[0].notes[0].duration,1.4);assert.equal(plan.position,3);assert.deepEqual(h.session,before);
+ h.execute([{op:'note.set',target:'a',values:{start:3.9}}]);const clipped=scoreNoteAuditionPlan(h.session,{regionId:'r',noteId:'a'});assert.ok(Math.abs(clipped.document.tracks[0].regions[0].notes[0].duration-.1)<1e-12);
+});
