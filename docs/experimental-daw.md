@@ -2774,3 +2774,27 @@ fixtures, including independent peak positions. This supersedes the previous
 untested-boundary note for these cases only. The feature remains an offline
 prototype outside the UI: streaming cross-block correction, ceiling automation,
 processing performance and a broader corpus remain outstanding.
+
+### Cancellable offline correction worker checkpoint
+
+`correctTruePeakAudio` runs the offline correction in a dedicated module worker,
+with stage/iteration progress and cancellation by terminating that worker. It
+copies source AudioBuffer channels before transferring them, and transfers only
+the completed output back. Completion, error, unreadable messages, callback errors
+and cancellation clean up the worker/listeners; queued late messages are ignored.
+The 32 MiB prototype limit and supported sample rates/channels are checked before
+creating a worker. This is preparation for integration, not a new editor control.
+
+A native browser check confirms exact output parity with synchronous processing,
+unchanged source buffer ownership, and main-thread timer activity during work.
+Cancellation after progress passed 2% of a larger measurement rejected promptly
+(~0.2 ms observed from the cancellation request in that run) and delivered no
+subsequent progress. This is promise-level observation, not a cross-platform OS
+thread shutdown benchmark.
+
+The tested one-second stereo tone took approximately 2.8–3.1 seconds to correct
+on this machine/browser, requiring two correction passes. That is **not suitable
+for real-time processing** and is not a general performance guarantee. Optimization,
+long-form resource measurements and a separate streaming algorithm are still
+needed. The full production app builds, but this unused prototype client/worker is
+not yet connected to playback or export UI. Browser checks use the Vite dev server.

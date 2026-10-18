@@ -6229,3 +6229,18 @@ edge tones and unpadded noise across ten independent FFmpeg configurations at
 check script reports measured peak positions and asserts ceilings. This is still
 an offline-only prototype; streaming boundary correctness and runtime budgets are
 not established by the file-boundary tests.
+
+### Offline correction worker and progress
+
+`true-peak-correction-client.js` accepts an AudioBuffer and settings, plus signal
+and onProgress hooks. It copies and transfers PCM into a one-job worker; source
+buffers remain attached. Progress identifies stage, iteration, maxIterations and
+fraction within that pass, not a misleading overall completion percentage.
+Cancellation terminates the worker, removes listeners and ignores queued results.
+
+Checks: `test/experimental-true-peak-correction-client.test.js` for ownership/error/
+cancel cleanup and `scripts/browser-experimental-peak-correction-worker-check.cjs`
+for native worker parity, main-thread responsiveness, and cancellation during the
+measurement pass. One second of stereo test audio took ~2.8–3.1 seconds in local
+browser runs. Optimize before considering live processing. No playback/export UI
+uses this client yet; existing correction tests still verify its DSP output.

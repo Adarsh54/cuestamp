@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {correctTruePeakAudio} from '../src/experimental/true-peak-correction-client.js';
+const audio=()=>{const data=Float32Array.of(.1,.2,.3);return {sampleRate:48000,numberOfChannels:1,length:data.length,getChannelData:()=>data};};
+async function fakeWorker(run){const previous=globalThis.Worker,instances=[];globalThis.Worker=class{constructor(){instances.push(this);this.terminated=0;}postMessage(data,transfer){this.sent=structuredClone(data,{transfer});}terminate(){this.terminated++;}};try{await run(instances);}finally{if(previous===undefined)delete globalThis.Worker;else globalThis.Worker=previous;}}
+test('worker request transfers copies, forwards progress, resolves and cleans up once',async()=>fakeWorker(async instances=>{
+ const buffer=audio(),progress=[],promise=correctTruePeakAudio(buffer,{}, {onProgress:p=>progress.push(p)}),worker=instances[0];assert.equal(buffer.getChannelData(0).byteLength,12);assert.deepEqual(worker.sent.channels[0],buffer.getChannelData(0));const callback=worker.onmessage;callback({data:{type:'progress',progress:{stage:'measure',progress:.5}}});const result={channels:[Float32Array.of(.1)],iterations:0};callback({data:{type:'result',result}});assert.equal(await promise,result);assert.equal(progress.length,1);callback({data:{type:'progress',progress:1}});assert.equal(progress.length,1);assert.equal(worker.terminated,1);assert.equal(worker.onmessage,null);
+}));
+test('abort before or during work rejects and discards queued results',async()=>fakeWorker(async instances=>{
+ await assert.rejects(correctTruePeakAudio(audio(),{}, {signal:AbortSignal.abort()}),{name:'AbortError'});assert.equal(instances.length,0);const abort=new AbortController(),promise=correctTruePeakAudio(audio(),{}, {signal:abort.signal}),worker=instances[0],late=worker.onmessage;abort.abort();await assert.rejects(promise,{name:'AbortError'});late({data:{type:'result',result:{}}});assert.equal(worker.terminated,1);assert.equal(worker.onmessage,null);
+}));
+test('worker errors and throwing progress callbacks terminate the job',async()=>fakeWorker(async instances=>{
+ for(const cause of ['worker','message','error','progress']){const promise=correctTruePeakAudio(audio(),{}, {onProgress:()=>{throw Error('callback failed');}}),worker=instances.at(-1);if(cause==='worker')worker.onerror({message:'worker failed'});if(cause==='message')worker.onmessageerror();if(cause==='error')worker.onmessage({data:{type:'error',error:'DSP failed'}});if(cause==='progress')worker.onmessage({data:{type:'progress',progress:0}});await assert.rejects(promise);assert.equal(worker.terminated,1);}
+}));
+test('invalid audio and settings reject before a worker is created',async()=>fakeWorker(async instances=>{
+ for(const buffer of [{...audio(),sampleRate:8000},{...audio(),numberOfChannels:3},{...audio(),length:10000000},{...audio(),length:4}])await assert.rejects(correctTruePeakAudio(buffer));await assert.rejects(correctTruePeakAudio(audio(),{ceilingDb:2}));assert.equal(instances.length,0);
+}));
