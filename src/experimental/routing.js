@@ -34,6 +34,8 @@ export function createRoutedTailReader(session){
  return track=>tail(track);
 }
 export function routedTail(session,track){return createRoutedTailReader(session)(track);}
+// Duration belongs to the auditioned track, never its detector-only dependencies.
+export function trackAuditionEnd(session,track){return Math.min(86400,Math.max(0,...track.regions.map(r=>r.start+r.duration))+routedTail(session,track)+effectTail(session.masterEffects,session.masterAutomationMode==='off'));}
 export function stemSession(session,track){return retainGateSources({...session,tracks:[...session.tracks.filter(t=>t.kind==='bus'),track].map(t=>({...t,solo:false}))},session);}
 // Group by the final primary output bus, not by sends: each source belongs to
 // exactly one file. Keep buses/sends to render that group's full mix contribution.

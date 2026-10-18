@@ -11,3 +11,9 @@ test('comp audition uses a disposable final comp with routing and source-mute ch
  assert.equal(compAuditionPlan(session,'t',{...values,muteSource:false}).document.tracks[0].mute,false);
  assert.throws(()=>compAuditionPlan(session,'t',{segments:'[]'}));assert.deepEqual(session,before);
 });
+
+test('comp audition ends with comp and routed tails even when its trigger continues much longer',()=>{
+ const values={segments:JSON.stringify(segments)},base=applyCommands(fixture(),[{op:'effect.add',target:'bus',values:{id:'echo',kind:'delay',time:.2,feedback:.3,mix:.5}}]),expected=compAuditionPlan(base,'t',values).end;
+ const session=applyCommands(base,[{op:'track.add',values:{id:'key',kind:'audio'}},{op:'region.add',target:'key',values:{assetId:'trigger',duration:600}},{op:'track.set',target:'key',values:{mute:true}},{op:'effect.add',target:'t',values:{kind:'gate',sidechainTrackId:'key'}}]),before=structuredClone(session),preview=compAuditionPlan(session,'t',values);
+ assert.equal(preview.end,expected);assert.ok(preview.end>9&&preview.end<15);assert.equal(preview.document.tracks.find(t=>t.id==='key').regions[0].duration,600);assert.deepEqual(session,before);
+});
