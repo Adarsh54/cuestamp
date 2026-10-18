@@ -11,3 +11,9 @@ test('strip fades affect new cuts only and fit short clips without replacing out
  assert.equal(regions[0].fadeIn,.2);assert.ok(Math.abs(regions[0].fadeOut-.05)<1e-9);assert.equal(regions[0].fadeInShape,'equalPower');assert.equal(regions[0].fadeOutShape,'linear');assert.ok(Math.abs(regions[1].fadeIn-.01)<1e-9);assert.equal(regions[1].fadeIn,regions[1].fadeOut);assert.equal(regions[2].fadeIn,.1);assert.equal(regions[2].fadeOut,.3);assert.equal(regions[2].fadeOutShape,'equalPower');
  h.undo();assert.equal(h.session.tracks.length,1);assert.equal(h.session.tracks[0].regions[0].mute,false);assert.throws(()=>h.execute([{...command,values:{...command.values,edgeFade:.2}}]));
 });
+
+test('silence listening preview matches commit cuts without changing the project or requiring track capacity',async()=>{
+ const {silenceAudition}=await import('../src/experimental/audio-silence-regions.js');const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'a',kind:'audio'}},{op:'region.add',target:'a',values:{id:'r',assetId:'source',start:4,duration:3}}]);
+ const measured={sessionId:h.session.id,revision:h.session.revision,regionId:'r',settings:{edgeFade:.005},ranges:[{start:.5,end:1},{start:2,end:2.5}]},before=structuredClone(h.session),p=silenceAudition(h.session,measured);assert.deepEqual(h.session,before);assert.equal(p.position,4);assert.equal(p.end,7);assert.equal(p.document.tracks.length,1);assert.deepEqual(p.document.tracks[0].regions.map(r=>[r.start,r.fadeIn,r.fadeOut]),[[4.5,.005,.005],[6,.005,.005]]);
+ h.execute([{op:'track.set',target:'a',values:{protected:true}}]);assert.ok(silenceAudition(h.session,{...measured,revision:h.session.revision}));assert.throws(()=>silenceAudition(h.session,measured),/changed/);for(const length of [100,27])h.execute(Array.from({length},()=>({op:'track.add',values:{kind:'audio'}})));assert.ok(silenceAudition(h.session,{...measured,revision:h.session.revision}));
+});

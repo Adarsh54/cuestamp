@@ -5549,3 +5549,13 @@ Strip silence now offers **Fade new cuts · seconds**, defaulting to 5 ms in the
 The agent's `strip_audio_silence` settings include `edgeFade`; the strict model schema requires it and recommends .005 seconds. Older internal callers that omit it retain zero new fades. The validated internal commit accepts the same bounded setting. Changing the form invalidates the old preview, and the chosen value is committed with the measured ranges in one Undo transaction.
 
 Verified: 1,436 tests, production build and the browser silence workflow passed. Tests cover short-region clamping, preserved outer fade shapes, invalid lengths, source preservation and Undo. Browser verification checks default fades in created regions, preview invalidation, apply, Undo/Redo and reload. Listening tests with real recordings remain outstanding.
+
+### Listen to silence-removal cuts before applying (2026-10-18)
+
+After analyzing silence, **Listen to cuts** auditions retained regions with the chosen edge fades through the source mixer, buses and master. **Stop silence preview** stops it; normal transport also works. The temporary document retains timeline gaps and includes the original region interval plus effect tails. It isolates the edited track while retaining sidechain dependencies. No source file, asset, track or session revision is saved. Applying remains a separate undoable action.
+
+Read-only analysis/listening supports protected tracks and a full 128-track project; applying still requires an unprotected track and capacity for the derived track. Muted tracks cannot be auditioned. Empty/no-change results keep listening disabled. Changing the form invalidates the analysis and stops its active preview. Revision checks reject old results.
+
+Agent `strip_audio_silence` operation `audition` analyzes the actual source then starts this same temporary playback. Captured transport epoch and subsequent playback-change checks prevent stale agent requests from taking over transport. Cancellation propagates to analysis and playback. Existing preview/apply behavior remains available.
+
+Verification: full repository tests, build and browser silence workflow pass. Tests cover generated cuts/fades, project nonmutation, stale revisions, protected/full-session listening and agent transport guards. Browser checks exercise manual and mocked-agent start/stop with unchanged saved state, then Apply, Undo/Redo and reload. Live provider inference and subjective listening remain unverified.
