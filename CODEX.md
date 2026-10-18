@@ -5631,3 +5631,11 @@ Pitched staff-step dragging/arrows, chord-tone creation and selection transposit
 Also corrected Download displayed score and Print score to export only the pitched arrangement parts actually shown when no explicit part filter is set. Previously they could include hidden percussion after full-score export gained drum support.
 
 Verified 1,456 tests and production build. `scripts/browser-experimental-score-drum-edit-check.cjs` checks exact tied-note selection, field edit, ignored pitched shortcuts, Undo, channel-10 rest insertion and a displayed-score download containing only the visible pitched part. Existing pitched multi-part note-edit regression passes. Rendered drum notation was visually inspected. Unit tests cover exact instrument identity and rejection of malformed/out-of-range IDs. Live-model selection of these notes and detailed percussion engraving remain unverified.
+
+### Percussion in the arrangement score editor (2026-10-18)
+
+The arrangement score view and part selector now include drum-kit tracks and MIDI tracks containing only channel-10 notes. Pitched parts and percussion display together with their original timeline alignment. Notes in drum parts resolve through each part's instrument IDs, including non-first parts, and reuse the drum-aware field editor, selection and Undo. The captured/validated score-view context now includes those parts for agent requests. Tracks containing both pitched and channel-10 notes still require separation for score preview.
+
+Full-score export, displayed-score download/print and selected-region views continue using their corresponding part selection. An explicitly hidden drum part stays absent from Download displayed score. Pitched staff-step gestures remain disabled for drum notes.
+
+Verified 1,457 tests and production build. `scripts/browser-experimental-score-drum-arrangement-check.cjs` renders bass plus drums, selects a drum in the second part, edits its mapped pitch, undoes, and validates agent score context. The existing drum-region editor browser check also covers rest insertion and filtered score download. The mixed arrangement was visually inspected. Live-model inference and sophisticated percussion engraving remain unfinished.

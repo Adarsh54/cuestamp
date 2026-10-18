@@ -73,7 +73,7 @@ function scoreDocument(title,parts){
  return `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>${xml(title)}</work-title></work><identification><encoding><software>Cuestamp</software></encoding></identification><part-list>${parts.map((p,i)=>`<score-part id="P${i+1}"><part-name>${xml(p.name)}</part-name>${p.instruments??''}</score-part>`).join('')}</part-list>${parts.map((p,i)=>`<part id="P${i+1}">${p.measures}</part>`).join('')}</score-partwise>`;
 }
 export function exportRegionMusicxml(session,track,region){return scoreDocument(region.name||session.title,[{name:track.name,instruments:isPercussionRegion(track,region)?drumDefinitions(region):'',measures:regionMeasures(session,track,region)}]);}
-export function scoreTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.instrument!=='drumKit'&&t.regions.length&&!t.regions.some(r=>r.notes.some(n=>n.channel===9)));}
+export function scoreTracks(session){return session.tracks.filter(t=>{if(t.kind!=='midi'||!t.regions.length)return false;const notes=t.regions.flatMap(r=>r.notes);return t.instrument==='drumKit'||!notes.some(n=>n.channel===9)||notes.every(n=>n.channel===9);});}
 export function scoreExportTracks(session){return session.tracks.filter(t=>t.kind==='midi'&&t.regions.length);}
 export function scorePartRegions(session,trackIds=scoreTracks(session).map(t=>t.id)){
  if(!Array.isArray(trackIds)||!trackIds.length||trackIds.length>128||new Set(trackIds).size!==trackIds.length)throw Error('Choose between 1 and 128 distinct MIDI tracks.');

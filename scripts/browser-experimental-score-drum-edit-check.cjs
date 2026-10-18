@@ -22,6 +22,7 @@ await page.waitForFunction(()=>document.querySelector('[data-score-status]').tex
 await panel.screenshot({path:'/tmp/cuestamp-drum-score-editor.png'});
 await panel.locator('[data-score-scope]').selectOption('arrangement');
 await page.waitForFunction(()=>document.querySelector('[data-score-status]').textContent==='Score preview ready.');
+await panel.locator('[data-score-parts] > summary').click();await panel.locator('[data-score-part][value="t"]').uncheck();await page.waitForFunction(()=>document.querySelector('[data-score-status]').textContent==='Score preview ready.');
 const downloaded=page.waitForEvent('download');await panel.locator('[data-score-download]').click();const file=await downloaded;await file.saveAs('/tmp/cuestamp-displayed-pitched-score.musicxml');
 const xml=require('node:fs').readFileSync('/tmp/cuestamp-displayed-pitched-score.musicxml','utf8');assert.equal((xml.match(/<part id=/g)||[]).length,1);assert.doesNotMatch(xml,/<unpitched>/);
 assert.deepEqual(errors,[]);console.log('Drum score selection, field edit, disabled pitched shortcuts, Undo and channel-10 rest insertion verified');
