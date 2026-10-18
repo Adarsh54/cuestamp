@@ -6201,3 +6201,16 @@ and direct-resampling results. The noise fixture still reaches −0.8861 dB agai
 a −1 dB target in FFmpeg despite passing the app's combined detector. Do not claim
 this is a completed true-peak mode. Detector disagreement and streaming boundary
 correction remain open; no fixed margin has been added to conceal the mismatch.
+
+### Offline correction reconstruction matrix
+
+The previous diagnostic mismatch is fixed for the current fixtures. Correction now
+also measures original equation-generated Kaiser/Blackman–Nuttall sinc models at
+16/32/64/128/512 taps. Tests compare their peaks against FFmpeg within 0.001 dB and
+verify corrected padded noise at 44.1/48/96 kHz across the same ten filter settings.
+The original noise diagnostic passes −1 dB across all ten independent variants.
+No fixed extra attenuation margin was added. `test/experimental-reconstruction-peak-meter.test.js`
+records that independent verification, and the diagnostic script now asserts its
+corrected ceilings. The script includes peak time and filter settings to aid future
+failures. Boundary-extension behavior for nonzero file edges and streaming remain
+unverified; do not expose this offline prototype as a completed live limiter mode.

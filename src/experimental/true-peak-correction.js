@@ -1,20 +1,22 @@
+import {ReconstructionPeakMeter} from './reconstruction-peak-meter.js';
 import {FourTimesInterpolator} from './oversampling.js';
 import {TruePeakMeter} from './true-peak-meter.js';
 import {truePeakStatistics} from './audio-true-peak.js';
-// Check both the broadcast-style four-phase detector and a denser reconstruction.
+// Check the broadcast-style detector, dense reconstruction, and a finite family
+// of short/long windowed-sinc reconstructions.
 // Neither finite filter establishes an exact continuous-time/DAC peak bound.
 function measure(channels,required,target){
- const count=channels.length,frames=channels[0].length,up=new FourTimesInterpolator(count,{quality:'analysis'}),upAgain=new FourTimesInterpolator(count),itu=new TruePeakMeter(count),input=Array.from({length:count},()=>new Float64Array(128)),high=Array.from({length:count},()=>new Float64Array(512)),dense=Array.from({length:count},()=>new Float64Array(2048)),maxima=new Float64Array(count);
+ const count=channels.length,frames=channels[0].length,up=new FourTimesInterpolator(count,{quality:'analysis'}),upAgain=new FourTimesInterpolator(count),itu=new TruePeakMeter(count),reconstructions=[16,32,64,128,512].flatMap(size=>['kaiser','blackmanNuttall'].map(window=>new ReconstructionPeakMeter(count,{size,window}))),input=Array.from({length:count},()=>new Float64Array(128)),high=Array.from({length:count},()=>new Float64Array(512)),dense=Array.from({length:count},()=>new Float64Array(2048)),maxima=new Float64Array(count);
  for(let offset=0;offset<frames+528;offset+=128){
   for(let c=0;c<count;c++){input[c].fill(0);input[c].set(channels[c].subarray(offset,Math.min(frames,offset+128)));}
   up.process(input,high);upAgain.process(high,dense);
   for(let i=0;i<128;i++){
-   const peaks=itu.pushFrame(input[0][i],input[1]?.[i]??input[0][i]);let level=0;
-   for(let c=0;c<count;c++){let peak=peaks[c];for(let phase=0;phase<16;phase++)peak=Math.max(peak,Math.abs(dense[c][i*16+phase]));maxima[c]=Math.max(maxima[c],peak);level=Math.max(level,peak);}
+   const left=input[0][i],right=input[1]?.[i]??left,peaks=itu.pushFrame(left,right);for(const reconstruction of reconstructions)reconstruction.pushFrame(left,right);let level=0;
+   for(let c=0;c<count;c++){let peak=peaks[c];for(const reconstruction of reconstructions)peak=Math.max(peak,reconstruction.framePeaks[c]);for(let phase=0;phase<16;phase++)peak=Math.max(peak,Math.abs(dense[c][i*16+phase]));maxima[c]=Math.max(maxima[c],peak);level=Math.max(level,peak);}
    if(required&&level>target){const correction=target/level;for(let j=Math.max(0,offset+i-528);j<=Math.min(offset+i,frames-1);j++)required[j]=Math.min(required[j],correction);}
   }
  }
- return {method:'combined-4x-ITU-and-16x-FIR',peaksDbtp:Array.from(maxima,p=>p?20*Math.log10(p):null)};
+ return {method:'combined-ITU-dense-FIR-and-windowed-sinc',peaksDbtp:Array.from(maxima,p=>p?20*Math.log10(p):null)};
 }
 // Offline prototype. A streaming version must revalidate windows across emitted
 // block boundaries; independently correcting chunks is NOT equivalent to this.

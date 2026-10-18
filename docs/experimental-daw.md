@@ -2722,3 +2722,31 @@ windows. Independently correcting chunks cannot reproduce whole-buffer correctio
 its final uniform fallback cannot repair audio already emitted. Reference for the
 post-limiting correction approach (not an implementation specification):
 https://www.fabfilter.com/help/pro-l/using/truepeaklimiting
+
+### Reconstruction mismatch resolved for current offline fixtures
+
+The prior ~0.114 dB discrepancy was traced to different reconstruction filters.
+Using the same corrected noise, FFmpeg's 32-tap Kaiser and Blackman–Nuttall windows
+peaked around −0.886 and −0.862 dBTP, while longer filters peaked at different
+samples. A longer single analysis filter alone did not cover those reconstructions.
+FFmpeg documents its filter-size/window controls here:
+https://ffmpeg.org/ffmpeg-resampler.html
+
+`reconstruction-peak-meter.js` generates original normalized sinc/window models
+from equations, using Kaiser beta 9 and Blackman–Nuttall windows at 16, 32, 64, 128
+and 512 taps. Measured peak agreement with independent FFmpeg resampling is within
+0.001 dB for the tested noise, windows and lengths (also a 16-phase case). These
+models now participate in local correction alongside ITU and dense FIR estimation.
+
+The original noise fixture now stays at or below −1 dBTP across all ten independent
+FFmpeg combinations, with no fixed safety-margin workaround and no whole-buffer
+fallback in that run. Seeded padded-noise correction also passes the ten-filter
+matrix at 44.1/48/96 kHz with a −3 dB target and 0.001 dB comparison tolerance.
+The diagnostic asserts these ceilings instead of merely printing them.
+
+This supersedes the earlier *specific fixture failure*, not the overall limitation:
+the correction remains offline-only and outside playback/export UI. Independent
+checks currently isolate interior reconstruction with silent padding; nonzero file
+boundary conventions, more content, ceiling automation, streaming cross-block
+correction and real-time CPU budgets remain open. A finite family of reconstruction
+filters does not prove a bound for every DAC or encoded output.
