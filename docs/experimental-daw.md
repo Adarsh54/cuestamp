@@ -2841,3 +2841,32 @@ The agent's `export_audio` and follow-up export schema accept `correctedMix`, wi
 null region/start/end and the same validation. Provider behavior is verified using
 mocked model responses, not live inference. This remains a finite reconstruction
 estimate, not a live limiter or a guarantee for all playback reconstruction filters.
+
+### Real-time range and region delivery
+
+Export settings includes **Save real-time cycle range** and **Save real-time
+region**. Both use the existing bounded direct-file WAV writer, selected export
+format/sample rate/master processing, cancellation and session-revision checks.
+The cycle range exports exactly its start/end interval even when looping is off.
+Region export isolates the selected audio/MIDI region, retains routed effect tails,
+ignores other regions and solo, and respects mute. File suggestions identify the
+range or region. This extends the long-export path beyond full mixes and stems.
+
+Reference workflow: [Apple's bounce range guide](https://support.apple.com/en-ae/guide/logicpro/lgcp190ba9b7/mac).
+Cuestamp's region export remains an isolated-region bounce, distinct from rendering
+all tracks within a selection. Both scoped exports restore timeline automation at
+the start, but begin with empty effect history. They inherit the 24-hour/WAV size
+limits and still decode their required source media in memory.
+
+The agent accepts `realtimeRange` (explicit paired start/end, or null for captured
+cycle bounds) and `realtimeRegion` (explicit or captured selected region). Both
+require observed file-picker support. Follow-up export uses the edited snapshot.
+
+Native browser comparisons at 44.1/48/96 kHz verify nonzero timeline starts, source
+offsets, automation, limiter latency compensation and frame counts. They exposed
+an offline first-sample gain/pan initialization error at 44.1 kHz: a scheduled event
+at 221/44100 seconds could apply after the first delayed sample. New mixer nodes
+now initialize to their seek values before scheduling; live rescheduling is unchanged.
+The maximum measured real-time/offline difference after the fix was 2.98e-8.
+Actual file-save UI checks cover both scopes; agent planning uses mock responses.
+Long-duration scope-specific and cross-browser stress runs remain unverified.

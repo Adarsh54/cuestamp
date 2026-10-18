@@ -7,7 +7,11 @@ import {createLiveAutomation} from './automation-live.js';
 import {effectiveAutomationSession} from './automation-mode.js';
 import {createLevelMeters} from './meters.js';
 import {renderingSources,createRoutedTailReader,validateRouting} from './routing.js';
-import {connectEffects,scheduleAutomation,effectTail} from './effects.js';
+import {connectEffects,scheduleAutomation as scheduleMixerAutomation,automationValue,effectTail} from './effects.js';
+// Newly created mixer nodes must start at the seek value even when a sample
+// boundary rounds just before the scheduled automation event (e.g. 221/44100).
+// This initializer is deliberately not used for rescheduling live parameters.
+function scheduleAutomation(param,points,parameter,position,base,fallback){const value=automationValue(points,parameter,position,fallback);param.value=parameter==='gainDb'?10**(value/20):value;scheduleMixerAutomation(param,points,parameter,position,base,fallback);}
 export function sessionDuration(session){
  const tail=createRoutedTailReader(session);let end=1;
  for(const track of session.tracks){

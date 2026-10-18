@@ -35,3 +35,9 @@ test('export master bypass is snapshot-only and preserves track/bus processing a
  }
  assert.deepEqual(withMaster,before);assert.throws(()=>createBouncePlan(withMaster,{masterMode:'invalid'}),/master processing/);
 });
+
+test('real-time range and region retain scoped media and tails beyond offline duration cap',()=>{
+ const s=fixture();s.tracks.forEach(t=>t.solo=false);s.tracks[0].regions[0].duration=601;s.tracks[0].regions[1].start=5000;s.loopStart=1000;s.loopEnd=1601;const before=structuredClone(s);
+ for(const mode of ['range','region']){assert.throws(()=>createBouncePlan(s,{mode,regionId:'r'}),/10 minutes/);const plan=createBouncePlan(s,{mode,regionId:'r',renderMode:'realtime'});assert.equal(plan.position,1000);assert.equal(plan.duration,mode==='range'?601:602);assert.deepEqual(plan.assets,['source']);assert.equal(plan.entries[0].document.tracks.find(t=>t.id==='a').regions.length,1);assert.equal(plan.zip,false);}
+ assert.deepEqual(s,before);assert.throws(()=>createBouncePlan(s,{mode:'region',regionId:'missing',renderMode:'realtime'}),/Select/);s.loopEnd=s.loopStart;assert.throws(()=>createBouncePlan(s,{mode:'range',renderMode:'realtime'}),/valid cycle/);
+});

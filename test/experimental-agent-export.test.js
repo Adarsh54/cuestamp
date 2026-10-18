@@ -47,3 +47,11 @@ test('corrected mix export enforces float output and PCM budget before rendering
  const result=await planDawEdit({session,instruction:'Export a peak-corrected mix',allowExport:true,exportContext:context},adapter([call(value)]));assert.equal(result.export.mode,'correctedMix');
  const {validateCorrectedExportSize}=await import('../src/experimental/agent-export.js');for(const rate of [44100,48000,96000]){validateCorrectedExportSize(4194304/rate,rate);assert.throws(()=>validateCorrectedExportSize(4194305/rate,rate),/32 MiB/);}
 });
+
+test('agent real-time scopes preserve selection, explicit range, edited state and capability checks',async()=>{
+ const long=applyCommands(session,[{op:'region.set',target:'r',values:{start:4,duration:601}},{op:'session.set',values:{loopStart:5,loopEnd:606}}]),ctx={...context,revision:long.revision,realtimeSupported:true},before=structuredClone(long);
+ for(const mode of ['realtimeRange','realtimeRegion']){const value={...action,mode},prepared=prepareAgentExport(long,value,ctx);assert.equal(prepared.plan.position,mode==='realtimeRange'?5:4);assert.ok(prepared.plan.duration>=601);assert.throws(()=>prepareAgentExport(long,value,{...ctx,realtimeSupported:false}),/unavailable/);const response=await planDawEdit({session:long,instruction:'Save selected audio in real time',allowExport:true,exportContext:ctx},adapter([call(value)]));assert.equal(response.export.mode,mode);}
+ const explicit=prepareAgentExport(long,{...action,mode:'realtimeRange',start:10,end:11},ctx);assert.equal(explicit.plan.position,10);assert.equal(explicit.plan.duration,1);assert.deepEqual(long,before);
+ for(const bad of [{mode:'realtimeRange',regionId:'r'},{mode:'realtimeRange',start:1,end:null},{mode:'realtimeRange',start:2,end:1},{mode:'realtimeRegion',start:0,end:1},{mode:'realtimeRegion',regionId:'missing'}])assert.throws(()=>prepareAgentExport(long,{...action,...bad},ctx));
+ const {prepareEditedExport}=await import('../src/experimental/agent-export.js'),edited=applyCommands(long,[{op:'region.set',target:'r',values:{start:20}}]);assert.equal(prepareEditedExport(edited,{...action,mode:'realtimeRegion'},ctx).plan.position,20);
+});

@@ -6274,3 +6274,19 @@ source-session preservation, cancellation during correction and early size error
 `test/experimental-agent-export.test.js` checks strict scope, output format, budget
 boundaries at all supported rates and mocked-provider planning. Production builds
 now include the correction worker because it is reachable from the workspace.
+
+### Real-time scoped export checks
+
+`createBouncePlan` permits real-time range/region plans. Export settings exposes
+both scopes, and `export_audio` accepts `realtimeRange`/`realtimeRegion`. Their
+range/media/tail semantics match offline scoped plans, but the ten-minute cap is
+replaced by existing real-time duration/WAV limits. Unsupported file pickers fail
+explicitly; sources remain decoded in memory and effects start with empty history.
+
+Run `scripts/browser-experimental-realtime-scopes-check.cjs` for native PCM parity
+at 44.1/48/96 kHz, including late timeline seeks, offsets, automation and limiter
+latency. `scripts/browser-experimental-realtime-ui-check.cjs` checks actual saved
+range/region files and ordinary mix/agent handoff. The former also guards the
+first-sample mixer initialization regression at 44.1 kHz: newly created gain/pan
+nodes must receive the seek value before future scheduling. Do not apply that
+initializer to existing live automation nodes.
