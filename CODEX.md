@@ -5653,3 +5653,11 @@ Verified 1,459 tests and production build. New injected-plan tests check selecte
 Single drum-note editing now includes a Drum sound selector using the existing built-in kit names/pitches: kick, snare, closed/open hat, crash and ride. Selecting a name updates the draft MIDI number; typing another number switches the selector to Custom MIDI number. Apply remains the only commit, using the existing validated note command and Undo. The selector is hidden for pitched notes and multi-note selection. Custom mappings remain available; this does not add new synthesized instruments.
 
 Verified 1,459 tests and production build. The drum score browser regression verifies selector/number synchronization, a custom number, no revision change while choosing, apply and Undo. The rendered form was visually inspected. Live-model inference remains unavailable pending server provider configuration.
+
+### Built-in hi-hat choking (2026-10-18)
+
+On one built-in drum-kit track, a later closed hi-hat (42) or open hi-hat (46) now cuts off a ringing open hat (46) with a 5 ms gain fade. A closed hat wins when both start simultaneously. The lookup uses absolute arrangement time across overlapping/unordered regions and ignores muted regions, muted notes and zero-velocity hits. Separate tracks stay independent. This is the built-in kit's fixed behavior, not configurable sampler choke groups or pedal-controller interpretation.
+
+The shared track-voice renderer handles playback and offline exports. Seeking inside a choke fade initializes its remaining gain correctly, and seeking after it does not revive the open-hat tail. Manual/agent note edits naturally change the same playback behavior; no new command or saved project field is needed.
+
+Verified 1,461 tests and production build. New unit cases cover timing, retriggers, simultaneous priority and source preservation. `scripts/browser-experimental-drum-choke-check.cjs` measures actual OfflineAudioContext PCM: no pre-strike difference; after cutoff, zero difference against closed-hat-only audio; muted-hit render equals open-only; seek error inside the fade approximately 7.5e-9; independent-track open tail remains audible. The existing drum-pattern browser check passes (editing, Undo, MIDI export and rendered hits). Physical listening/hardware are unverified.
