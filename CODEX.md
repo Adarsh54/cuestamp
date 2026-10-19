@@ -6632,3 +6632,21 @@ unverified; these are browser-generated MIDI messages.
 
 Final build and browser checks passed after the label adjustment; the existing
 large-bundle build warning remains.
+
+### Find Tool includes instrument fieldsets
+
+Find Tool (Cmd/Ctrl+K) now indexes form fieldset legends as well as existing form
+headings, details summaries and toolbar actions. This makes Synth tuning, unison,
+vibrato, volume envelope and filter discoverable without scrolling the inspector.
+Nested fieldsets are separate destinations; choosing a result opens all enclosing
+details panels and focuses the first enabled input/select/textarea/button. Disabled
+fieldsets and explicitly hidden/inert sections are excluded. Non-interactive heading
+fallbacks receive programmatic focus. Search/navigation does not execute a command
+or change the saved session.
+
+Verification: all 1,650 tests and the build passed with the existing bundle warning.
+The real Chromium workspace test found each of the five synth sections, navigated
+by keyboard, verified exact focused controls and unchanged session data, exercised
+nested closed panels and skipped disabled/hidden controls. Existing quantize, toolbar,
+no-match and Escape-focus checks also passed. This improves discoverability; it is
+not a full screen-reader or cross-browser accessibility audit.
