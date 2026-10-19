@@ -1,3 +1,4 @@
+import {factorySynths} from './synth-factory.js';
 import {synthUnisonSchema} from './synth-unison.js';
 import {synthTuningSchema} from './synth-tuning.js';
 import {z} from 'zod';
@@ -10,6 +11,7 @@ export const synthPresetSchema=z.object({id,name,settings:synthSettingsSchema}).
 export const synthPresetsSchema=z.array(synthPresetSchema).max(32).default([]).refine(items=>new Set(items.map(p=>p.id)).size===items.length,'Synth preset IDs must be unique.');
 export function synthSnapshot(track){if(track?.kind!=='midi'||!isOscillator(track.instrument))throw Error('Choose a built-in synth track.');return synthSettingsSchema.parse(Object.fromEntries(Object.keys(synthSettingsSchema.shape).filter(key=>track[key]!==undefined).map(key=>[key,structuredClone(track[key])])));}
 export function editSynthPreset(session,op,target,values){
+ if(op==='synthPreset.factory'){const {sound}=z.object({sound:z.enum(factorySynths.map(item=>item.id))}).strict().parse(values),track=session.tracks.find(t=>t.id===target);if(track?.kind!=='midi')throw Error('Apply synth sounds to an instrument track.');Object.assign(track,synthSettingsSchema.parse(factorySynths.find(item=>item.id===sound).settings));return;}
  const presets=session.synthPresets,uniqueName=(value,except)=>{if(presets.some(p=>p.id!==except&&p.name.toLowerCase()===value.toLowerCase()))throw Error('Choose a different synth preset name.');};
  if(op==='synthPreset.save'||op==='synthPreset.update'){
   const v=(op==='synthPreset.save'?z.object({id:id.optional(),name}):z.object({presetId:id})).strict().parse(values),settings=synthSnapshot(session.tracks.find(t=>t.id===target));

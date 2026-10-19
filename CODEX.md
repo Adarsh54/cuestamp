@@ -6504,3 +6504,34 @@ layout, gain normalization, bend forwarding, aggregate end notification, validat
 preset capture, Undo/Redo and controlled-response agent edits. UI/reload and the
 rendered form were checked. Physical MIDI, sustained load, other browsers and live
 provider inference remain unverified.
+
+### Editable starting synth sounds
+
+The MIDI instrument inspector includes Starting synth sounds: Sub Bass, Rounded
+Bass, Soft Keys, Soft Pluck, Bright Lead, Warm Pad, Airy Pad and Pulse Keys. These
+are original oscillator settings built from the existing tuning, unison, volume
+ADSR and filter controls. They require no source files or model inference. They
+are editable synthesis starting points, not acoustic instrument recordings.
+
+`synthPreset.factory` targets a MIDI track with
+`values.sound`: sub-bass, rounded-bass, soft-keys, soft-pluck, bright-lead, warm-pad,
+airy-pad or pulse-keys. The command expands all instrument defaults and applies
+the entire synth snapshot, so omitted fields reset rather than retaining the
+previous sound. It preserves notes, mixer/effects/routing and inactive sampler
+settings. Applying a factory sound consumes no user preset slot; edited sounds
+can be saved with synthPreset.save. Undo/Redo uses the shared session engine.
+The agent has the same catalog IDs/descriptions and can apply then customize in
+one batch. The picker is also discoverable through Find tool.
+
+Verification: 1,642 tests passed. Native Chromium rendered three-note chords for
+all eight sounds at 44.1/48/96 kHz: finite audible output, peaks below full scale in
+these fixtures and silence after release. This is fixture evidence, not a general
+no-clipping guarantee for arbitrary polyphony, resonance or downstream effects.
+Browser checks covered apply, resetting previous settings, Undo/Redo and reload.
+The picker layout was inspected and corrected to a vertical arrangement. Unit
+checks cover every preset snapshot, preserving musical/mixer data, invalid targets,
+custom preset capture and controlled-response agent edits. Live model inference,
+physical MIDI and broad sound-quality/performance evaluation remain open.
+
+Final production build and repeated browser checks passed after the layout change;
+the existing large-bundle warning remains.
