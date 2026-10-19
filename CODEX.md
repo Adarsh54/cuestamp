@@ -6356,3 +6356,24 @@ Run `test/experimental-envelope-editor.test.js` for graph/gesture math and
 interaction, input synchronization, draft-vs-session behavior, Apply/Undo/Redo and
 sampler/filter isolation. It captures `/tmp/cuestamp-envelope-editor.png` for visual
 inspection. Shared `blocked` guards prevent graph gestures during active operations.
+
+### Sampler filter velocity sensitivity
+
+The sampler Filter envelope section includes Velocity sensitivity (0–100%).
+The persisted/agent parameter is `sampleFilterVelocity` (0–1, default 0).
+Effective signed depth is `sampleFilterEnvDepth * (1 - sensitivity + sensitivity * noteVelocity)`.
+At 0% existing sounds keep their full envelope depth; at 100% soft notes sweep
+less than hard notes. This changes filter modulation independently of amplitude
+velocity. Positive and negative depths both work; full-velocity notes retain the
+full configured depth. The graph continues to show normalized envelope shape.
+
+Arranged playback, exports and live MIDI use the same scaling, including early
+note release, sustain pedal and seeking. Presets, validated agent track edits,
+Undo/Redo and session persistence retain the value. No new service configuration
+is needed. Physical MIDI and live provider inference remain unverified.
+
+Verification: 1,625 tests passed; production build passed with the existing large
+bundle warning. Native Chromium audio fixtures covered both depth signs and
+0%/100% sensitivity at 44.1/48/96 kHz. Soft-note output matched a corresponding
+manually reduced-depth reference exactly; arranged/live maximum PCM difference
+was 1.12e-7. Controls, undo, reload and the rendered form were checked.
