@@ -3056,3 +3056,31 @@ Browser checks exercised save/selection, apply without note/mixer changes, indep
 update, rename/delete/Undo and reload. The rendered preset panel was inspected.
 Unit coverage includes all captured synth fields, atomic invalid edits, the 32-item
 limit, old sessions, source deletion, portable project round trips and agent commands.
+
+### Built-in synth tuning
+
+The instrument inspector exposes semitone transpose (integer −48..48) and fine
+tuning (−100..100 cents) for sine, triangle, square and sawtooth voices. Defaults
+are zero. `synthTranspose` and `synthFineTune` are validated track.add/track.set
+fields available to agent edits and stored in synth presets. Older sessions and
+presets acquire zero defaults. Manual Apply commits one undoable edit.
+
+The oscillator base frequency is `440 * 2^((pitch - 69 + transpose + cents/100)/12)`.
+MIDI pitch bend/RPN tuning continues through the independent detune parameter.
+Playback, seeking, audio exports and live MIDI therefore share the same tuning.
+The original MIDI notes, score and MIDI export are unchanged; MIDI files do not
+encode this static oscillator patch tuning. Sampler and drum playback ignore it.
+Filter key tracking follows written note pitch, not oscillator transposition.
+Extreme upward tuning can put the fundamental above the rendering sample rate's
+Nyquist frequency; the controls do not promise an audible tone at those extremes.
+
+Verification uses native Chromium frequency measurements at 44.1/48/96 kHz for
+zero tuning and positive/negative octave+cent offsets with additive ±2-semitone
+pitch bend. Arranged/live PCM matched exactly in those nine cases; arranged, live
+and seek-render frequency estimates met relative error <1e-5. UI Apply/Undo/Redo,
+reload and the rendered form were checked. Unit tests cover schema boundaries,
+unchanged note data, presets/legacy defaults and controlled-response agent edits.
+Physical MIDI and configured live inference remain unverified.
+
+Full verification: 1,636 tests passed; production build passed with the existing
+large-bundle warning.
