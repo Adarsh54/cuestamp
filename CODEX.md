@@ -6598,3 +6598,37 @@ against the analytic sine/depth curve. The test models scheduled local onset tim
 rather than recomputing it by floating-point addition at the discontinuity. Release
 silence/cleanup and the rendered form were verified. Physical MIDI, other browsers,
 long-session performance and configured live inference remain unverified.
+
+### Modulation-wheel-controlled synth vibrato
+
+Synth vibrato now has Always on / Mod wheel control. The persisted and agent field
+`synthVibratoModWheel` is boolean, default false. When enabled, channel CC1 values
+0–127 scale the delayed/faded vibrato depth from zero to full. CC121 resets the
+wheel to zero. The wheel state is remembered per live MIDI channel for newly
+started notes and updates sounding notes, including their volume release tails.
+Other channels do not affect the voice. Always-on preserves the previous behavior.
+
+Arranged playback/audio exports compile CC1/reset state per region/channel, restore
+it at note start/seek and schedule subsequent changes through release. MIDI chase
+for split/trimmed material now retains wheel/reset ordering, avoiding a stale
+pre-reset wheel value. Synth presets and portable files retain the control choice;
+factory sounds default to Always on. Agent track.set plus existing event.add/set
+operations can configure the mode and author CC1 events. Existing MIDI recording
+and export retain controller messages. This currently uses seven-bit CC1, without
+CC33 high-resolution extension or RPN modulation-depth-range support.
+
+Reference: the [MIDI Association controller table](https://midi.org/midi-1-0-control-change-messages)
+defines CC1 modulation and CC121 Reset All Controllers.
+
+Verification: 1,650 tests passed. Browser audio fixtures cover 1/3 unison oscillators
+at 44.1/48/96 kHz, pre-note wheel state, another channel, CC1 changes and reset during
+release. Live/arranged PCM matched within 1e-5; direct modulator output after four
+seek positions matches an analytical wheel-scaled sine reference. UI Apply/Undo,
+reload and rendered control were checked. The fixture region was extended to contain
+its reset event after note-off; events must remain inside their region. Unit coverage
+includes same-time ordering, reset/chase semantics, invalid edits, presets and
+controlled-response agent commands. Physical controllers and live inference remain
+unverified; these are browser-generated MIDI messages.
+
+Final build and browser checks passed after the label adjustment; the existing
+large-bundle build warning remains.
