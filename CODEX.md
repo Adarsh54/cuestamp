@@ -6377,3 +6377,35 @@ bundle warning. Native Chromium audio fixtures covered both depth signs and
 0%/100% sensitivity at 44.1/48/96 kHz. Soft-note output matched a corresponding
 manually reduced-depth reference exactly; arranged/live maximum PCM difference
 was 1.12e-7. Controls, undo, reload and the rendered form were checked.
+
+### Built-in synth per-note filters
+
+Sine, triangle, square and sawtooth tracks now have a separate Synth filter form,
+with Off/Low-pass/High-pass, cutoff, resonance, key tracking, signed ADSR depth,
+velocity sensitivity and the shared draggable envelope graph. Apply commits one
+undoable track edit. Numeric values, undo/redo and reload were verified in Chromium.
+The sampler settings remain independent, and the filter defaults to Off so existing
+synth patches retain their previous sound.
+
+The `synthFilter*` fields mirror `sampleFilter*` bounds/defaults, using MIDI 60 as
+the key-tracking reference. Percent UI fields persist as 0–1. The shared per-voice
+12 dB/octave filter runs between oscillator and volume envelope for arranged
+playback/exports and live MIDI. Seeking restores modulation age; sustain/sostenuto
+release uses the voice's actual release time. Filter release does not extend the
+volume envelope or source lifetime. Pitch bend does not move cutoff. These are
+static patch parameters, not new automation targets. Agent `track.add`/`track.set`
+commands use the same validated schema; provider tests use controlled responses.
+
+Apple's [ES2 envelope overview](https://support.apple.com/guide/logicpro/envelopes-overview-lgsi619bb1f2/mac)
+describes separate per-voice filter and amplitude envelopes. This implementation
+adds that basic sound-shaping capability; it does not replicate ES2's multi-oscillator,
+dual-filter or modulation-matrix architecture.
+
+Verification: 1,628 tests passed and production build passed (existing bundle-size
+warning). Native Chromium fixtures cover four waveforms × two filter types × three
+sample rates (44.1/48/96 kHz), with velocity-sensitive modulation and sustain pedal.
+Live/arranged PCM matches within 1e-5, enabled filtering differs from bypass, release
+remains audible and subsequently silent, and seeking into release remains audible.
+The form screenshot was inspected. Seeking restarts oscillator phase and filter
+history, so this is not a claim of sample-exact seek continuity. Physical MIDI,
+other browsers and configured live-agent inference remain unverified.

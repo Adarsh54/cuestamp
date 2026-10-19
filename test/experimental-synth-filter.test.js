@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SessionHistory,sessionSchema} from '../src/experimental/session.js';
+import {synthFilterSchema,synthFilterSettings,createSynthFilter,synthFilterView} from '../src/experimental/synth-filter.js';
+import {planDawEdit} from '../server/daw-agent.js';
+test('synth filter settings are independent, default off and survive undo, duplicate and legacy load',()=>{
+ const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'s',kind:'midi',instrument:'sawtooth',synthFilterType:'lowpass',synthFilterCutoff:800,synthFilterEnvDepth:36}}]);const track=h.session.tracks[0];assert.equal(track.sampleFilterType,'off');assert.equal(track.synthFilterType,'lowpass');assert.equal(track.synthFilterVelocity,0);
+ const before=structuredClone(h.session);for(const values of [{synthFilterType:'bandpass'},{synthFilterCutoff:0},{synthFilterResonance:31},{synthFilterKeyTrack:2},{synthFilterVelocity:-1},{synthFilterAttack:11},{synthFilterDecay:-1},{synthFilterSustain:2},{synthFilterRelease:31},{synthFilterEnvDepth:97}]){assert.throws(()=>h.execute([{op:'track.set',target:'s',values}]));assert.deepEqual(h.session,before);}
+ h.execute([{op:'track.set',target:'s',values:{synthFilterVelocity:.75,synthFilterSustain:.2}}]);h.undo();assert.equal(h.session.tracks[0].synthFilterVelocity,0);h.redo();h.execute([{op:'track.duplicate',target:'s',values:{id:'copy'}}]);assert.equal(h.session.tracks[1].synthFilterVelocity,.75);assert.equal(h.session.tracks[1].synthFilterCutoff,800);
+ const legacy=structuredClone(h.session);for(const t of legacy.tracks)for(const key of Object.keys(t))if(key.startsWith('synthFilter'))delete t[key];assert.equal(sessionSchema.parse(legacy).tracks[0].synthFilterType,'off');assert.equal(synthFilterSettings(track).sampleFilterCutoff,800);assert.equal(synthFilterSchema.parse({}).synthFilterType,'off');assert.equal(synthFilterView({...track,instrument:'sampler'}),'');assert.equal(synthFilterView({...track,kind:'audio'}),'');
+});
+test('synth filter tracks from MIDI 60 and restores velocity-scaled envelope on seek and release',()=>{
+ const events=[],param={value:0,setValueAtTime:(v,t)=>events.push([v,t]),exponentialRampToValueAtTime:(v,t)=>events.push([v,t]),cancelScheduledValues:()=>{}},context={currentTime:0,sampleRate:48000,createBiquadFilter:()=>({frequency:param,Q:{value:0}})};
+ assert.equal(createSynthFilter(context,{},60),null);
+ const node=createSynthFilter(context,{synthFilterType:'lowpass',synthFilterCutoff:1000,synthFilterKeyTrack:1,synthFilterEnvDepth:24,synthFilterVelocity:1,synthFilterAttack:1,synthFilterRelease:.4},72,{start:2,age:.5,velocity:.5});assert.equal(node.type,'lowpass');assert.ok(Math.abs(events[0][0]-2000*Math.sqrt(2))<1e-9);assert.equal(events[0][1],2);node.releaseEnvelope(2);assert.equal(events.at(-1)[0],2000);assert.equal(events.at(-1)[1],2.4);
+});
+test('agent can configure the independent synth filter using validated track edits',async()=>{
+ const h=new SessionHistory();h.execute([{op:'track.add',values:{id:'s',kind:'midi',instrument:'square'}}]);const commands=[{op:'track.set',target:'s',values:{synthFilterType:'lowpass',synthFilterCutoff:600,synthFilterEnvDepth:36,synthFilterAttack:.1,synthFilterVelocity:.5}}];const result=await planDawEdit({session:h.session,instruction:'Give this synth a velocity-sensitive low-pass sweep'}, {key:'test',model:'test',fetchImpl:async()=>({ok:true,json:async()=>({output:[{type:'function_call',name:'edit_session',arguments:JSON.stringify({summary:'Configure synth filter',commands})}]})})});h.execute(result.commands);assert.equal(h.session.tracks[0].synthFilterCutoff,600);assert.equal(h.session.tracks[0].sampleFilterCutoff,20000);
+});
