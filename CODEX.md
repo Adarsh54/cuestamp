@@ -6562,3 +6562,39 @@ unique IDs/names, invalid-file atomicity, Undo/Redo and reload. The preset panel
 visually inspected. Unit tests cover bounds/format/version/size, source-ID exclusion,
 settings fidelity, agent export gating and nonexistent preset rejection. Browser
 agent responses were controlled fixtures; configured live inference remains open.
+
+### Delayed synth vibrato
+
+Built-in oscillator tracks now expose Synth vibrato: Rate (.1–20 Hz, default 5),
+Depth (0–200 cents peak deviation, default 0/off), Delay (0–10 seconds) and Fade in
+(0–10 seconds). Agent track.add/set fields are synthVibratoRate, synthVibratoDepth,
+synthVibratoDelay and synthVibratoFade. Synth presets and portable files capture
+these; older sounds default to disabled vibrato. Applying factory sounds resets
+vibrato to defaults. Manual controls commit as one Undo step.
+
+A per-note sine oscillator adds pitch modulation to the constituent audio
+oscillators' detune AudioParams, independently of MIDI bend and static tuning.
+All unison oscillators share the modulation. Its phase advances from note start,
+including the silent delay; depth stays zero during Delay and rises linearly over
+Fade in, or steps to full depth for zero fade. It continues through volume release
+and stops/disconnects with the voice. Seeking restores modulation phase and fade
+age using a phase-shifted periodic wave. The audio oscillator phase/filter history
+still restart, so complete audio seek continuity is not claimed.
+
+This supports playback, audio export and live MIDI. It is not encoded into MIDI
+export and is not mod-wheel driven, tempo-synced or a general modulation matrix.
+Sampler/drum voices ignore these synth settings.
+
+References: Apple's [ES2 LFO guide](https://support.apple.com/en-ca/guide/logicpro/lgsib7dd3d66/mac)
+describes delayed vibrato; [Web Audio periodic waves](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createPeriodicWave)
+provide sine/cosine coefficients for phase restoration. Cuestamp uses its own sine
+modulator and separate delay/fade controls rather than reproducing ES2's router.
+
+Verification: 1,647 tests and build passed (existing bundle-size warning). Chromium
+checks cover controls/Undo/reload and native live/arranged PCM with 1/3 unison
+oscillators, tuning, filter and bend at 44.1/48/96 kHz. Direct LFO output measurements
+cover four seek ages, delayed instantaneous onset and fade-in at all three rates,
+against the analytic sine/depth curve. The test models scheduled local onset time
+rather than recomputing it by floating-point addition at the discontinuity. Release
+silence/cleanup and the rendered form were verified. Physical MIDI, other browsers,
+long-session performance and configured live inference remain unverified.
