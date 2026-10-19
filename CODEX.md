@@ -6341,3 +6341,18 @@ duplication and mocked-agent commands. Run
 native four-waveform live/arranged sustain-pedal parity at three sample rates,
 release lifetime and seeking into tails. It captures `/tmp/cuestamp-synth-envelope.png`.
 Phase continuity on seek is not implemented by envelope restoration.
+
+### Shared ADSR graph editor
+
+`envelope-editor.js` binds each graph to four named inputs in its containing form.
+The synth, sampler volume and filter views supply distinct name mappings. Graph
+edits update draft inputs only; retain the existing form submit/command path for
+validation, persistence, agent parity and Undo. The illustrative hold segment does
+not change note lengths. Pointer capture uses fixed gesture scale, Escape/cancel
+restores the original draft, and handles also accept keyboard changes.
+
+Run `test/experimental-envelope-editor.test.js` for graph/gesture math and
+`scripts/browser-experimental-envelope-editor-check.cjs` for real pointer/keyboard
+interaction, input synchronization, draft-vs-session behavior, Apply/Undo/Redo and
+sampler/filter isolation. It captures `/tmp/cuestamp-envelope-editor.png` for visual
+inspection. Shared `blocked` guards prevent graph gestures during active operations.

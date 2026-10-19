@@ -2948,3 +2948,25 @@ four waveforms at 44.1/48/96 kHz: arranged/live sustain-pedal PCM matched exactl
 those cases, release energy persisted past note-off, output became silent after
 release, and release-phase seeking remained audible. Controls/reload and layout
 were checked. Physical MIDI and broad cross-browser performance remain unverified.
+
+### Graphical envelope editing
+
+Synth volume, sampler volume and sampler filter ADSR controls share an interactive
+SVG editor. Drag Attack horizontally, Decay horizontally/vertically, Sustain
+vertically or Release horizontally. Numeric inputs and the graph stay synchronized.
+The graph uses normalized envelope level; for the filter it represents modulation
+shape, not actual cutoff Hz or a measured audio waveform. Its displayed sustain
+hold is illustrative and does not alter MIDI note lengths.
+
+Handles are focusable sliders with value text. Arrow keys change the relevant
+parameter by .01, Shift by .1; Decay Up/Down changes sustain. Home/End reach the
+parameter limits. Escape or pointer cancellation restores the values at drag start.
+The existing Apply/Use sampler form commits changes as one undoable edit. Graph
+gestures alone do not mutate the session or bypass engine validation. Agent edits
+use the same underlying ADSR parameters; no separate graph-only DSP state exists.
+
+Pure geometry/gesture tests and native browser checks cover clamping, precise/coarse
+keyboard changes, pointer edits, Escape rollback, numeric synchronization, explicit
+Apply/Undo/Redo, and independence of sampler volume/filter fields within their
+shared form. The rendered light-theme graph was inspected. Physical touch and
+screen-reader testing across browsers remain open.
