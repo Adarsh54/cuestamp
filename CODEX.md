@@ -6409,3 +6409,36 @@ remains audible and subsequently silent, and seeking into release remains audibl
 The form screenshot was inspected. Seeking restarts oscillator phase and filter
 history, so this is not a claim of sample-exact seek continuity. Physical MIDI,
 other browsers and configured live-agent inference remain unverified.
+
+### Saved built-in synth presets
+
+The instrument inspector includes Synth presets for MIDI tracks. Save new preset,
+Apply, Update from this track, Rename and Delete use atomic `synthPreset.*`
+commands. Presets capture the oscillator waveform, pitch-bend range, volume ADSR
+and per-note filter/ADSR/velocity settings. They do not capture effects, routing,
+mixer automation or notes. Applying a preset changes only its instrument fields;
+inactive sampler settings remain available when switching instruments again.
+
+Up to 32 presets are stored in the session, with unique IDs and case-insensitive
+unique names for save/rename. Apply targets any MIDI track; save/update requires
+one of the four built-in oscillator instruments. Updates and deletions do not
+modify tracks that already received independent copies. Legacy documents default
+to an empty collection. Saved sounds survive source-track deletion, JSON storage
+and portable project archives. This is a project-local instrument library, not an
+account-wide library or complete channel-strip patch system.
+
+Agent commands: `synthPreset.save` targets a source track with name/optional id;
+`update` targets the source with presetId; `apply` targets the destination with
+presetId; `rename` targets a preset with name; `delete` targets a preset. All use
+the same validator and Undo history as manual controls. Agent verification uses
+controlled model responses, not configured live inference.
+
+Research: Apple's [patches guide](https://support.apple.com/guide/logicpro/patches-lgcpac5affb8/10.7/mac/11.0)
+describes full patches that also include effects/routing. The current feature
+provides reusable synth instrument settings; that broader patch scope remains open.
+
+Verification: 1,633 tests passed, build passed with the existing bundle-size warning.
+Browser checks exercised save/selection, apply without note/mixer changes, independent
+update, rename/delete/Undo and reload. The rendered preset panel was inspected.
+Unit coverage includes all captured synth fields, atomic invalid edits, the 32-item
+limit, old sessions, source deletion, portable project round trips and agent commands.
