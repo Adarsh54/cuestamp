@@ -6324,3 +6324,20 @@ pedal-release parity and seeks at three sample rates, and the existing
 `scripts/browser-experimental-sampler-filter-check.cjs` for controls, persistence
 and static-filter spectral regressions. The latter writes a control screenshot to
 `/tmp/cuestamp-sampler-filter.png` for layout inspection.
+
+### Built-in synth ADSR
+
+`synth-envelope.js` defines track settings and the manual form. Classic mode is the
+backward-compatible default; enabling synthEnvelopeEnabled uses editable ADSR on
+sine/triangle/square/sawtooth voices. `samplerRelease` is the existing shared release
+lookup used by routing/range filtering and now also includes enabled synth release.
+Do not omit synth tails when adding a new playback/export path. Live monitoring
+receives the same track settings. Sampler and drum envelopes remain separate.
+
+Run `test/experimental-synth-envelope.test.js` and the existing oscillator envelope
+tests for atomic edits/defaults, seek timing, release-aware plans, Undo/Redo,
+duplication and mocked-agent commands. Run
+`scripts/browser-experimental-synth-envelope-check.cjs` for manual controls/reload,
+native four-waveform live/arranged sustain-pedal parity at three sample rates,
+release lifetime and seeking into tails. It captures `/tmp/cuestamp-synth-envelope.png`.
+Phase continuity on seek is not implemented by envelope restoration.

@@ -2922,3 +2922,29 @@ MIDI sustain-pedal release and test seeking after filter settling. Maximum obser
 live/arranged PCM difference was 4.40e-7; seek difference 5.33e-7 in these fixtures.
 UI tests cover editing, Undo/Redo and reload; preset and mocked-agent tests cover
 shared settings. Physical MIDI hardware and broader sound-quality testing remain open.
+
+### Editable built-in synth envelopes
+
+The sine, triangle, square and sawtooth instruments now offer **Synth volume
+envelope** controls. Classic mode preserves their existing short in-note envelope.
+ADSR mode adds independent attack/decay (0..10 seconds), sustain (0..1) and release
+(0..30 seconds). ADSR defaults are .008/.1/.8/.2; it is opt-in for existing and new
+tracks. The parameters are stored on the instrument track and copied by track
+ duplication, project persistence and archives. Sampler and drum voices retain
+ their own envelope behavior.
+
+Both arranged voices and live MIDI monitoring use the shared ADSR timing. Note-off
+or pedal release starts the release phase from the current attack/decay/sustain
+level. Source scheduling and routed-tail estimates include synth release, so region
+and full-mix exports retain the tail and seeking after the region end can restore
+it. Region fades can still suppress that tail. Oscillator phase restarts on seek;
+this restores envelope position, not the original waveform phase or effect history.
+
+The agent uses track.add/set synthEnvelopeEnabled, synthAttack, synthDecay,
+synthSustain and synthRelease through the shared validated engine. Fixtures verify
+atomic invalid-setting rejection, defaults, Undo/Redo, duplication, release-aware
+export plans and mocked-provider commands. Native browser fixtures exercise all
+four waveforms at 44.1/48/96 kHz: arranged/live sustain-pedal PCM matched exactly in
+those cases, release energy persisted past note-off, output became silent after
+release, and release-phase seeking remained audible. Controls/reload and layout
+were checked. Physical MIDI and broad cross-browser performance remain unverified.
