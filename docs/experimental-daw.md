@@ -3149,3 +3149,30 @@ physical MIDI and broad sound-quality/performance evaluation remain open.
 
 Final production build and repeated browser checks passed after the layout change;
 the existing large-bundle warning remains.
+
+### Portable synth preset files
+
+Synth presets now have Export preset and Import preset controls. A
+`.cuestamp-synth.json` file contains a versioned `cuestamp-synth` document with
+only a name and validated instrument settings. It contains no project IDs, notes,
+mixer/routing/effects, source media or executable code. Imports are limited to
+16 KiB, require format/version 1, reject unknown fields and validate all settings.
+Import adds a fresh preset ID and disambiguates duplicate names with numbered
+suffixes. It leaves tracks unchanged until Apply, uses Undo/Redo and survives reload.
+Imported settings can be used in any project with the matching synth implementation.
+This supplements project archives; the library itself remains project-local.
+
+`synthPreset.import` takes values.json and optional id, with omitted/current-session
+target. It shares the command engine with the browser import. The browser checks
+session identity and revision after asynchronous file reading before committing.
+`export_synth_preset` is an export-capability-gated agent tool accepting an observed
+saved presetId. It produces the same file as the manual control, without editing
+the session. The agent must not invent imported file content.
+
+Verification: 1,645 tests and production build passed (existing large-bundle
+warning). Browser fixtures downloaded and parsed actual manual and agent files,
+imported into a second project, applied the sound without changing notes, checked
+unique IDs/names, invalid-file atomicity, Undo/Redo and reload. The preset panel was
+visually inspected. Unit tests cover bounds/format/version/size, source-ID exclusion,
+settings fidelity, agent export gating and nonexistent preset rejection. Browser
+agent responses were controlled fixtures; configured live inference remains open.
