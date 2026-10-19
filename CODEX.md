@@ -6470,3 +6470,37 @@ Physical MIDI and configured live inference remain unverified.
 
 Full verification: 1,636 tests passed; production build passed with the existing
 large-bundle warning.
+
+### Polyphonic synth unison
+
+Built-in oscillators now support 1–8 oscillators per MIDI note, a total detune span
+of 0–100 cents and stereo spread of 0–100%. The instrument inspector commits these
+as one undoable edit. Persisted/agent fields are `synthUnisonVoices` (integer 1–8,
+default 1), `synthUnisonDetune` (0–100 cents, default 0), and `synthUnisonWidth`
+(0–1, default 0). Synth presets include all three; legacy sessions/presets use one
+oscillator. Sampler and drum voices ignore these fields.
+
+Detune offsets and pan positions are symmetric and evenly spaced around the tuned
+pitch/center. Oscillator levels are averaged (1/N) before the shared per-note filter
+and volume envelope. All constituent oscillators receive pitch bends, start/stop
+commands and cleanup. One oscillator takes the original native oscillator path.
+Playback, audio exports and live MIDI share the implementation. Phases begin together;
+there is no random analog drift, free-running phase, mono/legato allocator or
+portamento in this feature. Seeking restarts oscillator phase. More oscillators
+increase processing load; live monitor polyphony counts notes, not constituent
+oscillators, so this is not a performance certification at maximal polyphony.
+
+Apple's [Retro Synth settings](https://support.apple.com/guide/logicpro/global-and-controller-settings-lgsi213c4bd3/mac)
+and [ES2 unison guide](https://support.apple.com/en-ca/guide/logicpro/lgsia124d7f/mac)
+describe stacked voices, detune and stereo spread. This is an original polyphonic
+stack implementation, not a reproduction of those instruments' exact voice modes.
+
+Verification: 1,639 tests passed, production build passed with the existing bundle
+warning. Native Chromium fixtures exercise 2/3/8 oscillators at 44.1/48/96 kHz,
+with tuning, bend, filter and ADSR enabled. Live/arranged stereo PCM matched within
+1e-5; zero detune/spread matched a single oscillator within 1e-6, stereo width was
+measurable and released voices became silent and cleaned up. Unit checks cover
+layout, gain normalization, bend forwarding, aggregate end notification, validation,
+preset capture, Undo/Redo and controlled-response agent edits. UI/reload and the
+rendered form were checked. Physical MIDI, sustained load, other browsers and live
+provider inference remain unverified.
